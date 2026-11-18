@@ -7,7 +7,7 @@
 import type { common } from '../i18n/fr/common';
 import type { I18n } from '../i18n/runtime';
 import { copyText, h } from '../lib/dom';
-import { LOCALES, STORAGE, localizeHref, PAGES } from './config';
+import { LOCALES, STORAGE, localizeHref } from './config';
 import { iconNode, type IconName } from './icons';
 
 type CommonKey = keyof typeof common;
@@ -188,7 +188,7 @@ function initLangSwitcher(): void {
       if (open && focusItem) (items().find((item) => item.hasAttribute('aria-current')) ?? items()[0])?.focus();
     };
 
-    trigger.addEventListener('click', () => setOpen(panel.hidden, fromKeyboard()));
+    trigger.addEventListener('click', () => setOpen(panel.hidden !== false, fromKeyboard()));
     trigger.addEventListener('keydown', (event) => {
       if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
         event.preventDefault();
@@ -405,7 +405,7 @@ function initA11y(i18n: I18n<CommonKey>): (open: boolean) => void {
     toggle.setAttribute('aria-expanded', String(open));
     if (open && fromKeyboard()) panel.querySelector<HTMLElement>('input:checked, button')?.focus();
   };
-  toggle.addEventListener('click', () => setOpen(panel.hidden));
+  toggle.addEventListener('click', () => setOpen(panel.hidden !== false));
   dock.addEventListener('keydown', (event) => {
     if (event.key === 'Escape' && !panel.hidden) {
       setOpen(false);
@@ -764,6 +764,4 @@ export function initShared(i18n: I18n<CommonKey>): void {
   initReveal();
   initTabIndicators();
   initOffline();
-  // Home → the full tool, with the URL already typed.
-  for (const link of document.querySelectorAll<HTMLAnchorElement>(`a[data-carry-url][href^="${PAGES.playground}"]`)) void link;
 }

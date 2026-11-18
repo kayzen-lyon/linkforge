@@ -7,7 +7,7 @@
  * that the code does not do.
  */
 import { SITE_ORIGIN } from '../site/config.ts';
-import { code, h2, h3, l, note, ol, p, same, table, terms, ul, type Guide } from './types.ts';
+import { code, h2, l, note, p, same, table, terms, ul, type Guide } from './types.ts';
 
 const O = SITE_ORIGIN;
 const TARGET = 'https://example.com/blog/launch';

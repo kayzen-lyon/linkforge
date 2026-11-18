@@ -122,7 +122,7 @@ function sdk(r: CodeRequest): string {
 }
 
 function python(r: CodeRequest): string {
-  const lines = ['import os', '', 'import requests', ''].filter((line, at) => r.withKey || at > 1);
+  const lines = ['import os', '', 'import requests', ''].filter((_line, at) => r.withKey || at > 1);
   const args = [`    ${q(baseUrl(r))},`];
   if (r.query.length > 0) args.push('    params={', ...r.query.map(([name, value]) => `        ${q(name)}: ${q(value)},`), '    },');
   if (r.method === 'POST') args.push(`    json=${JSON.stringify(r.body ?? {}).replace(/\btrue\b/g, 'True').replace(/\bfalse\b/g, 'False').replace(/\bnull\b/g, 'None')},`);

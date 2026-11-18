@@ -4,7 +4,7 @@
  */
 import { mkdir, open, writeFile, type FileHandle } from 'node:fs/promises';
 import { createRequire } from 'node:module';
-import { resolve } from 'node:path';
+import { isAbsolute, relative, resolve } from 'node:path';
 import type { Readable, Writable } from 'node:stream';
 
 import {
@@ -220,6 +220,12 @@ function assertTargetUrl(url: string): void {
     `${JSON.stringify(url)} is not an absolute http(s) URL`,
     bare ? `Did you mean https://${url}?` : undefined,
   );
+}
+
+/** The path as the user would type it: relative when the file is under the working directory. */
+function shortPath(cwd: string, file: string): string {
+  const path = relative(cwd, file);
+  return path === '' || path.startsWith('..') || isAbsolute(path) ? file : path;
 }
 
 type Outcome =
@@ -441,7 +447,7 @@ async function main(io: Io, setCommand: (name: string) => void): Promise<number>
           return {
             kind: 'ok',
             record: { url, ok: true, file, bytes: bytes.byteLength, type: blob.type },
-            human: formatSaved(file, blob.type, bytes.byteLength, url, out),
+            human: formatSaved(shortPath(cwd, file), blob.type, bytes.byteLength, url, out),
           };
         }
       }

@@ -1,0 +1,20 @@
+/** French text: playground page. */
+export const playground = {
+  'meta.title': 'Bac à sable de l’API · Omnillink',
+  'meta.description': 'Essayez chaque point d’accès de l’API Omnillink sans clé ni inscription : formulaires générés depuis la spécification OpenAPI, durées mesurées, code en huit langages, lien de partage, traitement par lot.',
+  'title': 'Bac à sable',
+  'lead': 'Essayez chaque point d’accès, sans clé ni inscription. Les formulaires sont générés à partir de la spécification OpenAPI de cette instance : un paramètre ajouté à l’API apparaît ici aussitôt.',
+  'privacy': 'Rien n’est envoyé avant que vous ne lanciez une requête. L’adresse saisie est alors transmise à l’API, qui lit la page.',
+  'tips.title': 'Ce que le bac à sable sait faire',
+  'tips.1.title': 'Lien de partage',
+  'tips.1.body': 'L’état du formulaire tient dans l’adresse. Copiez-la pour retrouver ou transmettre une requête. La clé d’API n’en fait jamais partie.',
+  'tips.2.title': 'Lot et export CSV',
+  'tips.2.body': 'Collez plusieurs adresses dans l’onglet Lot : un tableau de résultats, exportable en CSV.',
+  'tips.3.title': 'Comparaison de captures',
+  'tips.3.body': 'Sur `/screenshot`, comparez clair et sombre, ou ordinateur et mobile, côte à côte.',
+  'tips.4.title': 'Collection pour vos outils',
+  'tips.4.body': 'Téléchargez la spécification OpenAPI, ou une collection Postman générée à partir d’elle.',
+  'dl.openapi': 'Spécification OpenAPI (JSON)',
+  'dl.postman': 'Collection Postman',
+  'dl.failed': 'La collection n’a pas pu être générée : la spécification est indisponible.',
+};
