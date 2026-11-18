@@ -8,12 +8,13 @@
  */
 import type { common, docs } from '../i18n/fr';
 import type { Lang } from '../lib/highlight';
+import { SITE_ORIGIN } from '../site/config';
 
 export type DocsKey = keyof typeof docs;
 export type CommonKey = keyof typeof common;
 
 /** Origin used in the examples; the page swaps it for the real origin at runtime. */
-export const EXAMPLE_ORIGIN = 'http://localhost:3000';
+export const EXAMPLE_ORIGIN = SITE_ORIGIN;
 const TARGET = 'https://example.com/blog/launch';
 const ENCODED_TARGET = encodeURIComponent(TARGET);
 
@@ -63,7 +64,7 @@ const RENDER_PARAM: Row = {
   description: 'p.render',
 };
 const FORCE_PARAM: Row = { name: 'force', type: '`boolean`', fallback: '`false`', description: 'p.force' };
-const TTL_PARAM: Row = { name: 'ttl', type: '`string`', description: 'p.ttl' };
+const TTL_PARAM: Row = { name: 'ttl', type: '`integer`', description: 'p.ttl' };
 
 const json = (value: unknown): string => JSON.stringify(value, null, 2);
 
@@ -115,7 +116,7 @@ export const ENDPOINTS: readonly Endpoint[] = [
           { name: 'video', type: '`object` | `null`', description: 'meta.f.video' },
           { name: 'audio', type: '`object` | `null`', description: 'meta.f.audio' },
           { name: 'keywords', type: '`string[]`', description: 'meta.f.keywords' },
-          { name: 'feeds', type: '`array`', description: 'meta.f.feeds' },
+          { name: 'feeds', type: '`object[]`', description: 'meta.f.feeds' },
           { name: 'jsonLd', type: '`object[]`', description: 'meta.f.jsonLd' },
           { name: 'contentType', type: '`string` | `null`', description: 'meta.f.contentType' },
         ],
@@ -148,7 +149,7 @@ export const ENDPOINTS: readonly Endpoint[] = [
             video: null,
             audio: null,
             keywords: ['editor', 'release'],
-            feeds: [],
+            feeds: [{ url: 'https://example.com/feed.xml', title: 'Example Blog', type: 'application/rss+xml' }],
             jsonLd: [{ '@type': 'BlogPosting', headline: 'Launching the new editor' }],
             contentType: 'text/html',
           },
@@ -185,7 +186,6 @@ export const ENDPOINTS: readonly Endpoint[] = [
       {
         name: 'colorScheme',
         type: '`light` | `dark`',
-        fallback: '`light`',
         description: 'screenshot.p.colorScheme',
       },
       { name: 'hide', type: '`string`', description: 'screenshot.p.hide' },
@@ -261,6 +261,7 @@ export const ENDPOINTS: readonly Endpoint[] = [
         ],
       },
     ],
+    notes: ['extract.note', 'html.note'],
     samples: [
       { label: 'sample.rules', lang: 'json', code: json(EXTRACT_RULES) },
       {

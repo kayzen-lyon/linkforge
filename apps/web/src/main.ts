@@ -222,7 +222,8 @@ function renderStatus(tab: EndpointName): void {
       const detail =
         failure.message === ''
           ? null
-          : h('p', { class: 'status-detail' }, `${i18n.t('demo.error.apiMessage')} ${failure.message}`);
+          : // The API speaks English whatever the page language: say so to assistive tech.
+            h('p', { class: 'status-detail' }, `${i18n.t('demo.error.apiMessage')} `, h('span', { lang: 'en' }, failure.message));
       box.replaceChildren(title, line, detail ?? '');
     } else if (failure.kind === 'network') {
       box.replaceChildren(title, h('p', {}, i18n.t('demo.error.network')));
@@ -247,7 +248,7 @@ function setImage(image: HTMLImageElement, source: unknown): void {
 function formatDate(value: string): string {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat(i18n.lang(), { dateStyle: 'long' }).format(date);
+  return new Intl.DateTimeFormat(i18n.lang() === 'fr' ? 'fr-FR' : 'en-GB', { dateStyle: 'long' }).format(date);
 }
 
 function renderMeta(body: Success): void {
@@ -287,11 +288,12 @@ function renderContent(body: Success): void {
   const { data } = body;
   const markdown = text(data['markdown']);
   const plain = text(data['text']);
-  const mode = checked('content-view-markdown') ? 'markdown' : checked('content-view-text') ? 'text' : 'rendered';
 
+  const mode = checked('content-view-markdown') ? 'markdown' : checked('content-view-text') ? 'text' : 'rendered';
   const title = byId('content-title');
   title.textContent = text(data['title']) ?? '';
-  title.hidden = title.textContent === '';
+  // The Markdown usually opens with the same title: do not show it twice.
+  title.hidden = title.textContent === '' || (mode === 'rendered' && /^\s*#\s/.test(markdown ?? ''));
 
   const stats =
     typeof data['wordCount'] === 'number' && typeof data['readingTimeMinutes'] === 'number'
@@ -386,11 +388,10 @@ function validateRules(): boolean {
 }
 
 /**
- * Calls the endpoint behind `tab`.
- * @param quiet - On failure, fall back to the idle state instead of an error
- *   (used for the request made on page load, which nobody asked for).
+ * Calls the endpoint behind `tab`. Nothing is requested before the visitor
+ * presses "Run": a preview makes their browser load images from the target site.
  */
-async function run(tab: EndpointName, quiet = false): Promise<void> {
+async function run(tab: EndpointName): Promise<void> {
   if (tab === 'pdf') return; // Generated when the visitor opens the link.
   if (tab === 'extract' && !validateRules()) return;
 
@@ -413,11 +414,6 @@ async function run(tab: EndpointName, quiet = false): Promise<void> {
     }
   } catch (error) {
     if (controller.signal.aborted) return;
-    if (quiet) {
-      delete lastPath[tab];
-      setView(tab, { state: 'idle' });
-      return;
-    }
     const failure: Failure = error instanceof RequestError ? error.failure : { kind: 'network' };
     setView(tab, { state: 'error', failure });
   }
@@ -461,6 +457,16 @@ urlInput.addEventListener('input', () => {
 initTablist(tablist, (tab) => {
   const name = tab.dataset['tab'];
   if (isTab(name)) selectTab(name);
+});
+// A short fade when a tab is picked with a pointer. Arrow-key navigation stays
+// instant: it is repeated quickly and animation would only make it feel slow.
+tablist.addEventListener('pointerup', (event) => {
+  const name = event.target instanceof Element ? event.target.closest<HTMLElement>('[role="tab"]')?.dataset['tab'] : undefined;
+  if (!isTab(name)) return;
+  const panel = byId(`panel-${name}`);
+  panel.classList.remove('panel-enter');
+  void panel.offsetWidth;
+  panel.classList.add('panel-enter');
 });
 
 for (const id of ['shot-desktop', 'shot-mobile', 'shot-full', 'shot-dark']) {
@@ -521,8 +527,3 @@ i18n.onChange(() => {
 
 for (const tab of TABS) renderStatus(tab);
 selectTab('meta', false);
-
-// Show a real response straight away. If the request fails (API asleep, target
-// unreachable), stay on the idle state rather than greeting visitors with an error.
-started = true;
-void run('meta', true);

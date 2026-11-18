@@ -1,20 +1,19 @@
 /**
- * Client-side language switching.
+ * Client-side language handling.
  *
- * The HTML ships in French (filled in at build time). Elements carry
- * `data-i18n="key"` for their content and `data-i18n-attr="attr:key;…"` for
- * attributes; switching language re-renders them in place, without a reload.
- * The choice is stored, mirrored in `<html lang>` and in `?lang=` so a
- * language can be linked.
+ * Every page is built once per language (French at the root, English under
+ * `/en`), so the HTML a visitor or a crawler receives is already in the
+ * language of its URL. This module adds comfort on top: the FR / EN switch
+ * re-renders the page in place and moves to the other URL with `pushState`,
+ * so no state is lost (a demo result stays on screen). Elements carry
+ * `data-i18n="key"` for content and `data-i18n-attr="attr:key;…"` for attributes.
  */
 import { h } from '../lib/dom';
 import { isExternal, parseInline } from '../lib/inline';
+import { STORAGE, isLang, localizeHref, pagePath, parsePath, type Lang } from '../site/config';
 
-export type Lang = 'fr' | 'en';
+export type { Lang };
 export type Vars = Readonly<Record<string, string | number>>;
-
-const STORAGE_KEY = 'lf-lang';
-const isLang = (value: unknown): value is Lang => value === 'fr' || value === 'en';
 
 export interface I18n<K extends string> {
   /** Plain-text translation, with `{name}` placeholders replaced. */
@@ -28,9 +27,7 @@ export interface I18n<K extends string> {
 
 function fill(template: string, vars: Vars | undefined): string {
   if (vars === undefined) return template;
-  return template.replace(/\{(\w+)\}/g, (whole, name: string) =>
-    name in vars ? String(vars[name]) : whole,
-  );
+  return template.replace(/\{(\w+)\}/g, (whole, name: string) => (name in vars ? String(vars[name]) : whole));
 }
 
 function renderInline(target: Element, source: string): void {
@@ -49,85 +46,65 @@ function renderInline(target: Element, source: string): void {
   target.replaceChildren(...nodes);
 }
 
-function readStored(): Lang | null {
-  try {
-    const value = localStorage.getItem(STORAGE_KEY);
-    return isLang(value) ? value : null;
-  } catch {
-    return null;
-  }
-}
-
 export function createI18n<K extends string>(dicts: Readonly<Record<Lang, Readonly<Record<K, string>>>>): I18n<K> {
-  const fromUrl = new URLSearchParams(location.search).get('lang');
-  const stored = readStored();
-  let current: Lang = isLang(fromUrl) ? fromUrl : (stored ?? 'fr');
-  // Once a language was chosen (by link or by switch) it travels in the URL.
-  let explicit = isLang(fromUrl) || stored !== null;
+  const { page } = parsePath(location.pathname);
+  let current: Lang = parsePath(location.pathname).lang;
   const listeners: Array<(lang: Lang) => void> = [];
-
   const lookup = (key: string): string | undefined => (dicts[current] as Record<string, string>)[key];
 
   function translateDom(): void {
     for (const node of document.querySelectorAll('[data-i18n]')) {
-      const text = lookup(node.getAttribute('data-i18n') ?? '');
-      if (text !== undefined) renderInline(node, text);
+      const value = lookup(node.getAttribute('data-i18n') ?? '');
+      if (value === undefined) continue;
+      if (node instanceof HTMLTitleElement) node.textContent = value;
+      else renderInline(node, value);
     }
     for (const node of document.querySelectorAll('[data-i18n-attr]')) {
       for (const pair of (node.getAttribute('data-i18n-attr') ?? '').split(';')) {
-        const [attr, key] = pair.split(':');
-        const text = key === undefined ? undefined : lookup(key);
-        if (attr !== undefined && text !== undefined) node.setAttribute(attr, text);
+        const [attribute, key] = pair.split(':');
+        const value = key === undefined ? undefined : lookup(key);
+        if (attribute !== undefined && value !== undefined) node.setAttribute(attribute, value);
       }
     }
-  }
-
-  /** Keeps `<html lang>`, the switcher, the address bar and internal links in step. */
-  function syncChrome(): void {
     document.documentElement.lang = current;
-    for (const button of document.querySelectorAll<HTMLElement>('[data-lang]')) {
-      button.setAttribute('aria-pressed', String(button.dataset['lang'] === current));
+    for (const link of document.querySelectorAll<HTMLAnchorElement>('a[data-lang]')) {
+      if (link.dataset['lang'] === current) link.setAttribute('aria-current', 'true');
+      else link.removeAttribute('aria-current');
     }
-    if (!explicit) return;
-
-    const url = new URL(location.href);
-    if (url.searchParams.get('lang') !== current) {
-      url.searchParams.set('lang', current);
-      history.replaceState(history.state, '', url);
-    }
-    for (const link of document.querySelectorAll<HTMLAnchorElement>('a[href^="/"]')) {
-      const target = new URL(link.href);
-      if (target.pathname.startsWith('/api/') || target.pathname === '/health') continue;
-      target.searchParams.set('lang', current);
-      link.setAttribute('href', `${target.pathname}${target.search}${target.hash}`);
+    // Internal links follow the language; the switch itself keeps its fixed targets.
+    for (const link of document.querySelectorAll<HTMLAnchorElement>('a[href^="/"]:not([data-lang])')) {
+      const href = link.getAttribute('href') ?? '';
+      const localized = localizeHref(href, current);
+      if (localized !== href) link.setAttribute('href', localized);
     }
   }
 
-  function setLang(next: Lang): void {
-    explicit = true;
-    try {
-      localStorage.setItem(STORAGE_KEY, next);
-    } catch {
-      // Storage unavailable: the URL still carries the choice.
-    }
-    const changed = next !== current;
+  function apply(next: Lang): void {
+    if (next === current) return;
     current = next;
-    if (changed) translateDom();
-    syncChrome();
-    if (changed) for (const listener of listeners) listener(current);
+    translateDom();
+    for (const listener of listeners) listener(current);
   }
 
   document.addEventListener('click', (event) => {
-    if (!(event.target instanceof Element)) return;
-    const button = event.target.closest<HTMLElement>('[data-lang]');
-    const next = button?.dataset['lang'];
-    if (isLang(next)) setLang(next);
+    if (!(event.target instanceof Element) || event.defaultPrevented) return;
+    if (event instanceof MouseEvent && (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0)) return;
+    const link = event.target.closest<HTMLAnchorElement>('a[data-lang]');
+    const next = link?.dataset['lang'];
+    if (!isLang(next)) return;
+    event.preventDefault();
+    try {
+      localStorage.setItem(STORAGE.lang, next);
+    } catch {
+      // Storage unavailable: the URL still carries the choice.
+    }
+    if (next === current) return;
+    history.pushState(null, '', `${pagePath(page, next)}${location.search}${location.hash}`);
+    apply(next);
   });
 
-  // The markup is French already: only translate on load for another language.
-  if (current !== 'fr') translateDom();
-  syncChrome();
-  document.documentElement.classList.remove('i18n-pending');
+  // Back / forward between the two language URLs of the same page.
+  window.addEventListener('popstate', () => apply(parsePath(location.pathname).lang));
 
   return {
     t: (key, vars) => fill(dicts[current][key], vars),

@@ -9,7 +9,7 @@
 /** Strings used on every page: header, footer, shared controls, API errors. */
 export const common = {
   'skip': 'Aller au contenu',
-  'brand.home': 'Accueil Omnillink',
+  'brand.home': 'Omnillink, accueil',
   'nav.label': 'Navigation principale',
   'nav.demo': 'Démo',
   'nav.features': 'Fonctionnalités',
@@ -251,7 +251,9 @@ export const home = {
   'how.eyebrow': 'Fonctionnement',
   'how.title': 'Comment ça marche',
   'how.lead': 'Trois étapes, une seule requête de votre côté.',
-  'how.step': 'Étape {n}',
+  'how.step.1': 'Étape 1',
+  'how.step.2': 'Étape 2',
+  'how.step.3': 'Étape 3',
   'how.1.title': 'Vous envoyez une URL',
   'how.1.body': 'Une requête `GET` avec l’adresse de la page et, si besoin, quelques options. Aucune clé n’est requise pour commencer.',
   'how.2.title': 'Omnillink lit la page en sécurité',

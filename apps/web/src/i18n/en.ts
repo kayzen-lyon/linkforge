@@ -8,7 +8,7 @@ type Like<T> = Record<keyof T, string>;
 
 export const common: Like<typeof fr.common> = {
   'skip': 'Skip to content',
-  'brand.home': 'Omnillink home',
+  'brand.home': 'Omnillink, home',
   'nav.label': 'Main navigation',
   'nav.demo': 'Demo',
   'nav.features': 'Features',
@@ -243,7 +243,9 @@ export const home: Like<typeof fr.home> = {
   'how.eyebrow': 'How it works',
   'how.title': 'How it works',
   'how.lead': 'Three steps, a single request on your side.',
-  'how.step': 'Step {n}',
+  'how.step.1': 'Step 1',
+  'how.step.2': 'Step 2',
+  'how.step.3': 'Step 3',
   'how.1.title': 'You send a URL',
   'how.1.body': 'A `GET` request with the address of the page and, if needed, a few options. No key is required to get started.',
   'how.2.title': 'Omnillink reads the page safely',

@@ -10,27 +10,29 @@
   <body>
     <!--@header-->
 
-    <div class="shell lg:grid lg:grid-cols-[14rem_minmax(0,1fr)] lg:gap-12">
-      <details class="toc-mobile" id="toc-mobile">
-        <summary data-i18n="toc.label"></summary>
-        <nav class="toc-mobile-body" data-i18n-attr="aria-label:toc.label">
-          <!--@docs-nav-->
-        </nav>
-      </details>
-      <aside class="toc-side">
-        <nav data-i18n-attr="aria-label:toc.label" class="pt-12">
-          <!--@docs-nav-->
-        </nav>
-      </aside>
+    <div class="page-main">
+      <div class="shell lg:grid lg:grid-cols-[15rem_minmax(0,1fr)] lg:gap-12">
+        <details class="toc-mobile" id="toc-mobile">
+          <summary data-i18n="toc.label"></summary>
+          <nav class="toc-mobile-body" data-i18n-attr="aria-label:toc.label">
+            <!--@docs-nav-->
+          </nav>
+        </details>
+        <aside class="toc-side">
+          <nav class="pt-8" data-i18n-attr="aria-label:toc.label">
+            <!--@docs-nav-->
+          </nav>
+        </aside>
 
-      <main id="main" class="doc pt-10 lg:pt-12">
-        <header class="flex flex-col gap-3 pb-10">
-          <p class="eyebrow">/api/v1</p>
-          <h1 class="text-[clamp(2rem,1.4rem+2.6vw,2.75rem)] leading-[1.1] font-extrabold tracking-[-0.03em]" data-i18n="title"></h1>
-          <p class="section-lead" data-i18n="lead"></p>
-        </header>
-        <!--@docs-body-->
-      </main>
+        <main id="main" class="doc rich pt-10 pb-8 lg:pt-14" tabindex="-1">
+          <header class="flex flex-col gap-4 pb-10">
+            <!--@breadcrumb-->
+            <h1 data-i18n="title"></h1>
+            <p class="lead" data-i18n="lead"></p>
+          </header>
+          <!--@docs-body-->
+        </main>
+      </div>
     </div>
 
     <!--@footer-->

@@ -10,22 +10,29 @@
   <body>
     <!--@header-->
 
-    <main id="main">
-      <!-- Hero -->
-      <section class="shell grid gap-10 pt-12 pb-14 sm:pt-16 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] lg:items-center lg:gap-14 lg:pb-20">
-        <div class="flex min-w-0 flex-col items-start gap-5">
-          <p class="eyebrow" data-i18n="hero.eyebrow"></p>
-          <h1 class="text-[clamp(2.125rem,1.3rem+3.6vw,3.5rem)] leading-[1.05] font-extrabold tracking-[-0.035em]" data-i18n="hero.title"></h1>
-          <p class="section-lead" data-i18n="hero.lead"></p>
-          <div class="flex w-full flex-col gap-3 min-[480px]:w-auto min-[480px]:flex-row">
-            <a class="btn btn-primary" href="#demo" data-i18n="hero.cta.demo"></a>
+    <main id="main" class="page-main" tabindex="-1">
+      <!-- Hero: what it is -->
+      <section class="shell grid items-center gap-10 pt-10 pb-14 md:pt-16 lg:grid-cols-2 lg:gap-16 lg:pb-20" aria-labelledby="hero-title">
+        <div class="min-w-0">
+          <p class="eyebrow mb-5" data-i18n="hero.eyebrow"></p>
+          <h1 id="hero-title" class="mb-5"><span data-i18n="hero.title.a"></span> <span class="text-accent" data-i18n="hero.title.b"></span></h1>
+          <p class="lead mb-8 md:text-xl" data-i18n="hero.lead"></p>
+          <ul class="mb-8 flex flex-wrap gap-2.5">
+            <li class="chip"><svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg><span data-i18n="hero.chip.mit"></span></li>
+            <li class="chip"><svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg><span data-i18n="hero.chip.selfHost"></span></li>
+            <li class="chip"><svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg><span data-i18n="hero.chip.ssrf"></span></li>
+            <li class="chip"><svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg><span data-i18n="hero.chip.openapi"></span></li>
+          </ul>
+          <div class="flex flex-col gap-3 sm:flex-row">
+            <a class="btn btn-primary" href="#demo"><span data-i18n="hero.cta.demo"></span><svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
             <a class="btn btn-secondary" href="/docs" data-i18n="hero.cta.docs"></a>
           </div>
+          <p class="mt-4"><a class="text-link" href="https://github.com/kayzen-lyon/linkforge" rel="noopener"><span class="link-grow" data-i18n="hero.cta.github"></span><svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8"/></svg></a></p>
         </div>
 
-        <div class="manifest min-w-0">
-          <p class="manifest-title" data-i18n="manifest.title"></p>
-          <ul>
+        <div class="manifest glass-premium min-w-0">
+          <p class="manifest-title" id="manifest-title" data-i18n="manifest.title"></p>
+          <ul aria-labelledby="manifest-title">
             <li>
               <button type="button" class="manifest-row" data-goto="meta">
                 <span class="manifest-path"><span class="verb">GET</span>/meta</span>
@@ -60,30 +67,31 @@
         </div>
       </section>
 
-      <!-- Live demo -->
-      <section id="demo" class="shell flex scroll-mt-20 flex-col gap-6" aria-labelledby="demo-title">
-        <div class="flex flex-col gap-2">
-          <h2 id="demo-title" class="section-title" data-i18n="demo.title"></h2>
-          <p class="section-lead" data-i18n="demo.lead"></p>
+      <!-- Live demo: one scroll away -->
+      <section id="demo" class="surface-sunken section-y" aria-labelledby="demo-title">
+        <div class="shell">
+        <div class="section-head">
+          <p class="eyebrow" data-i18n="demo.eyebrow"></p>
+          <h2 id="demo-title" data-i18n="demo.title"></h2>
+          <p class="lead" data-i18n="demo.lead"></p>
         </div>
-
-        <div class="workbench min-w-0">
-          <form id="demo-form" class="flex flex-col gap-2 p-4 sm:flex-row sm:items-end" novalidate>
+        <div class="workbench glass-premium min-w-0">
+          <form id="demo-form" class="flex flex-col gap-3 p-5 sm:flex-row sm:items-end" novalidate>
             <div class="flex min-w-0 flex-1 flex-col gap-1">
               <label for="demo-url" class="control-label" data-i18n="demo.url.label"></label>
               <input id="demo-url" name="url" class="field" type="url" inputmode="url" autocomplete="off" spellcheck="false" autocapitalize="off" required value="https://github.com/kayzen-lyon/linkforge" />
             </div>
-            <button id="demo-run" type="submit" class="btn btn-primary sm:min-w-28" data-i18n="demo.run"></button>
+            <button id="demo-run" type="submit" class="btn btn-primary btn-compact min-h-12! sm:min-w-32" data-i18n="demo.run"></button>
           </form>
-          <p id="demo-url-error" class="mx-4 mb-3 text-sm font-medium text-(--danger)" role="alert" hidden></p>
+          <p id="demo-url-error" class="field-error mx-5 mb-3" role="alert" hidden></p>
 
-          <div class="tabs" role="tablist" data-i18n-attr="aria-label:demo.tabs.label">
+          <div class="px-5 pb-4"><div class="tabs" role="tablist" data-i18n-attr="aria-label:demo.tabs.label">
             <button type="button" class="tab" role="tab" id="tab-meta" aria-controls="panel-meta" aria-selected="true" data-tab="meta" data-i18n="demo.tab.meta"></button>
             <button type="button" class="tab" role="tab" id="tab-screenshot" aria-controls="panel-screenshot" aria-selected="false" tabindex="-1" data-tab="screenshot" data-i18n="demo.tab.screenshot"></button>
             <button type="button" class="tab" role="tab" id="tab-pdf" aria-controls="panel-pdf" aria-selected="false" tabindex="-1" data-tab="pdf" data-i18n="demo.tab.pdf"></button>
             <button type="button" class="tab" role="tab" id="tab-extract" aria-controls="panel-extract" aria-selected="false" tabindex="-1" data-tab="extract" data-i18n="demo.tab.extract"></button>
             <button type="button" class="tab" role="tab" id="tab-content" aria-controls="panel-content" aria-selected="false" tabindex="-1" data-tab="content" data-i18n="demo.tab.content"></button>
-          </div>
+          </div></div>
 
           <div class="request-line">
             <span class="verb">GET</span>
@@ -92,20 +100,21 @@
           </div>
 
           <!-- Metadata -->
-          <div id="panel-meta" class="flex flex-col gap-4 p-4" role="tabpanel" aria-labelledby="tab-meta" tabindex="0">
+          <div id="panel-meta" class="flex flex-col gap-5 p-5" role="tabpanel" aria-labelledby="tab-meta" tabindex="0">
             <div id="status-meta" class="status" role="status" data-state="idle"></div>
             <div id="result-meta" class="grid gap-5 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]" hidden>
               <div class="flex min-w-0 flex-col gap-3">
                 <p class="pane-label"><span data-i18n="demo.meta.preview"></span></p>
                 <a id="meta-card" class="preview-card" target="_blank" rel="noopener noreferrer nofollow">
-                  <img id="meta-image" class="preview-image" alt="" hidden />
+                  <span class="sr-only" data-i18n="newTab"></span>
+                  <img id="meta-image" class="preview-image" alt="" width="1200" height="630" hidden />
                   <span class="flex flex-col gap-1 p-4">
-                    <span class="flex items-center gap-2 text-xs text-muted">
-                      <img id="meta-favicon" class="size-4 rounded-sm" alt="" hidden />
+                    <span class="flex items-center gap-2 text-xs text-muted-foreground">
+                      <img id="meta-favicon" class="size-4 rounded-sm" alt="" width="16" height="16" hidden />
                       <span id="meta-host" class="truncate font-mono"></span>
                     </span>
-                    <span id="meta-title" class="line-clamp-2 font-bold leading-snug"></span>
-                    <span id="meta-description" class="line-clamp-3 text-sm text-muted"></span>
+                    <span id="meta-title" class="line-clamp-2 font-display text-lg leading-snug font-bold text-navy"></span>
+                    <span id="meta-description" class="line-clamp-3 text-sm text-muted-foreground"></span>
                   </span>
                 </a>
                 <dl id="meta-facts" class="facts"></dl>
@@ -120,7 +129,7 @@
           </div>
 
           <!-- Screenshot -->
-          <div id="panel-screenshot" class="flex flex-col gap-4 p-4" role="tabpanel" aria-labelledby="tab-screenshot" tabindex="0" hidden>
+          <div id="panel-screenshot" class="flex flex-col gap-5 p-5" role="tabpanel" aria-labelledby="tab-screenshot" tabindex="0" hidden>
             <div class="flex flex-wrap items-center gap-x-5 gap-y-3">
               <fieldset class="flex items-center gap-2">
                 <legend class="sr-only" data-i18n="demo.shot.device"></legend>
@@ -135,12 +144,12 @@
             <div id="status-screenshot" class="status" role="status" data-state="idle"></div>
             <div id="result-screenshot" class="flex flex-col gap-3" hidden>
               <div id="shot-frame" class="shot-frame" data-device="desktop" tabindex="0"><img id="shot-image" alt="" /></div>
-              <p><a id="shot-open" class="btn btn-secondary btn-sm" target="_blank" rel="noopener" data-i18n="demo.shot.open"></a></p>
+              <p><a id="shot-open" class="btn btn-secondary btn-compact" target="_blank" rel="noopener" data-i18n="demo.shot.open"></a></p>
             </div>
           </div>
 
           <!-- PDF -->
-          <div id="panel-pdf" class="flex flex-col gap-4 p-4" role="tabpanel" aria-labelledby="tab-pdf" tabindex="0" hidden>
+          <div id="panel-pdf" class="flex flex-col gap-5 p-5" role="tabpanel" aria-labelledby="tab-pdf" tabindex="0" hidden>
             <div class="flex flex-wrap items-center gap-x-5 gap-y-3">
               <label class="flex items-center gap-2"><span class="control-label" data-i18n="demo.pdf.format"></span>
                 <select id="pdf-format" class="field">
@@ -152,19 +161,19 @@
               <label class="check"><input type="checkbox" id="pdf-background" checked /><span data-i18n="demo.pdf.background"></span></label>
             </div>
             <div class="flex flex-col gap-3 min-[480px]:flex-row">
-              <a id="pdf-open" class="btn btn-primary" target="_blank" rel="noopener" data-i18n="demo.pdf.open"></a>
-              <a id="pdf-download" class="btn btn-secondary" download="page.pdf" data-i18n="demo.pdf.download"></a>
+              <a id="pdf-open" class="btn btn-primary btn-compact min-h-12!" target="_blank" rel="noopener" data-i18n="demo.pdf.open"></a>
+              <a id="pdf-download" class="btn btn-secondary btn-compact min-h-12!" download="page.pdf" data-i18n="demo.pdf.download"></a>
             </div>
-            <p class="text-sm text-muted" data-i18n="demo.pdf.note"></p>
+            <p class="text-sm text-muted-foreground" data-i18n="demo.pdf.note"></p>
           </div>
 
           <!-- Extract -->
-          <div id="panel-extract" class="grid gap-5 p-4 lg:grid-cols-2" role="tabpanel" aria-labelledby="tab-extract" tabindex="0" hidden>
+          <div id="panel-extract" class="grid gap-6 p-5 lg:grid-cols-2" role="tabpanel" aria-labelledby="tab-extract" tabindex="0" hidden>
             <div class="flex min-w-0 flex-col gap-2">
               <label for="extract-rules" class="pane-label" data-i18n="demo.extract.rules"></label>
               <textarea id="extract-rules" class="field" spellcheck="false" autocomplete="off" autocapitalize="off" aria-describedby="extract-hint extract-error"></textarea>
-              <p id="extract-hint" class="hint text-sm text-muted" data-i18n="demo.extract.hint"></p>
-              <p id="extract-error" class="text-sm font-medium text-(--danger)" role="alert" hidden></p>
+              <p id="extract-hint" class="hint text-sm text-muted-foreground" data-i18n="demo.extract.hint"></p>
+              <p id="extract-error" class="field-error" role="alert" hidden></p>
             </div>
             <div class="flex min-w-0 flex-col gap-3">
               <p class="pane-label"><span data-i18n="demo.extract.result"></span><span id="extract-badges" class="flex flex-wrap gap-1.5"></span></p>
@@ -176,7 +185,7 @@
           </div>
 
           <!-- Content -->
-          <div id="panel-content" class="flex flex-col gap-4 p-4" role="tabpanel" aria-labelledby="tab-content" tabindex="0" hidden>
+          <div id="panel-content" class="flex flex-col gap-5 p-5" role="tabpanel" aria-labelledby="tab-content" tabindex="0" hidden>
             <div class="flex flex-wrap items-center gap-x-5 gap-y-3">
               <fieldset>
                 <legend class="sr-only" data-i18n="demo.content.view"></legend>
@@ -190,7 +199,7 @@
             </div>
             <div id="status-content" class="status" role="status" data-state="idle"></div>
             <div id="result-content" class="flex flex-col gap-3" hidden>
-              <h3 id="content-title" class="text-xl leading-tight font-bold"></h3>
+              <h3 id="content-title"></h3>
               <div id="content-rendered" class="md" tabindex="0"></div>
               <figure id="content-raw" class="code" hidden>
                 <pre class="wrap" tabindex="0"><code id="content-raw-code"></code></pre>
@@ -198,105 +207,228 @@
             </div>
           </div>
         </div>
+        </div>
+      </section>
+
+      <!-- Who it is for -->
+      <section id="use-cases" class="section-y" aria-labelledby="usecases-title">
+        <div class="shell">
+        <div class="section-head">
+          <p class="eyebrow" data-i18n="usecases.eyebrow"></p>
+          <h2 id="usecases-title" data-i18n="usecases.title"></h2>
+          <p class="lead" data-i18n="usecases.lead"></p>
+        </div>
+          <ul class="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
+            <li><article class="feature-card glass-strong card-lift">
+              <div class="mb-6 flex items-center justify-between gap-3"><span class="icon-tile"><svg class="size-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.1 0l3-3a5 5 0 0 0-7.1-7.1l-1.2 1.2"/><path d="M14 11a5 5 0 0 0-7.1 0l-3 3A5 5 0 0 0 11 21.1l1.2-1.2"/></svg></span><span class="flex flex-wrap justify-end gap-1.5"><span class="tag">/meta</span></span></div>
+              <h3 data-i18n="usecases.1.title"></h3>
+              <p data-i18n="usecases.1.body"></p>
+            </article></li>
+            <li><article class="feature-card glass-strong card-lift">
+              <div class="mb-6 flex items-center justify-between gap-3"><span class="icon-tile"><svg class="size-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="8" width="16" height="12" rx="3"/><path d="M12 8V4M9 13v2M15 13v2"/><circle cx="12" cy="3" r="1"/></svg></span><span class="flex flex-wrap justify-end gap-1.5"><span class="tag">/content</span></span></div>
+              <h3 data-i18n="usecases.2.title"></h3>
+              <p data-i18n="usecases.2.body"></p>
+            </article></li>
+            <li><article class="feature-card glass-strong card-lift">
+              <div class="mb-6 flex items-center justify-between gap-3"><span class="icon-tile"><svg class="size-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z"/><circle cx="12" cy="13" r="3.5"/></svg></span><span class="flex flex-wrap justify-end gap-1.5"><span class="tag">/screenshot</span><span class="tag">/pdf</span></span></div>
+              <h3 data-i18n="usecases.3.title"></h3>
+              <p data-i18n="usecases.3.body"></p>
+            </article></li>
+            <li><article class="feature-card glass-strong card-lift">
+              <div class="mb-6 flex items-center justify-between gap-3"><span class="icon-tile"><svg class="size-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V4M4 20h16M8 16v-4M12 16V8M16 16v-6"/></svg></span><span class="flex flex-wrap justify-end gap-1.5"><span class="tag">/extract</span></span></div>
+              <h3 data-i18n="usecases.4.title"></h3>
+              <p data-i18n="usecases.4.body"></p>
+            </article></li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- How it works -->
+      <section id="how" class="surface-sunken section-y" aria-labelledby="how-title">
+        <div class="shell">
+        <div class="section-head">
+          <p class="eyebrow" data-i18n="how.eyebrow"></p>
+          <h2 id="how-title" data-i18n="how.title"></h2>
+          <p class="lead" data-i18n="how.lead"></p>
+        </div>
+          <ol class="grid grid-cols-1 gap-6 md:grid-cols-3">
+            <li><article class="feature-card glass-strong">
+              <p class="mb-4 flex items-center gap-4"><span class="step-num" aria-hidden="true">01</span><span class="sr-only" data-i18n="how.step.1"></span></p>
+              <h3 data-i18n="how.1.title"></h3>
+              <p class="rich" data-i18n="how.1.body"></p>
+            </article></li>
+            <li><article class="feature-card glass-strong">
+              <p class="mb-4 flex items-center gap-4"><span class="step-num" aria-hidden="true">02</span><span class="sr-only" data-i18n="how.step.2"></span></p>
+              <h3 data-i18n="how.2.title"></h3>
+              <p class="rich" data-i18n="how.2.body"></p>
+            </article></li>
+            <li><article class="feature-card glass-strong">
+              <p class="mb-4 flex items-center gap-4"><span class="step-num" aria-hidden="true">03</span><span class="sr-only" data-i18n="how.step.3"></span></p>
+              <h3 data-i18n="how.3.title"></h3>
+              <p class="rich" data-i18n="how.3.body"></p>
+            </article></li>
+          </ol>
+        </div>
       </section>
 
       <!-- Features -->
-      <section id="features" class="shell mt-24 flex scroll-mt-20 flex-col gap-8" aria-labelledby="features-title">
-        <div class="flex flex-col gap-2">
-          <h2 id="features-title" class="section-title" data-i18n="features.title"></h2>
-          <p class="section-lead" data-i18n="features.lead"></p>
+      <section id="features" class="section-y" aria-labelledby="features-title">
+        <div class="shell">
+        <div class="section-head">
+          <p class="eyebrow" data-i18n="features.eyebrow"></p>
+          <h2 id="features-title" data-i18n="features.title"></h2>
+          <p class="lead" data-i18n="features.lead"></p>
         </div>
-        <div class="grid gap-5 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-          <article class="feature feature-lg">
-            <h3 data-i18n="features.pipeline.title"></h3>
-            <p data-i18n="features.pipeline.body"></p>
-            <ol class="pipeline">
-              <li data-i18n="features.pipeline.step1"></li>
-              <li data-i18n="features.pipeline.step2"></li>
-              <li data-i18n="features.pipeline.step3"></li>
-              <li class="optional" data-i18n="features.pipeline.step4"></li>
-              <li data-i18n="features.pipeline.step5"></li>
-            </ol>
-          </article>
-          <article class="feature feature-lg">
-            <h3 data-i18n="features.ssrf.title"></h3>
-            <p data-i18n="features.ssrf.body"></p>
-          </article>
-        </div>
-        <div class="grid gap-x-8 gap-y-8 sm:grid-cols-2 lg:grid-cols-3">
-          <article class="feature feature-sm"><h3 data-i18n="features.cache.title"></h3><p data-i18n="features.cache.body"></p></article>
-          <article class="feature feature-sm"><h3 data-i18n="features.embed.title"></h3><p data-i18n="features.embed.body"></p></article>
-          <article class="feature feature-sm"><h3 data-i18n="features.extract.title"></h3><p data-i18n="features.extract.body"></p></article>
-          <article class="feature feature-sm"><h3 data-i18n="features.content.title"></h3><p data-i18n="features.content.body"></p></article>
-          <article class="feature feature-sm"><h3 data-i18n="features.openapi.title"></h3><p data-i18n="features.openapi.body"></p></article>
-          <article class="feature feature-sm"><h3 data-i18n="features.errors.title"></h3><p data-i18n="features.errors.body"></p></article>
+          <div class="mb-6 grid gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+            <article class="feature-card glass-strong">
+              <span class="icon-tile mb-6"><svg class="size-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="6" r="2.5"/><path d="M8.5 18H14a3.5 3.5 0 0 0 0-7h-4a3.5 3.5 0 0 1 0-7h5.5"/></svg></span>
+              <h3 data-i18n="features.pipeline.title"></h3>
+              <p class="rich" data-i18n="features.pipeline.body"></p>
+              <ol class="pipeline">
+                <li data-i18n="features.pipeline.step1"></li>
+                <li data-i18n="features.pipeline.step2"></li>
+                <li data-i18n="features.pipeline.step3"></li>
+                <li class="optional" data-i18n="features.pipeline.step4"></li>
+                <li data-i18n="features.pipeline.step5"></li>
+              </ol>
+            </article>
+            <article class="feature-card glass-strong">
+              <span class="icon-tile mb-6"><svg class="size-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 5 6v6c0 4.5 3 7.7 7 9 4-1.3 7-4.5 7-9V6l-7-3Z"/><path d="m9 12 2 2 4-4"/></svg></span>
+              <h3 data-i18n="features.ssrf.title"></h3>
+              <p class="rich" data-i18n="features.ssrf.body"></p>
+            </article>
+          </div>
+          <ul class="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+            <li><article class="feature-card glass-strong card-lift">
+              <span class="icon-tile mb-6"><svg class="size-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="m3 13 9 5 9-5"/></svg></span>
+              <h3 data-i18n="features.cache.title"></h3>
+              <p class="rich" data-i18n="features.cache.body"></p>
+            </article></li>
+            <li><article class="feature-card glass-strong card-lift">
+              <span class="icon-tile mb-6"><svg class="size-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.5"/><path d="m21 16-5-5-8 8"/></svg></span>
+              <h3 data-i18n="features.embed.title"></h3>
+              <p class="rich" data-i18n="features.embed.body"></p>
+            </article></li>
+            <li><article class="feature-card glass-strong card-lift">
+              <span class="icon-tile mb-6"><svg class="size-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4l7 17 2.5-7.5L21 11 4 4Z"/></svg></span>
+              <h3 data-i18n="features.extract.title"></h3>
+              <p class="rich" data-i18n="features.extract.body"></p>
+            </article></li>
+            <li><article class="feature-card glass-strong card-lift">
+              <span class="icon-tile mb-6"><svg class="size-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h7l5 5v13H7V3Z"/><path d="M14 3v5h5M10 13h6M10 17h6"/></svg></span>
+              <h3 data-i18n="features.content.title"></h3>
+              <p class="rich" data-i18n="features.content.body"></p>
+            </article></li>
+            <li><article class="feature-card glass-strong card-lift">
+              <span class="icon-tile mb-6"><svg class="size-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 4c-2 0-3 1-3 3v2c0 1.5-1 3-2 3 1 0 2 1.5 2 3v2c0 2 1 3 3 3M16 4c2 0 3 1 3 3v2c0 1.5 1 3 2 3-1 0-2 1.5-2 3v2c0 2-1 3-3 3"/></svg></span>
+              <h3 data-i18n="features.openapi.title"></h3>
+              <p class="rich" data-i18n="features.openapi.body"></p>
+            </article></li>
+            <li><article class="feature-card glass-strong card-lift">
+              <span class="icon-tile mb-6"><svg class="size-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4 2.5 20h19L12 4Z"/><path d="M12 10v4M12 17.5v.01"/></svg></span>
+              <h3 data-i18n="features.errors.title"></h3>
+              <p class="rich" data-i18n="features.errors.body"></p>
+            </article></li>
+          </ul>
         </div>
       </section>
 
       <!-- Code examples -->
-      <section id="examples" class="shell mt-24 grid scroll-mt-20 gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:items-start" aria-labelledby="examples-title">
-        <div class="flex flex-col gap-3">
-          <h2 id="examples-title" class="section-title" data-i18n="examples.title"></h2>
-          <p class="section-lead" data-i18n="examples.lead"></p>
-          <label class="mt-2 flex items-center gap-2"><span class="control-label" data-i18n="examples.endpoint"></span>
-            <select id="example-endpoint" class="field font-mono!">
-              <option value="meta">/meta</option>
-              <option value="screenshot">/screenshot</option>
-              <option value="pdf">/pdf</option>
-              <option value="extract">/extract</option>
-              <option value="content">/content</option>
-            </select>
-          </label>
-          <p class="prose-inline text-sm text-muted" data-i18n="examples.more"></p>
+      <section id="examples" class="surface-sunken section-y" aria-labelledby="examples-title">
+        <div class="shell grid gap-10 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:items-start">
+          <div class="flex flex-col gap-4">
+            <p class="eyebrow" data-i18n="examples.eyebrow"></p>
+            <h2 id="examples-title" data-i18n="examples.title"></h2>
+            <p class="lead" data-i18n="examples.lead"></p>
+            <label class="mt-2 flex flex-wrap items-center gap-3"><span class="control-label" data-i18n="examples.endpoint"></span>
+              <select id="example-endpoint" class="field font-mono!">
+                <option value="meta">/meta</option>
+                <option value="screenshot">/screenshot</option>
+                <option value="pdf">/pdf</option>
+                <option value="extract">/extract</option>
+                <option value="content">/content</option>
+              </select>
+            </label>
+            <p class="rich text-sm text-muted-foreground" data-i18n="examples.more"></p>
+          </div>
+          <figure class="code">
+            <figcaption class="code-head">
+              <div class="code-tabs" role="tablist" data-i18n-attr="aria-label:examples.language">
+                <button type="button" class="code-tab" role="tab" id="example-tab-curl" aria-controls="example-panel" aria-selected="true" data-example="curl">curl</button>
+                <button type="button" class="code-tab" role="tab" id="example-tab-js" aria-controls="example-panel" aria-selected="false" tabindex="-1" data-example="js">JavaScript</button>
+                <button type="button" class="code-tab" role="tab" id="example-tab-python" aria-controls="example-panel" aria-selected="false" tabindex="-1" data-example="python">Python</button>
+              </div>
+              <button type="button" class="copy-btn" data-copy="#example-code"><span data-copy-label data-i18n="copy"></span></button>
+            </figcaption>
+            <pre id="example-panel" class="min-h-[13.5rem]" role="tabpanel" aria-labelledby="example-tab-curl" tabindex="0"><code id="example-code">curl "https://linkforge-sable.vercel.app/api/v1/meta?url=https%3A%2F%2Fgithub.com%2Fkayzen-lyon%2Flinkforge"</code></pre>
+          </figure>
         </div>
-        <figure class="code">
-          <figcaption class="code-head">
-            <div class="code-tabs" role="tablist" data-i18n-attr="aria-label:examples.language">
-              <button type="button" class="code-tab" role="tab" id="example-tab-curl" aria-controls="example-panel" aria-selected="true" data-example="curl">curl</button>
-              <button type="button" class="code-tab" role="tab" id="example-tab-js" aria-controls="example-panel" aria-selected="false" tabindex="-1" data-example="js">JavaScript</button>
-              <button type="button" class="code-tab" role="tab" id="example-tab-python" aria-controls="example-panel" aria-selected="false" tabindex="-1" data-example="python">Python</button>
-            </div>
-            <button type="button" class="copy-btn" data-copy="#example-code"><span data-copy-label data-i18n="copy"></span></button>
-          </figcaption>
-          <pre id="example-panel" role="tabpanel" aria-labelledby="example-tab-curl" tabindex="0"><code id="example-code">curl "http://localhost:3000/api/v1/meta?url=https%3A%2F%2Fgithub.com%2Fkayzen-lyon%2Flinkforge"</code></pre>
-        </figure>
       </section>
 
       <!-- Self-hosting -->
-      <section id="self-host" class="shell mt-24 flex scroll-mt-20 flex-col gap-8" aria-labelledby="self-host-title">
-        <div class="flex flex-col gap-2">
-          <h2 id="self-host-title" class="section-title" data-i18n="selfHost.title"></h2>
-          <p class="section-lead" data-i18n="selfHost.lead"></p>
+      <section id="self-host" class="section-y" aria-labelledby="self-host-title">
+        <div class="shell">
+        <div class="section-head">
+          <p class="eyebrow" data-i18n="selfHost.eyebrow"></p>
+          <h2 id="self-host-title" data-i18n="selfHost.title"></h2>
+          <p class="lead" data-i18n="selfHost.lead"></p>
         </div>
-        <div class="grid gap-10 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-          <div class="flex min-w-0 flex-col gap-4">
-            <ol class="steps flex flex-col gap-5">
-              <li>
+          <div class="grid gap-12 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+            <div class="flex min-w-0 flex-col gap-5">
+              <ol class="steps flex flex-col gap-6">
+                <li>
                 <p data-i18n="selfHost.step1"></p>
-                <figure class="code"><pre tabindex="0"><code id="cmd-1"><span class="t-kw">git</span> clone https://github.com/kayzen-lyon/linkforge.git
+                <figure class="code"><pre tabindex="0"><code><span class="t-kw">git</span> clone https://github.com/kayzen-lyon/linkforge.git
 <span class="t-kw">cd</span> linkforge</code></pre></figure>
               </li>
-              <li>
+                <li>
                 <p data-i18n="selfHost.step2"></p>
-                <figure class="code"><pre tabindex="0"><code id="cmd-2"><span class="t-kw">npm</span> install
+                <figure class="code"><pre tabindex="0"><code><span class="t-kw">npm</span> install
 <span class="t-kw">npx</span> playwright-core install chromium</code></pre></figure>
               </li>
-              <li>
+                <li>
                 <p data-i18n="selfHost.step3"></p>
-                <figure class="code"><pre tabindex="0"><code id="cmd-3"><span class="t-kw">cp</span> .env.example .env</code></pre></figure>
+                <figure class="code"><pre tabindex="0"><code><span class="t-kw">cp</span> .env.example .env</code></pre></figure>
               </li>
-              <li>
+                <li>
                 <p data-i18n="selfHost.step4"></p>
-                <figure class="code"><pre tabindex="0"><code id="cmd-4"><span class="t-kw">npm</span> run dev</code></pre></figure>
+                <figure class="code"><pre tabindex="0"><code><span class="t-kw">npm</span> run dev</code></pre></figure>
               </li>
-            </ol>
-            <p class="prose-inline text-sm text-muted" data-i18n="selfHost.listening"></p>
+              </ol>
+              <p class="rich text-sm text-muted-foreground" data-i18n="selfHost.listening"></p>
+            </div>
+            <div class="flex min-w-0 flex-col gap-8">
+              <article><h3 class="mb-2 text-lg! font-bold!" data-i18n="selfHost.fact1.title"></h3><p class="rich text-sm text-muted-foreground" data-i18n="selfHost.fact1.body"></p></article>
+              <article><h3 class="mb-2 text-lg! font-bold!" data-i18n="selfHost.fact2.title"></h3><p class="rich text-sm text-muted-foreground" data-i18n="selfHost.fact2.body"></p></article>
+              <article><h3 class="mb-2 text-lg! font-bold!" data-i18n="selfHost.fact3.title"></h3><p class="rich text-sm text-muted-foreground" data-i18n="selfHost.fact3.body"></p></article>
+              <p><a class="btn btn-secondary" href="https://github.com/kayzen-lyon/linkforge" rel="noopener"><span data-i18n="selfHost.cta"></span><svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8"/></svg></a></p>
+            </div>
           </div>
-          <div class="flex min-w-0 flex-col gap-6">
-            <article class="feature feature-sm"><h3 data-i18n="selfHost.fact1.title"></h3><p data-i18n="selfHost.fact1.body"></p></article>
-            <article class="feature feature-sm"><h3 data-i18n="selfHost.fact2.title"></h3><p data-i18n="selfHost.fact2.body"></p></article>
-            <article class="feature feature-sm"><h3 data-i18n="selfHost.fact3.title"></h3><p data-i18n="selfHost.fact3.body"></p></article>
-            <p><a class="btn btn-secondary" href="https://github.com/kayzen-lyon/linkforge" rel="noopener" data-i18n="selfHost.cta"></a></p>
+        </div>
+      </section>
+
+      <!-- FAQ -->
+      <section id="faq" class="surface-sunken section-y" aria-labelledby="faq-title">
+        <div class="mx-auto max-w-4xl px-4 sm:px-6">
+          <div class="section-head">
+            <p class="eyebrow" data-i18n="faq.eyebrow"></p>
+            <h2 id="faq-title" data-i18n="faq.title"></h2>
+          </div>
+          <div class="faq">
+            <!--@faq-->
+          </div>
+        </div>
+      </section>
+
+      <!-- Closing call to action -->
+      <section class="shell section-y" aria-labelledby="cta-title">
+        <div class="cta-band flex flex-col gap-6 px-6 py-12 md:px-12 md:py-16">
+          <h2 id="cta-title" class="max-w-3xl" data-i18n="cta.title"></h2>
+          <p class="max-w-2xl text-lg" data-i18n="cta.lead"></p>
+          <div class="flex flex-col gap-3 sm:flex-row">
+            <a class="btn btn-primary" href="#demo"><span data-i18n="hero.cta.demo"></span><svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+            <a class="btn btn-on-navy" href="/docs" data-i18n="hero.cta.docs"></a>
+            <a class="btn btn-on-navy" href="https://github.com/kayzen-lyon/linkforge" rel="noopener"><span data-i18n="hero.cta.github"></span><svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8"/></svg></a>
           </div>
         </div>
       </section>
