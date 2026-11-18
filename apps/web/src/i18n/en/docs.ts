@@ -7,7 +7,7 @@ export const docs: Record<keyof typeof source, string> = {
     'Complete reference of the Omnillink API: endpoints, parameters, example requests and responses, errors, authentication, rate limits and caching.',
 
   'title': 'API reference',
-  'lead': 'Every endpoint is a `GET` request under `/api/v1`. The examples use the address of this instance.',
+  'lead': 'Every endpoint is a `GET` request under `/api/v1`, except the metadata batch and the MCP endpoint, which are `POST`. The examples use the address of this instance.',
   'toc.label': 'On this page',
   'toc.basics': 'Basics',
   'toc.endpoints': 'Endpoints',
@@ -193,5 +193,5 @@ export const docs: Record<keyof typeof source, string> = {
   'html.note':
     '`/meta`, `/extract` and `/content` need an HTML document: for an image, a PDF or any other file type, the API answers `ENOTHTML` (422).',
   'spec.note': 'The sections that follow, and the “More parameters” tables, are generated from the OpenAPI document of the API, in its own wording.',
-  'params.more': 'More parameters (OpenAPI document)',
+  'params.more': 'More parameters',
 };

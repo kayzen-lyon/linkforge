@@ -39,7 +39,7 @@ export const a11y = {
   'limits.4': 'Les exemples de code longs défilent horizontalement à l’intérieur de leur bloc.',
   'settings.title': 'Adapter l’affichage',
   'settings.p':
-    'Le bouton rond en bas à gauche ouvre les options d’accessibilité : thème, taille du texte, contraste, police lisible, interlignage, liens soulignés, animations réduites. Vos choix sont enregistrés dans votre navigateur et s’appliquent à toutes les pages.',
+    'Le thème clair est le thème par défaut, quel que soit le réglage de votre système. Le bouton rond en bas à gauche ouvre les options d’accessibilité : thème clair, sombre ou identique au système, taille du texte, contraste, police lisible, interlignage, liens soulignés, animations réduites. Vos choix sont enregistrés dans votre navigateur et s’appliquent à toutes les pages.',
   'contact.title': 'Signaler un problème',
   'contact.p': 'Si un contenu ou une fonction vous est inaccessible, dites-le-nous : nous chercherons une solution avec vous.',
   'contact.email': 'Par courriel : [contact@kayzen-lyon.fr](mailto:contact@kayzen-lyon.fr)',

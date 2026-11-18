@@ -13,8 +13,9 @@ export const playground = {
   'tips.3.title': 'Comparaison de captures',
   'tips.3.body': 'Sur `/screenshot`, comparez clair et sombre, ou ordinateur et mobile, côte à côte.',
   'tips.4.title': 'Collection pour vos outils',
-  'tips.4.body': 'Téléchargez la spécification OpenAPI, ou une collection Postman générée à partir d’elle.',
+  'tips.4.body': 'Téléchargez la spécification OpenAPI, ou une collection Postman ou Bruno générée à partir d’elle.',
   'dl.openapi': 'Spécification OpenAPI (JSON)',
   'dl.postman': 'Collection Postman',
+  'dl.bruno': 'Collection Bruno',
   'dl.failed': 'La collection n’a pas pu être générée : la spécification est indisponible.',
 };

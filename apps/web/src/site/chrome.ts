@@ -48,7 +48,7 @@ interface NavLink {
 const NAV: readonly NavLink[] = [
   { href: PAGES.playground, key: 'nav.playground', pages: ['playground'] },
   { href: '/#features', key: 'nav.features', pages: [] },
-  { href: PAGES.quickstart, key: 'nav.guides', pages: ['quickstart', 'self-hosting', 'sdk', 'ai-agents', 'recipes', 'errors', 'limits', 'security', 'glossary', 'changelog'] },
+  { href: PAGES.quickstart, key: 'nav.guides', pages: ['quickstart', 'self-hosting', 'sdk', 'ai-agents', 'recipes', 'errors', 'limits', 'security', 'glossary', 'roadmap', 'changelog'] },
   { href: PAGES.docs, key: 'nav.docs', pages: ['docs'] },
   { href: PAGES.status, key: 'nav.status', pages: ['status'] },
 ];
@@ -249,7 +249,7 @@ export function footer(): string {
         </div>
         <div class="kayzen-credit" data-publisher="${PUBLISHER}">
           <img src="/kayzen-logo.webp" alt="" width="48" height="48" loading="lazy" decoding="async" class="size-12 shrink-0" />
-          <div class="min-w-0 flex-1">
+          <div class="kayzen-credit-text">
             <p class="font-display text-lg font-bold tracking-tight text-white uppercase" ${text('footer.kayzen.title')}></p>
             <p class="text-sm text-white/75" ${text('footer.kayzen.body')}></p>
           </div>

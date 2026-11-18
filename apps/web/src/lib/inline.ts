@@ -10,7 +10,18 @@ export type Inline =
 
 const PATTERN = /`([^`]+)`|\*\*([^*]+)\*\*|\[([^\]]+)\]\(([^)\s]+)\)/g;
 
+/**
+ * French punctuation: the space before `: ; ? ! »` and after `«` must not
+ * break, or a line can start with a lone colon. English text has no such
+ * space, so the rule is applied to every language; code spans are left alone.
+ */
+const noBreak = (text: string): string => text.replace(/ ([:;?!»])(?=[\s.,)]|$)/g, '\u00a0$1').replace(/« /g, '«\u00a0');
+
 export function parseInline(source: string): Inline[] {
+  return parseRaw(source).map((part) => (part.kind === 'code' ? part : { ...part, text: noBreak(part.text) }));
+}
+
+function parseRaw(source: string): Inline[] {
   const parts: Inline[] = [];
   let cursor = 0;
   for (const match of source.matchAll(PATTERN)) {

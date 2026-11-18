@@ -41,7 +41,7 @@ export const a11y: Record<keyof typeof source, string> = {
   'limits.4': 'Long code samples scroll horizontally inside their own block.',
   'settings.title': 'Adjusting the display',
   'settings.p':
-    'The round button at the bottom left opens the accessibility options: theme, text size, contrast, legible font, line spacing, underlined links, reduced animations. Your choices are saved in your browser and apply to every page.',
+    'The light theme is the default, whatever your system setting. The round button at the bottom left opens the accessibility options: light, dark or system theme, text size, contrast, legible font, line spacing, underlined links, reduced animations. Your choices are saved in your browser and apply to every page.',
   'contact.title': 'Reporting a problem',
   'contact.p': 'If some content or a function is not accessible to you, tell us: we will look for a solution with you.',
   'contact.email': 'By email: [contact@kayzen-lyon.fr](mailto:contact@kayzen-lyon.fr)',

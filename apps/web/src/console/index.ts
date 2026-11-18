@@ -205,6 +205,27 @@ export function initConsole(i18n: I18n<Key>): void {
 
   // ---- Form generated from the OpenAPI document (full mode) -------------------------
 
+  /** French text of the specification, loaded only on French pages. */
+  let french: typeof import('../docs/spec-fr.ts') | null = null;
+  const operationKey = (item: Operation): string => item.path.replace(/^\/api\/v\d+\//, '').replace(/^\//, '').replace(/\//g, '-');
+  const summaryOf = (item: Operation): string => (i18n.lang() === 'fr' ? french?.SUMMARIES_FR[operationKey(item)] : undefined) ?? item.summary;
+  const optionLabel = (item: Operation): string => `${item.method} ${shortName(item)}${summaryOf(item) === '' ? '' : ` · ${summaryOf(item)}`}`;
+  /** Re-labels the endpoint list and the form in the page language. */
+  function localizeSpec(): void {
+    const apply = (): void => {
+      for (const option of document.querySelectorAll<HTMLOptionElement>('#c-endpoint option')) {
+        const item = operations.find((candidate) => candidate.id === option.value);
+        if (item !== undefined) option.textContent = optionLabel(item);
+      }
+      renderForm();
+    };
+    if (i18n.lang() !== 'fr' || french !== null) return apply();
+    void import('../docs/spec-fr.ts').then((module) => {
+      french = module;
+      apply();
+    }, apply);
+  }
+
   function field(item: ParamDef): HTMLElement {
     const id = `c-p-${item.name}`;
     const current = values[item.name] ?? '';
@@ -271,8 +292,13 @@ export function initConsole(i18n: I18n<Key>): void {
     }
 
     const name = h('label', { for: id, class: 'param-label' }, h('code', {}, item.name), item.required ? h('span', { class: 'req' }, t('c.required')) : null);
-    // Descriptions come from the OpenAPI document, which is written in English.
-    const hint = item.description === '' ? null : h('p', { class: 'param-hint', lang: 'en' }, item.description.replace(/`/g, ''));
+    // Descriptions come from the OpenAPI document, written in English; French pages use the
+    // translation the reference is built from, and fall back to English (marked as such).
+    const translated = i18n.lang() === 'fr' ? (french?.PARAMS_FR[`${operationKey(operation)}.${item.name}`] ?? french?.PARAMS_FR[`*.${item.name}`]) : undefined;
+    const hint =
+      item.description === ''
+        ? null
+        : h('p', translated === undefined ? { class: 'param-hint', lang: 'en' } : { class: 'param-hint' }, (translated ?? item.description).replace(/`/g, ''));
     return h('div', { class: 'param' }, name, control, hint);
   }
 
@@ -333,7 +359,7 @@ export function initConsole(i18n: I18n<Key>): void {
     select.replaceChildren(
       ...[...groups].map(([tag, items]) => {
         const group = h('optgroup', { label: tag, lang: 'en' });
-        for (const item of items) group.append(h('option', { value: item.id }, `${item.method} ${shortName(item)}${item.summary === '' ? '' : ` · ${item.summary}`}`));
+        for (const item of items) group.append(h('option', { value: item.id }, optionLabel(item)));
         return group;
       }),
     );
@@ -347,6 +373,7 @@ export function initConsole(i18n: I18n<Key>): void {
     if (limit !== null) limit.textContent = t('b.limit', { max: batchMax() });
     const wanted = restore() ?? operation.id;
     setOperation(operations.some((item) => item.id === wanted) ? wanted : (operations[0]?.id ?? operation.id));
+    if (i18n.lang() === 'fr' && french === null) localizeSpec();
   }
 
   /** Reads a share link (`?r=METHOD /path?query`, `&b=<json body>`) back into the form. */
@@ -949,7 +976,7 @@ export function initConsole(i18n: I18n<Key>): void {
   }
 
   i18n.onChange(() => {
-    renderForm();
+    localizeSpec();
     renderOutcome();
     renderHistory();
     if (outcome === null) renderStatus('idle');

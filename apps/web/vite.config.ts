@@ -213,7 +213,9 @@ function llmsFullTxt(): string {
 // ---- Performance budget ---------------------------------------------------------------------
 
 /** Brotli-compressed weight allowed for one page: its HTML plus the scripts and styles it loads. */
-const BUDGET_KB: Readonly<Record<string, number>> = { home: 75, playground: 70, docs: 55, default: 45 };
+// The reference went from 55 to 58 when its spec-driven sections (17 endpoints, about 80 parameter
+// descriptions) gained French text: French runs longer than the English it replaced on French pages.
+const BUDGET_KB: Readonly<Record<string, number>> = { home: 75, playground: 70, docs: 58, default: 45 };
 
 function checkBudget(outDir: string): void {
   const brotli = (file: string): number => brotliCompressSync(readFileSync(file)).length;

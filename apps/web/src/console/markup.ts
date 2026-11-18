@@ -33,6 +33,8 @@ const tool = (id: string, key: Key, name: IconName, extra = ''): string =>
 
 export function consoleMarkup(mode: 'lite' | 'full'): string {
   const full = mode === 'full';
+  // On the playground the console comes right after the page title; on the landing page it sits inside a section.
+  const level = full ? 'h2' : 'h3';
   const view = (name: string, key: Key, selected: boolean): string =>
     `<button type="button" class="tab" role="tab" id="c-tab-${name}" aria-controls="c-view-${name}" aria-selected="${selected}"${selected ? '' : ' tabindex="-1"'} data-view="${name}" ${t(key)}></button>`;
 
@@ -55,7 +57,7 @@ export function consoleMarkup(mode: 'lite' | 'full'): string {
     : '';
 
   const request = `<section class="console-pane glass-premium" aria-labelledby="c-request-title">
-        <h3 id="c-request-title" class="pane-title" ${t('c.request')}></h3>
+        <${level} id="c-request-title" class="pane-title" ${t('c.request')}></${level}>
         ${endpoints}
         <form id="c-form-url" class="flex flex-col gap-3" novalidate>
           <div class="field-row">
@@ -81,7 +83,7 @@ export function consoleMarkup(mode: 'lite' | 'full'): string {
       </section>`;
 
   const response = `<section id="c-response" class="console-pane console-result glass-premium" aria-labelledby="c-response-title">
-        <h3 id="c-response-title" class="sr-only" ${t('c.response')}></h3>
+        <${level} id="c-response-title" class="sr-only" ${t('c.response')}></${level}>
         <div class="request-line">
           <span class="verb" id="c-method">GET</span>
           <code id="c-request-url" tabindex="0" ${label('c.request')}></code>
@@ -159,7 +161,7 @@ export function consoleMarkup(mode: 'lite' | 'full'): string {
 function history(): string {
   return `<div class="history">
           <div class="flex items-center justify-between gap-2">
-            <h4 class="pane-title" ${t('hi.title')}></h4>
+            <h3 class="pane-title" ${t('hi.title')}></h3>
             <button type="button" id="c-history-clear" class="tool-btn" ${label('hi.clear')} hidden>${icon('trash', 'size-4')}</button>
           </div>
           <label class="check"><input type="checkbox" id="c-history-on" aria-describedby="c-history-hint" /><span ${t('hi.enable')}></span></label>

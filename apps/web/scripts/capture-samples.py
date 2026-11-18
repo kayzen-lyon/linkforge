@@ -1,8 +1,9 @@
 """Captures genuine API responses used as miniatures on the landing page.
 
 Run with the API on :3000 (SSRF_ALLOW_PRIVATE_NETWORKS=true SSRF_ALLOWED_PORTS='*')
-and a test page served on :4100 (see the fixture described in the site README notes):
+and the test page of scripts/fixture served on :4100:
 
+    node apps/web/scripts/fixture-server.mjs &
     python3 apps/web/scripts/capture-samples.py
 
 It writes src/content/samples.ts and public/samples/*.webp. The page captured
@@ -38,6 +39,7 @@ for device in ('desktop', 'mobile'):
     image = image.resize((width, round(image.height * width / image.width)), Image.LANCZOS)
     image = image.crop((0, 0, width, min(image.height, 350 if device == 'desktop' else 420)))
     image.save(f'apps/web/public/samples/screenshot-{device}.webp', 'WEBP', quality=72, method=6)
+    image.save(f'apps/web/public/samples/screenshot-{device}.avif', 'AVIF', quality=55)
     shots[device] = {'width': image.width, 'height': image.height}
 
 request = urllib.request.Request(f'{API}/meta/batch', data=json.dumps({'urls': [PAGE, 'http://127.0.0.1:1/']}).encode(), headers={'content-type': 'application/json'})
@@ -53,12 +55,12 @@ def js(path, **params):
     return clean(json.loads(api(path, **params)[0]))['data']
 
 IMAGE = PAGE + 'cover.png'
-tech = js('tech', url=PAGE, force='true')
+tech = js('tech', url=PAGE, render='never', force='true')
 insights = js('insights', url=PAGE, force='true')
 palette = js('palette', url=IMAGE, force='true')
 image = js('image', url=IMAGE, force='true')
 sitemap = js('sitemap', url=PAGE, force='true')
-check = js('check', url=PAGE)
+check = js('check', url=PAGE + 'go')  # /go -> 301 /launch -> 302 /
 tables = js('tables', url=PAGE, force='true')
 links = js('links', url=PAGE, force='true')
 oembed = js('oembed', url=PAGE, force='true')
@@ -74,6 +76,7 @@ og_raw = api('og', title='Launching the new editor', description='What changed i
 og = Image.open(io.BytesIO(og_raw)).convert('RGB')
 og_size = og.size
 og.resize((480, round(og.height * 480 / og.width)), Image.LANCZOS).save('apps/web/public/samples/og.webp', 'WEBP', quality=78, method=6)
+og.resize((480, round(og.height * 480 / og.width)), Image.LANCZOS).save('apps/web/public/samples/og.avif', 'AVIF', quality=60)
 anim_raw = api('animation', url=PAGE, width='480', height='300', frames='4', delay='600', force='true')[0]
 anim = Image.open(io.BytesIO(anim_raw))
 frames = getattr(anim, 'n_frames', 1)
@@ -101,7 +104,7 @@ extra = {
     'palette': [{'hex': c['hex'], 'population': c['population']} for c in palette['colors']],
     'image': {k: image[k] for k in ('format', 'width', 'height', 'bytes')},
     'sitemap': {'robotsFound': sitemap['robotsFound'], 'sitemaps': len(sitemap['sitemaps']), 'urlCount': sitemap['urlCount'], 'urls': [u['url'] for u in sitemap['urls'][:3]]},
-    'check': {'status': check['status'], 'ok': check['ok'], 'hops': len(check['redirects']), 'durationMs': check['durationMs'], 'contentType': check['contentType'], 'tls': check['tls']},
+    'check': {'status': check['status'], 'ok': check['ok'], 'chain': [hop['status'] for hop in check['redirects']], 'durationMs': check['durationMs'], 'contentType': check['contentType'], },
     'tables': {'caption': tables['tables'][0]['caption'], 'headers': tables['tables'][0]['headers'], 'rows': tables['tables'][0]['rows'], 'csv': csv_text.strip()},
     'links': {'total': links['total'], 'internal': links['internal'], 'external': links['external'], 'first': [{'url': l['url'], 'text': l['text'], 'internal': l['internal']} for l in links['links'][:3]]},
     'oembed': {k: oembed.get(k) for k in ('type', 'title', 'providerName', 'authorName', 'width', 'height')},

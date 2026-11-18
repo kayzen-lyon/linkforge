@@ -118,8 +118,9 @@
   --topbanner-h: 0px;
 }
 
-/* Dark theme: KAYZEN's navy-based secondary theme. `data-theme` is always set
-   before first paint by the boot script (stored choice, else the system). */
+/* Dark theme: KAYZEN's navy-based secondary theme. Light is the default for
+   every visitor; `data-theme="dark"` is set before first paint by the boot
+   script only when the visitor chose dark, or chose to follow a dark system. */
 :root[data-theme='dark'] {
   --background: hsl(213 45% 9%);
   --foreground: hsl(213 30% 94%);
@@ -648,8 +649,9 @@
     font-size: inherit;
     overflow-wrap: normal;
   }
-  .rich a,
-  .hint a {
+  /* Not buttons: a button inside rich text keeps its own colours (orange text on an orange pill otherwise). */
+  .rich a:not(.btn),
+  .hint a:not(.btn) {
     color: var(--primary);
     font-weight: 600;
     text-decoration: underline;
@@ -2591,6 +2593,11 @@
     border-radius: 1rem;
     background: hsl(0 0% 100% / 0.06);
   }
+  /* A real basis, so that on a phone the text takes its own line instead of shrinking to one letter per line. */
+  .kayzen-credit-text {
+    flex: 1 1 13rem;
+    min-width: 0;
+  }
 
   .section-divider {
     height: 1px;
@@ -4165,6 +4172,9 @@
     border-radius: 0.625rem;
     background: var(--card);
   }
+  .mini-facts > .wide {
+    grid-column: 1 / -1;
+  }
   .mini-facts dt {
     color: var(--muted-foreground);
     font-size: 0.6875rem;
@@ -4255,4 +4265,36 @@
     -webkit-mask-image: none;
     mask-image: none;
   }
+}
+
+/* An AVIF source in front of a WebP image must not change the layout of the image. */
+picture {
+  display: contents;
+}
+
+/* Measured Lighthouse scores (lab run). */
+.lab-block {
+  margin-top: 3rem;
+  padding: 1.5rem;
+  border: 1px solid var(--border);
+  border-radius: 1.25rem;
+  background: var(--card);
+}
+.lab-title {
+  margin-bottom: 1rem;
+  font-size: 1.125rem;
+}
+.lab-scores td.mono {
+  font-variant-numeric: tabular-nums;
+}
+.lab-meta {
+  margin-top: 0.75rem;
+  color: var(--muted-foreground);
+  font-size: 0.8125rem;
+}
+.lab-note {
+  margin-top: 0.5rem;
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+  max-width: 70ch;
 }

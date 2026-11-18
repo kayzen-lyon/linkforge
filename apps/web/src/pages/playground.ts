@@ -1,4 +1,4 @@
-/** Playground page: the full console, plus a Postman collection generated from the live OpenAPI document. */
+/** Playground page: the full console, plus Postman and Bruno collections generated from the live OpenAPI document. */
 import { initConsole } from '../console/index';
 import { loadSpec, shortName, type ApiSpec } from '../console/spec';
 import type { common } from '../i18n/fr/common';
@@ -42,19 +42,54 @@ function postmanCollection(spec: ApiSpec): unknown {
   };
 }
 
+/**
+ * A Bruno collection in its JSON export format (Bruno: Import collection >
+ * Bruno Collection): one request per operation, the origin in an environment.
+ */
+function brunoCollection(spec: ApiSpec): unknown {
+  return {
+    name: `${spec.title} ${spec.version}`.trim(),
+    version: '1',
+    items: spec.operations.map((operation, at) => {
+      const query = operation.params.filter((item) => item.where === 'query');
+      const body = operation.params.filter((item) => item.where === 'body');
+      const json = JSON.stringify(Object.fromEntries(body.map((item) => [item.name, item.type === 'array' ? [] : (item.fallback ?? '')])), null, 2);
+      return {
+        type: 'http',
+        name: `${operation.method} ${shortName(operation)}`,
+        seq: at + 1,
+        request: {
+          url: `{{baseUrl}}${operation.path}`,
+          method: operation.method,
+          headers: operation.method === 'POST' ? [{ name: 'content-type', value: 'application/json', enabled: true }] : [],
+          params: query.map((item) => ({ name: item.name, value: item.fallback ?? '', type: 'query', enabled: item.required })),
+          body: body.length === 0 ? { mode: 'none' } : { mode: 'json', json },
+          auth: { mode: 'none' },
+          docs: operation.summary,
+        },
+      };
+    }),
+    environments: [{ name: 'Omnillink', variables: [{ name: 'baseUrl', value: location.origin, type: 'text', enabled: true, secret: false }] }],
+  };
+}
+
 export function startPlayground(i18n: I18n<Key>): void {
   initShared(i18n);
   initConsole(i18n);
-  document.getElementById('dl-postman')?.addEventListener('click', () => {
-    void loadSpec()
-      .then((spec) => {
-        const url = URL.createObjectURL(new Blob([JSON.stringify(postmanCollection(spec), null, 2)], { type: 'application/json' }));
-        const link = h('a', { href: url, download: 'omnillink.postman_collection.json' });
-        document.body.append(link);
-        link.click();
-        link.remove();
-        window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-      })
-      .catch(() => toast(i18n.t('dl.failed'), 'error'));
-  });
+  const download = (button: string, file: string, build: (spec: ApiSpec) => unknown): void => {
+    document.getElementById(button)?.addEventListener('click', () => {
+      void loadSpec()
+        .then((spec) => {
+          const url = URL.createObjectURL(new Blob([JSON.stringify(build(spec), null, 2)], { type: 'application/json' }));
+          const link = h('a', { href: url, download: file });
+          document.body.append(link);
+          link.click();
+          link.remove();
+          window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+        })
+        .catch(() => toast(i18n.t('dl.failed'), 'error'));
+    });
+  };
+  download('dl-postman', 'omnillink.postman_collection.json', postmanCollection);
+  download('dl-bruno', 'omnillink.bruno_collection.json', brunoCollection);
 }

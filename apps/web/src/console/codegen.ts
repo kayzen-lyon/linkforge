@@ -93,32 +93,175 @@ function javascript(r: CodeRequest): string {
   return lines.join('\n');
 }
 
-/** The SDK has a method for the five core endpoints; anything else falls back to `fetch`. */
-function sdk(r: CodeRequest): string {
-  const name = /^\/api\/v\d+\/(meta|screenshot|pdf|extract|content)$/.exec(r.path)?.[1];
-  if (name === undefined || r.method !== 'GET') return `// ${'The SDK has no dedicated method for this endpoint yet: use fetch.'}\n${javascript(r)}`;
-  const url = r.query.find(([key]) => key === 'url')?.[1] ?? '';
-  const rest = r.query.filter(([key]) => key !== 'url' && key !== 'fields');
-  const option = ([key, value]: readonly [string, string]): string =>
-    `  ${key}: ${value === 'true' || value === 'false' || /^\d+$/.test(value) ? value : q(value)},`;
-  const options = rest.length === 0 ? '' : `, {\n${rest.map(option).join('\n')}\n}`;
-  const fields = r.query.find(([key]) => key === 'fields')?.[1];
-  let rules = '{}';
+// ---- TypeScript SDK ---------------------------------------------------------
+// One real method of `@omnillink/sdk` per endpoint, with the option names of
+// the SDK. `scripts/check-sdk-snippets.mjs` compiles a snippet per endpoint
+// against the SDK sources, so a renamed method or option fails `typecheck`.
+
+const CACHE = ['force', 'ttl'];
+const PAGE = [...CACHE, 'acceptLanguage', 'userAgent', 'referer'];
+const SHOT = [...PAGE, 'device', 'fullPage', 'format', 'quality', 'width', 'height', 'selector', 'waitFor', 'waitForSelector', 'click', 'scrollTo', 'colorScheme', 'hide', 'hideBanners', 'blockAds', 'frame', 'radius', 'padding', 'background'];
+const PDF = [...PAGE, 'format', 'landscape', 'printBackground', 'hideBanners', 'blockAds', 'waitForSelector', 'margin', 'scale', 'pageRanges', 'headerText', 'footerText'];
+const ANIMATION = [...PAGE, 'width', 'height', 'frames', 'delay', 'hideBanners', 'blockAds'];
+const QR = ['format', 'size', 'margin', 'ecc', 'color', 'background'];
+const OG = [...CACHE, 'title', 'description', 'site', 'author', 'label', 'template', 'theme', 'accent', 'format'];
+const CONTENT = [...PAGE, 'render', 'mainContent', 'include', 'exclude', 'citations', 'waitForSelector'];
+const TABLES = [...PAGE, 'render', 'selector'];
+
+/** Options each SDK method accepts (packages/sdk/src/types.ts). */
+const SDK_OPTIONS: Readonly<Record<string, readonly string[]>> = {
+  meta: [...PAGE, 'render'],
+  metaEmbedUrl: [...PAGE, 'render'],
+  extract: [...PAGE, 'render', 'waitForSelector'],
+  extractPreset: [...PAGE, 'render', 'waitForSelector'],
+  content: CONTENT,
+  contentText: [...CONTENT, 'format'],
+  tables: TABLES,
+  tablesCsv: [...TABLES, 'table'],
+  links: [...PAGE, 'render', 'scope', 'limit'],
+  html: [...PAGE, 'render', 'waitForSelector'],
+  tech: [...PAGE, 'render'],
+  insights: [...PAGE, 'device'],
+  image: CACHE,
+  palette: [...CACHE, 'count'],
+  favicon: PAGE,
+  faviconUrl: PAGE,
+  oembed: [...PAGE, 'maxWidth', 'maxHeight'],
+  sitemap: [...CACHE, 'limit'],
+  check: [],
+  screenshot: SHOT,
+  pdf: PDF,
+  animation: ANIMATION,
+  qr: QR,
+  og: OG,
+};
+
+const SDK_NUMBERS = new Set(['ttl', 'quality', 'width', 'height', 'waitFor', 'radius', 'padding', 'margin', 'scale', 'frames', 'delay', 'table', 'limit', 'maxWidth', 'maxHeight', 'count', 'size']);
+const SDK_BOOLEANS = new Set(['force', 'fullPage', 'hideBanners', 'blockAds', 'landscape', 'printBackground', 'mainContent', 'citations']);
+
+function sdkLiteral(name: string, value: string): string {
+  if (SDK_BOOLEANS.has(name) && (value === 'true' || value === 'false')) return value;
+  if (SDK_NUMBERS.has(name) && /^-?\d+(\.\d+)?$/.test(value)) return value;
+  return q(value);
+}
+
+function pretty(json: string | undefined): string {
   try {
-    rules = JSON.stringify(JSON.parse(fields ?? '{}'), null, 2);
+    return JSON.stringify(JSON.parse(json ?? '{}'), null, 2);
   } catch {
-    rules = '{}';
+    return '{}';
   }
-  const lines = [
+}
+
+function sdk(r: CodeRequest): string {
+  const endpoint = /^\/api\/v\d+\/(.+)$/.exec(r.path)?.[1] ?? '';
+  const get = (name: string): string | undefined => r.query.find(([key]) => key === name)?.[1];
+  const url = get('url') ?? '';
+  const head = [
     "import { createClient } from '@omnillink/sdk';",
     '',
-    `const omnillink = createClient({ baseUrl: ${q(r.origin)}${r.withKey ? `, apiKey: process.env.${KEY_ENV}` : ''} });`,
+    `const omnillink = createClient({ baseUrl: ${q(r.origin)}${r.withKey ? `, apiKey: process.env.${KEY_ENV} ?? ''` : ''} });`,
     '',
   ];
-  if (name === 'extract') lines.push(`const { data, meta } = await omnillink.extract(${q(url)}, ${rules}${options});`, 'console.log(data.fields, meta.source);');
-  else if (r.binary) lines.push(`const file = await omnillink.${name}(${q(url)}${options});`);
-  else lines.push(`const { data, meta } = await omnillink.${name}(${q(url)}${options});`, 'console.log(data, meta.cached);');
-  return lines.join('\n');
+  const unsupported: string[] = [];
+  /** Object literal of the options `method` accepts; `skip` lists what is passed positionally. */
+  const options = (method: string, skip: readonly string[], pairs: ReadonlyArray<readonly [string, string]> = r.query): string => {
+    const allowed = SDK_OPTIONS[method] ?? [];
+    const lines: string[] = [];
+    for (const [name, value] of pairs) {
+      if (skip.includes(name)) continue;
+      if (!allowed.includes(name)) unsupported.push(name);
+      else lines.push(`  ${name}: ${sdkLiteral(name, value)},`);
+    }
+    return lines.length === 0 ? '' : `{\n${lines.join('\n')}\n}`;
+  };
+  const args = (...parts: readonly string[]): string => parts.filter((part) => part !== '').join(', ');
+  const done = (body: readonly string[]): string =>
+    [...head, ...(unsupported.length === 0 ? [] : [`// Not exposed by this SDK method: ${unsupported.join(', ')}.`]), ...body].join('\n');
+  const json = (method: string, extra = '', skip: readonly string[] = ['url'], log = 'console.log(data, meta.cached);'): string => {
+    const call = args(q(url), extra, options(method, skip));
+    return done([`const { data, meta } = await omnillink.${method}(${call});`, log]);
+  };
+
+  switch (endpoint) {
+    case 'meta': {
+      const embed = get('embed');
+      if (embed === undefined) return json('meta');
+      const call = args(q(url), q(embed), options('metaEmbedUrl', ['url', 'embed']));
+      return done(['// No request is made: the address goes straight into a `src` or `href`.', `const src = omnillink.metaEmbedUrl(${call});`]);
+    }
+    case 'meta/batch': {
+      const body = (typeof r.body === 'object' && r.body !== null ? r.body : {}) as Record<string, unknown>;
+      const urls = Array.isArray(body['urls']) ? body['urls'].filter((item): item is string => typeof item === 'string') : [];
+      const opts = [
+        ...(typeof body['force'] === 'boolean' ? [`  force: ${String(body['force'])},`] : []),
+        ...(typeof body['ttl'] === 'number' ? [`  ttl: ${String(body['ttl'])},`] : []),
+      ];
+      const list = urls.length === 0 ? '[]' : `[\n${urls.map((item) => `  ${q(item)},`).join('\n')}\n]`;
+      return done([
+        `const { data, meta } = await omnillink.metaBatch(${args(list, opts.length === 0 ? '' : `{\n${opts.join('\n')}\n}`)});`,
+        'for (const item of data) {',
+        "  console.log(item.url, item.status === 'success' ? item.data.title : item.code);",
+        '}',
+        'console.log(meta.succeeded, meta.failed);',
+      ]);
+    }
+    case 'extract': {
+      const preset = get('preset');
+      if (preset !== undefined && get('fields') === undefined) {
+        return json('extractPreset', q(preset), ['url', 'preset', 'fields'], 'console.log(data.fields, data.sources);');
+      }
+      return json('extract', pretty(get('fields')), ['url', 'preset', 'fields'], 'console.log(data.fields, meta.source);');
+    }
+    case 'content': {
+      const format = get('format');
+      if (format !== 'markdown' && format !== 'text') return json('content', '', ['url', 'format']);
+      return done([`const { data } = await omnillink.contentText(${args(q(url), options('contentText', ['url']))});`, 'console.log(data);']);
+    }
+    case 'tables': {
+      if (get('format') !== 'csv') return json('tables', '', ['url', 'format', 'table'], 'console.log(data.tables, meta.cached);');
+      return done([`const { data } = await omnillink.tablesCsv(${args(q(url), options('tablesCsv', ['url', 'format']))});`, 'console.log(data);']);
+    }
+    case 'html':
+      return done([`const { data } = await omnillink.html(${args(q(url), options('html', ['url']))});`, '// `data` is third-party markup: never insert it into a page as HTML.', 'console.log(data.length);']);
+    case 'favicon': {
+      if (get('redirect') !== 'true') return json('favicon', '', ['url', 'redirect']);
+      const call = args(q(url), options('faviconUrl', ['url', 'redirect']));
+      return done(['// No request is made: the address answers with a redirect to the best icon.', `const src = omnillink.faviconUrl(${call});`]);
+    }
+    case 'check':
+      return done([`const { data } = await omnillink.check(${args(q(url), options('check', ['url']))});`, 'console.log(data);']);
+    case 'links':
+    case 'tech':
+    case 'insights':
+    case 'image':
+    case 'palette':
+    case 'oembed':
+    case 'sitemap':
+      return json(endpoint);
+    case 'screenshot':
+    case 'pdf':
+    case 'animation':
+    case 'qr':
+    case 'og': {
+      // One options object for the request and for the URL builder; `satisfies` keeps its literal types.
+      const type = `${endpoint.charAt(0).toUpperCase()}${endpoint.slice(1)}Options`;
+      const literal = options(endpoint, ['url']);
+      const fixed = endpoint === 'og' && literal === '' ? '{\n  title: "",\n}' : literal;
+      const shared = fixed === '' ? [] : [`const options = ${fixed} satisfies ${type};`, ''];
+      const call = endpoint === 'og' ? 'options' : args(q(url), fixed === '' ? '' : 'options');
+      if (fixed !== '') head[0] = `import { createClient, type ${type} } from '@omnillink/sdk';`;
+      return done([
+        ...shared,
+        `const file = await omnillink.${endpoint}(${call}); // a Blob`,
+        '',
+        `// Or only the address, for ${endpoint === 'og' ? '`<meta property="og:image">`' : 'a `src` or `href`'}: no request is made.`,
+        `const src = omnillink.${endpoint}Url(${call});`,
+      ]);
+    }
+    default:
+      return `// The SDK has no method for this endpoint: use fetch.\n${javascript(r)}`;
+  }
 }
 
 function python(r: CodeRequest): string {

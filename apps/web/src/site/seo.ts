@@ -143,8 +143,7 @@ export function headTags(page: PageId, lang: Lang, t: Lookup, faq: readonly FaqE
   return `${indexing}
     <meta name="author" content="${PUBLISHER}" />
     <meta name="color-scheme" content="light dark" />
-    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#0d1621" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#ffffff" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="${BRAND}" />
     <meta property="og:locale" content="${localeOf(lang).og}" />

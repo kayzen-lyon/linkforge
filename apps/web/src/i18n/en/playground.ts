@@ -15,8 +15,9 @@ export const playground: Record<keyof typeof source, string> = {
   'tips.3.title': 'Screenshot comparison',
   'tips.3.body': 'On `/screenshot`, compare light and dark, or desktop and mobile, side by side.',
   'tips.4.title': 'Collection for your tools',
-  'tips.4.body': 'Download the OpenAPI document, or a Postman collection generated from it.',
+  'tips.4.body': 'Download the OpenAPI document, or a Postman or Bruno collection generated from it.',
   'dl.openapi': 'OpenAPI document (JSON)',
   'dl.postman': 'Postman collection',
+  'dl.bruno': 'Bruno collection',
   'dl.failed': 'The collection could not be generated: the document is unavailable.',
 };
