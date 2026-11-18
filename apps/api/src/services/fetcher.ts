@@ -34,6 +34,8 @@ export interface FetchedBytes {
   readonly contentType: string | null;
   /** Response headers, lower-cased names. */
   readonly headers: Readonly<Record<string, string>>;
+  /** Names of the cookies the answer sets (values are never kept). */
+  readonly cookieNames: readonly string[];
   /** At most `maxBytes` of the (content-decoded) body. */
   readonly body: Buffer;
   /** True when the body was longer than `maxBytes`. */
@@ -232,7 +234,13 @@ export class SafeFetcher {
           status: response.status,
           contentType:
             response.headers.get('content-type')?.split(';')[0]?.trim().toLowerCase() ?? null,
-          headers: Object.fromEntries(response.headers.entries()),
+          headers: Object.fromEntries(
+            [...response.headers.entries()].filter(([name]) => name !== 'set-cookie'),
+          ),
+          cookieNames: response.headers
+            .getSetCookie()
+            .map((cookie) => cookie.split('=')[0]?.trim() ?? '')
+            .filter((name) => name !== ''),
           body: read.subarray(0, options.maxBytes),
           truncated: read.byteLength > options.maxBytes,
         };

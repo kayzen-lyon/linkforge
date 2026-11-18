@@ -23,6 +23,15 @@ import { openApiDoc, openApiRoutes } from './routes/openapi.js';
 import { pdfDoc, pdfRoutes } from './routes/pdf.js';
 import { playgroundRoutes } from './routes/playground.js';
 import { screenshotDoc, screenshotRoutes } from './routes/screenshot.js';
+import {
+  checkDoc,
+  htmlDoc,
+  imageDoc,
+  linksDoc,
+  sitemapDoc,
+  siteToolsRoutes,
+  techDoc,
+} from './routes/site-tools.js';
 import { ApiKeyRegistry } from './security/api-keys.js';
 import { EgressProxy } from './security/egress-proxy.js';
 import {
@@ -40,6 +49,7 @@ import { PageLoader } from './services/page-loader.js';
 import { PdfService } from './services/pdf-service.js';
 import { Renderer } from './services/renderer.js';
 import { ScreenshotService } from './services/screenshot-service.js';
+import { SiteToolsService } from './services/site-tools-service.js';
 
 /**
  * Creates the HTTP application and its services.
@@ -71,6 +81,7 @@ export async function buildApp(config: AppConfig): Promise<FastifyInstance> {
   const pageLoader = new PageLoader(config, fetcher, renderer);
   const extractService = new ExtractService(config, cache, pageLoader);
   const contentService = new ContentService(config, cache, pageLoader);
+  const siteTools = new SiteToolsService(config, cache, fetcher, pageLoader);
   const apiKeys = new ApiKeyRegistry(config.apiKeys);
 
   app.addHook('onClose', async () => {
@@ -89,6 +100,7 @@ export async function buildApp(config: AppConfig): Promise<FastifyInstance> {
       'x-request-id',
       'x-cache',
       'x-render-source',
+      'x-final-url',
       'etag',
       'retry-after',
       'x-ratelimit-limit',
@@ -178,6 +190,7 @@ export async function buildApp(config: AppConfig): Promise<FastifyInstance> {
       await v1.register(pdfRoutes, { pdfService });
       await v1.register(extractRoutes, { extractService });
       await v1.register(contentRoutes, { contentService });
+      await v1.register(siteToolsRoutes, { siteTools });
       await v1.register(openApiRoutes, {
         document: buildOpenApiDocument([
           metaDoc,
@@ -186,6 +199,12 @@ export async function buildApp(config: AppConfig): Promise<FastifyInstance> {
           pdfDoc,
           extractDoc,
           contentDoc,
+          linksDoc,
+          htmlDoc,
+          techDoc,
+          imageDoc,
+          sitemapDoc,
+          checkDoc,
           openApiDoc,
           healthDoc,
         ]),

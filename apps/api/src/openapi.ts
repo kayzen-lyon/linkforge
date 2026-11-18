@@ -25,6 +25,8 @@ export interface ResponseDoc {
   readonly description: string;
   /** Media type → body schema. Omitted for body-less responses (redirects). */
   readonly content?: Readonly<Record<string, JsonSchema>>;
+  /** Example of the `application/json` body, shown by documentation tools. */
+  readonly example?: unknown;
   /** Response headers worth documenting, name → description. */
   readonly headers?: Readonly<Record<string, string>>;
 }
@@ -177,7 +179,12 @@ function operationOf(endpoint: EndpointDoc): object {
         },
         ...(response.content !== undefined && {
           content: Object.fromEntries(
-            Object.entries(response.content).map(([type, schema]) => [type, { schema }]),
+            Object.entries(response.content).map(([type, schema]) => [
+              type,
+              type === 'application/json' && response.example !== undefined
+                ? { schema, example: response.example }
+                : { schema },
+            ]),
           ),
         }),
       },

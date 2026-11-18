@@ -1,1 +1,59 @@
-{"name":"@omnillink/mcp","version":"0.1.0","private":true,"dependencies":{"@modelcontextprotocol/sdk":"^1.32.2"}}
+{
+  "name": "@omnillink/mcp",
+  "version": "0.1.0",
+  "description": "Model Context Protocol server for Omnillink: read pages as Markdown, get link metadata, extract fields, take screenshots and save PDFs from any AI agent.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kayzen-lyon/linkforge.git",
+    "directory": "packages/mcp"
+  },
+  "type": "module",
+  "bin": {
+    "omnillink-mcp": "./dist/bin.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "omnillink",
+    "mcp",
+    "model-context-protocol",
+    "ai-agents",
+    "claude",
+    "cursor",
+    "markdown",
+    "screenshot",
+    "metadata",
+    "scraping"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "pretest": "npm run build",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "@omnillink/sdk": "^0.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "typescript": "^5.9.3",
+    "vitest": "^5.1.0"
+  }
+}

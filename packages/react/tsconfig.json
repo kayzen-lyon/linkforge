@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": [],
+    "rootDir": ".",
+    "noEmit": true,
+    "paths": {
+      "@omnillink/sdk": ["../sdk/dist/index.d.ts"],
+      "@omnillink/sdk/element": ["../sdk/dist/element.d.ts"]
+    }
+  },
+  "include": ["src", "test", "vitest.config.ts"]
+}
