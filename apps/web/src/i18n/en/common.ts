@@ -135,4 +135,6 @@ export const common: Record<keyof typeof source, string> = {
   'guide.next': 'Next guide',
   'guide.all': 'All guides',
   'built': 'Page generated on',
+  'err.EBLOCKED': 'The target answered with an anti-bot block page instead of its content. That answer is never cached.',
+  'err.ECIRCUITOPEN': 'The target failed several times in a row: it is not contacted for a short while.',
 };

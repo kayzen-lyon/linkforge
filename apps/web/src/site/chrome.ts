@@ -48,7 +48,7 @@ interface NavLink {
 const NAV: readonly NavLink[] = [
   { href: PAGES.playground, key: 'nav.playground', pages: ['playground'] },
   { href: '/#features', key: 'nav.features', pages: [] },
-  { href: PAGES.quickstart, key: 'nav.guides', pages: ['quickstart', 'self-hosting', 'sdk', 'ai-agents', 'recipes', 'errors', 'limits', 'security', 'glossary'] },
+  { href: PAGES.quickstart, key: 'nav.guides', pages: ['quickstart', 'self-hosting', 'sdk', 'ai-agents', 'recipes', 'errors', 'limits', 'security', 'glossary', 'changelog'] },
   { href: PAGES.docs, key: 'nav.docs', pages: ['docs'] },
   { href: PAGES.status, key: 'nav.status', pages: ['status'] },
 ];

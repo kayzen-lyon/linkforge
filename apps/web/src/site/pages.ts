@@ -66,42 +66,133 @@ function heroDemo(): string {
         </figure>`;
 }
 
-function capabilityCards(): string {
-  const { meta, content, extract, pdf, batch, screenshot } = SAMPLES;
-  const card = (id: string, path: string, name: IconName, mini: string, tryHref: string, docs: string): string =>
-    `<li><article class="cap-card glass-strong card-lift" data-reveal>
+/** A capability card. `requires` is the API path: the client hides the card if the live spec lacks it. */
+function capCard(id: string, method: string, path: string, name: IconName, mini: string, tryHref: string, docs: string, docsKey = 'cap.docs'): string {
+  return `<li data-requires="${path}"><article class="cap-card glass-strong card-lift" data-reveal>
               <div class="cap-mini">${mini}</div>
               <div class="cap-body">
-                <p class="flex items-center gap-2"><span class="icon-tile icon-tile-sm">${icon(name, 'size-4')}</span><span class="tag">${path}</span></p>
-                <h3 ${t(`cap.${id}.title`)}></h3>
+                <p class="flex items-center gap-2"><span class="icon-tile icon-tile-sm">${icon(name, 'size-4')}</span><span class="tag">${method} ${path.replace('/api/v1', '')}</span></p>
+                <h4 ${t(`cap.${id}.title`)}></h4>
                 <p class="rich" ${t(`cap.${id}.body`)}></p>
                 <p class="cap-links">
                   <a class="text-link" href="${tryHref}"><span class="link-grow" ${t('cap.try')}></span>${icon('arrowRight', 'size-4')}</a>
-                  <a class="text-link text-link-quiet" href="${docs}"><span class="link-grow" ${t('cap.docs')}></span></a>
+                  <a class="text-link text-link-quiet" href="${docs}"><span class="link-grow" ${t(docsKey)}></span></a>
                 </p>
               </div>
             </article></li>`;
+}
 
-  const metaMini = `<div class="mini-card mini-card-row" lang="en"><p class="mini-site mono">example.com</p><p class="mini-title">${escapeHtml(meta.title)}</p><p class="mini-desc">${escapeHtml(meta.description)}</p><p class="mini-site">${escapeHtml(meta.author)} · ${escapeHtml(meta.publisher)}</p></div>`;
-  const shotMini = `<div class="mini-shots"><img src="/samples/screenshot-desktop.webp" alt="" width="${screenshot.desktop.width}" height="${screenshot.desktop.height}" loading="lazy" decoding="async" /><img class="mini-phone" src="/samples/screenshot-mobile.webp" alt="" width="${screenshot.mobile.width}" height="${screenshot.mobile.height}" loading="lazy" decoding="async" /></div>`;
-  const pdfMini = `<div class="mini-pdf">${icon('doc', 'size-8')}<p><span ${t('cap.pdf.fact')}></span><br /><span class="mono">${pdf.contentType} · ${formatBytes(pdf.bytes)}</span></p></div>`;
-  const extractMini = `<pre class="mini-code" lang="en"><code>${highlightLines(JSON.stringify(extract.fields, null, 2), 'json')}</code></pre>`;
-  const contentMini = `<pre class="mini-code mini-code-wrap" lang="en"><code>${escapeHtml(content.markdown.split('\n').slice(0, 9).join('\n'))}</code></pre>`;
-  const batchMini = `<ul class="mini-rows">${batch
+const code = (source: string, wrap = false): string =>
+  `<pre class="mini-code${wrap ? ' mini-code-wrap' : ''}" lang="en"><code>${highlightLines(source, 'json')}</code></pre>`;
+const facts = (pairs: ReadonlyArray<readonly [string, string | number]>): string =>
+  `<dl class="mini-facts" lang="en">${pairs.map(([name, value]) => `<div><dt>${escapeHtml(name)}</dt><dd>${escapeHtml(String(value))}</dd></div>`).join('')}</dl>`;
+const ref = (id: string): string => `${PAGES.docs}#${id}`;
+
+/** Capabilities in five families, each card with a miniature of a genuine response. */
+function capabilityGroups(): string {
+  const S = SAMPLES;
+  const play = (path: string, query: Readonly<Record<string, string>> = {}): string => tryLink(`/api/v1/${path}`, query);
+  const image = (file: string, width: number, height: number, cls = ''): string =>
+    `<img class="mini-image ${cls}" src="/samples/${file}" alt="" width="${width}" height="${height}" loading="lazy" decoding="async" />`;
+
+  const metaMini = `<div class="mini-card mini-card-row" lang="en"><p class="mini-site mono">example.com</p><p class="mini-title">${escapeHtml(S.meta.title)}</p><p class="mini-desc">${escapeHtml(S.meta.description)}</p><p class="mini-site">${escapeHtml(S.meta.author)} · ${escapeHtml(S.meta.publisher)}</p></div>`;
+  const shotMini = `<div class="mini-shots"><img src="/samples/screenshot-desktop.webp" alt="" width="${S.screenshot.desktop.width}" height="${S.screenshot.desktop.height}" loading="lazy" decoding="async" /><img class="mini-phone" src="/samples/screenshot-mobile.webp" alt="" width="${S.screenshot.mobile.width}" height="${S.screenshot.mobile.height}" loading="lazy" decoding="async" /></div>`;
+  const pdfMini = `<div class="mini-pdf">${icon('doc', 'size-8')}<p><span ${t('cap.pdf.fact')}></span><br /><span class="mono">${S.pdf.contentType} · ${formatBytes(S.pdf.bytes)}</span></p></div>`;
+  const htmlMini = `<div class="mini-pdf">${icon('code', 'size-8')}<p><span ${t('cap.html.fact')}></span><br /><span class="mono">text/plain · ${formatBytes(S.html.bytes)}</span></p></div>`;
+  const batchMini = `<ul class="mini-rows">${S.batch
     .map(
       (row) =>
         `<li><span class="badge ${row.status === 'success' ? 'badge-ok' : 'badge-error'}">${icon(row.status === 'success' ? 'check' : 'alert', 'size-3.5')}${escapeHtml(row.status === 'success' ? '200' : (row.code ?? 'error'))}</span><span class="mono truncate">${escapeHtml(row.url ?? '')}</span></li>`,
     )
     .join('')}</ul>`;
+  const tableMini = `<table class="mini-table" lang="en"><thead><tr>${S.tables.headers.map((cell) => `<th scope="col">${escapeHtml(cell)}</th>`).join('')}</tr></thead><tbody>${S.tables.rows.map((row) => `<tr>${row.map((cell) => `<td>${escapeHtml(cell)}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+  const linksMini = `<ul class="mini-rows" lang="en">${S.links.first.map((link) => `<li><span class="badge">${link.internal ? 'int' : 'ext'}</span><span class="truncate">${escapeHtml(link.text)}</span><span class="mono truncate text-muted-foreground">${escapeHtml(link.url.replace('https://', ''))}</span></li>`).join('')}</ul>`;
+  const techMini = `<ul class="mini-rows" lang="en">${S.tech.map((item) => `<li><span class="badge badge-ok">${escapeHtml(item.confidence)}</span><span class="font-semibold">${escapeHtml(item.name)}${item.version === null ? '' : ` ${escapeHtml(item.version)}`}</span><span class="truncate text-muted-foreground">${escapeHtml(item.evidence)}</span></li>`).join('')}</ul>`;
+  const insightsMini = facts([
+    ['TTFB', `${S.insights.timings.ttfbMs} ms`],
+    ['FCP', `${S.insights.vitals.fcpMs} ms`],
+    ['LCP', `${S.insights.vitals.lcpMs} ms`],
+    ['CLS', S.insights.vitals.cls],
+    ['requests', S.insights.requests],
+    ['transfer', formatBytes(S.insights.transferBytes)],
+  ]);
+  const checkMini = facts([
+    ['status', S.check.status],
+    ['hops', S.check.hops],
+    ['time', `${S.check.durationMs} ms`],
+    ['type', S.check.contentType],
+  ]);
+  const sitemapMini = `<div class="mini-pdf">${icon('list', 'size-8')}<p><span class="mono">robots.txt ${S.sitemap.robotsFound ? '✓' : '–'}</span><br /><span class="mono">${S.sitemap.urlCount} URLs · ${S.sitemap.sitemaps} sitemap</span></p></div>`;
+  const imageFacts = (item: { format: string; width: number; height: number; bytes: number }): string =>
+    facts([
+      ['format', item.format],
+      ['width', `${item.width} px`],
+      ['height', `${item.height} px`],
+      ['size', formatBytes(item.bytes)],
+    ]);
+  // Colours as SVG fills: the page allows no inline style, and these values come from the API.
+  const total = S.palette.reduce((sum, color) => sum + color.population, 0) || 1;
+  let offset = 0;
+  const paletteMini = `<div class="mini-palette" lang="en"><svg viewBox="0 0 100 26" preserveAspectRatio="none" role="img" aria-label="${S.palette.map((color) => color.hex).join(', ')}">${S.palette
+    .map((color) => {
+      const width = (color.population / total) * 100;
+      const rect = `<rect x="${offset.toFixed(2)}" y="0" width="${width.toFixed(2)}" height="26" fill="${/^#[0-9a-f]{6}$/i.test(color.hex) ? color.hex : '#000000'}" />`;
+      offset += width;
+      return rect;
+    })
+    .join('')}</svg><p class="mono">${S.palette.map((color) => color.hex).join(' · ')}</p></div>`;
+  const oembedMini = facts([
+    ['type', S.oembed.type],
+    ['provider', S.oembed.providerName],
+    ['title', S.oembed.title],
+    ['size', `${S.oembed.width} × ${S.oembed.height}`],
+  ]);
+  const articleMini = code(JSON.stringify(Object.fromEntries(Object.entries(S.article).slice(0, 5)), null, 2));
+  const mcpMini = code(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'omnillink_content' } }, null, 2));
+
+  const group = (key: string, cards: string[]): string =>
+    `<div class="cap-group" data-reveal>
+            <h3 class="cap-group-title" ${t(key)}></h3>
+            <ul class="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
+              ${cards.join('\n              ')}
+            </ul>
+          </div>`;
 
   return [
-    card('meta', 'GET /meta', 'link', metaMini, tryLink('/api/v1/meta'), `${PAGES.docs}#meta`),
-    card('screenshot', 'GET /screenshot', 'camera', shotMini, tryLink('/api/v1/screenshot', { device: 'mobile' }), `${PAGES.docs}#screenshot`),
-    card('content', 'GET /content', 'doc', contentMini, tryLink('/api/v1/content'), `${PAGES.docs}#content`),
-    card('extract', 'GET /extract', 'cursor', extractMini, tryLink('/api/v1/extract', { fields: JSON.stringify(extract.rules) }), `${PAGES.docs}#extract`),
-    card('pdf', 'GET /pdf', 'download', pdfMini, tryLink('/api/v1/pdf'), `${PAGES.docs}#pdf`),
-    card('batch', 'POST /meta/batch', 'stack', batchMini, `${PAGES.playground}?r=${encodeURIComponent('POST /api/v1/meta/batch')}&b=${encodeURIComponent(JSON.stringify({ urls: [DEFAULT_URL] }))}`, PAGES.limits),
-  ].join('\n            ');
+    group('grp.read', [
+      capCard('meta', 'GET', '/api/v1/meta', 'link', metaMini, play('meta'), ref('meta')),
+      capCard('content', 'GET', '/api/v1/content', 'doc', `<pre class="mini-code mini-code-wrap" lang="en"><code>${escapeHtml(S.content.markdown.split('\n').slice(0, 9).join('\n'))}</code></pre>`, play('content'), ref('content')),
+      capCard('extract', 'GET', '/api/v1/extract', 'cursor', code(JSON.stringify(S.extract.fields, null, 2)), play('extract', { fields: JSON.stringify(S.extract.rules) }), ref('extract')),
+      capCard('preset', 'GET', '/api/v1/extract', 'stack', articleMini, play('extract', { preset: 'article' }), ref('extract')),
+      capCard('tables', 'GET', '/api/v1/tables', 'rows', tableMini, play('tables'), ref('tables')),
+      capCard('links', 'GET', '/api/v1/links', 'link', linksMini, play('links'), ref('links')),
+      capCard('html', 'GET', '/api/v1/html', 'code', htmlMini, play('html'), ref('html')),
+      capCard('oembed', 'GET', '/api/v1/oembed', 'play', oembedMini, play('oembed'), ref('oembed')),
+    ]),
+    group('grp.capture', [
+      capCard('screenshot', 'GET', '/api/v1/screenshot', 'camera', shotMini, play('screenshot', { device: 'mobile' }), ref('screenshot')),
+      capCard('animation', 'GET', '/api/v1/animation', 'play', image('animation.webp', 320, 200), play('animation'), ref('animation')),
+      capCard('pdf', 'GET', '/api/v1/pdf', 'download', pdfMini, play('pdf'), ref('pdf')),
+      capCard('batch', 'POST', '/api/v1/meta/batch', 'stack', batchMini, `${PAGES.playground}?r=${encodeURIComponent('POST /api/v1/meta/batch')}&b=${encodeURIComponent(JSON.stringify({ urls: [DEFAULT_URL] }))}`, ref('meta-batch')),
+    ]),
+    group('grp.inspect', [
+      capCard('tech', 'GET', '/api/v1/tech', 'braces', techMini, play('tech'), ref('tech')),
+      capCard('insights', 'GET', '/api/v1/insights', 'pulse', insightsMini, play('insights'), ref('insights')),
+      capCard('check', 'GET', '/api/v1/check', 'refresh', checkMini, play('check'), ref('check')),
+      capCard('sitemap', 'GET', '/api/v1/sitemap', 'list', sitemapMini, play('sitemap'), ref('sitemap')),
+      capCard('favicon', 'GET', '/api/v1/favicon', 'image', imageFacts(S.favicon), play('favicon'), ref('favicon')),
+      capCard('image', 'GET', '/api/v1/image', 'image', imageFacts(S.image), play('image'), ref('image')),
+      capCard('palette', 'GET', '/api/v1/palette', 'eye', paletteMini, play('palette'), ref('palette')),
+    ]),
+    group('grp.generate', [
+      capCard('qr', 'GET', '/api/v1/qr', 'hash', image('qr.svg', 160, 160, 'mini-qr'), play('qr'), ref('qr')),
+      capCard('og', 'GET', '/api/v1/og', 'image', image('og.webp', 480, 252), `${PAGES.playground}?r=${encodeURIComponent('GET /api/v1/og?title=Omnillink')}`, ref('og')),
+    ]),
+    group('grp.agents', [
+      capCard('mcp', 'POST', '/mcp', 'bot', mcpMini, PAGES['ai-agents'] + '#mcp', PAGES['ai-agents'], 'cap.guide'),
+      capCard('content', 'GET', '/api/v1/content', 'doc', code(JSON.stringify({ format: 'markdown', citations: true, wordCount: S.content.wordCount }, null, 2)), play('content', { format: 'markdown', citations: 'true' }), PAGES['ai-agents'], 'cap.guide'),
+    ]),
+  ].join('\n          ');
 }
 
 const USE_CASES: ReadonlyArray<readonly [string, string]> = [
@@ -224,9 +315,7 @@ function home(): string {
       <section id="features" class="section-y" aria-labelledby="cap-title">
         <div class="shell">
         ${head('cap.eyebrow', 'cap.title', 'cap.lead', 'cap-title')}
-          <ul class="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
-            ${capabilityCards()}
-          </ul>
+          ${capabilityGroups()}
           <p class="mt-6 text-sm text-muted-foreground"><span ${t('cap.captured')}></span> <time datetime="${SAMPLES.capturedOn}" data-date></time>.</p>
           <div id="cap-more" class="mt-12" hidden>
             <h3 class="mb-2" ${t('cap.more.title')}></h3>
@@ -307,11 +396,13 @@ function home(): string {
       <section id="tools" class="surface-sunken section-y" aria-labelledby="tools-title">
         <div class="shell">
         ${head('tools.eyebrow', 'tools.title', 'tools.lead', 'tools-title')}
-          <ul class="mb-10 grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
+          <ul class="mb-10 grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
             ${tool('sdk', 'braces', PAGES.sdk, 'packages/sdk')}
             ${tool('element', 'link', `${PAGES.sdk}#element`, 'packages/sdk')}
-            ${tool('cli', 'code', '#cli', 'packages/cli')}
-            ${tool('openapi', 'book', `${PAGES.docs}#openapi`, '/api/v1/openapi.json')}
+            ${tool('react', 'code', `${PAGES.sdk}#react`, 'packages/react')}
+            ${tool('cli', 'keyboard', '#cli', 'packages/cli')}
+            ${tool('mcp', 'bot', `${PAGES['ai-agents']}#mcp`, 'packages/mcp')}
+            ${tool('action', 'play', `${PAGES.sdk}#action`, '.github/actions')}
           </ul>
           <div id="cli" class="grid scroll-mt-28 gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:items-center" data-reveal>
             <div class="flex flex-col gap-3">
@@ -319,7 +410,14 @@ function home(): string {
               <p class="rich text-muted-foreground" ${t('cli.lead')}></p>
               <p class="rich text-sm text-muted-foreground" ${t('cli.note')}></p>
             </div>
-            <div class="terminal">${codeFigure('cli.label', CLI_EXAMPLE, 'bash', true)}</div>
+            <div class="grid min-w-0 gap-4">
+              <div class="terminal">${codeFigure('cli.label', CLI_EXAMPLE, 'bash', true)}</div>
+              ${
+                SAMPLES.cli.meta === null
+                  ? ''
+                  : `<figure class="code"><figcaption class="code-head"><span class="mono normal-case tracking-normal">$ omnillink meta https://example.com/blog/launch</span></figcaption><pre tabindex="0" lang="en"><code>${escapeHtml(SAMPLES.cli.meta)}</code></pre></figure><p class="text-sm text-muted-foreground" ${t('cli.captured')}></p>`
+              }
+            </div>
           </div>
         </div>
       </section>

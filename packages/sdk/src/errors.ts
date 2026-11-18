@@ -11,7 +11,9 @@ export type ApiErrorCode =
   | 'ERATELIMIT'
   | 'EUNREACHABLE'
   | 'ETARGETSTATUS'
+  | 'EBLOCKED'
   | 'EBUSY'
+  | 'ECIRCUITOPEN'
   | 'ETIMEOUT'
   | 'EBROWSER'
   | 'EINTERNAL';
@@ -39,11 +41,26 @@ export interface OmnillinkErrorInit {
   readonly cause?: unknown;
   /** Seconds from the `Retry-After` header, when the server sent one. */
   readonly retryAfter?: number;
+  /** `x-request-id` of the failed response, when there was one. */
+  readonly requestId?: string;
 }
 
+/**
+ * Codes for which the same request can reasonably succeed later:
+ *
+ * - `ERATELIMIT`: the quota window resets (`retryAfter` says when).
+ * - `EBUSY`: the rendering pool was full; a slot frees up within seconds.
+ * - `ECIRCUITOPEN`: the target host is short-circuited for a moment (30 s by
+ *   default) after repeated failures, then tried again.
+ * - `ETIMEOUT`, `ENETWORK`, `EUNREACHABLE`: transient by nature.
+ *
+ * `EBLOCKED` is deliberately absent: the target served an anti-bot page after
+ * a browser retry on the server side already; asking again gets the same wall.
+ */
 const RETRYABLE: ReadonlySet<string> = new Set([
   'ERATELIMIT',
   'EBUSY',
+  'ECIRCUITOPEN',
   'ETIMEOUT',
   'ENETWORK',
   'EUNREACHABLE',
@@ -57,12 +74,15 @@ export class OmnillinkError extends Error {
   readonly status: number;
   /** Seconds to wait before retrying, when the server said so. */
   readonly retryAfter: number | undefined;
+  /** `x-request-id` of the failed response: quote it when reporting a problem. */
+  readonly requestId: string | undefined;
 
   constructor(init: OmnillinkErrorInit) {
     super(init.message, init.cause === undefined ? undefined : { cause: init.cause });
     this.code = init.code;
     this.status = init.status;
     this.retryAfter = init.retryAfter;
+    this.requestId = init.requestId;
   }
 
   /** True when trying again later can reasonably succeed. */

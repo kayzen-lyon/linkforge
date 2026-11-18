@@ -1,0 +1,54 @@
+[
+  {
+    "date": "2026-11-18",
+    "subject": "feat: MCP endpoint, page insights, extraction presets, tables, oEmbed, QR, palette and more"
+  },
+  {
+    "date": "2026-11-18",
+    "subject": "feat: premium site — flag language selector, playground, guides, search"
+  },
+  {
+    "date": "2026-11-18",
+    "subject": "feat: developer tooling — CLI, MCP server, React wrapper, GitHub Action, examples"
+  },
+  {
+    "date": "2026-11-18",
+    "subject": "feat: site tools — links, rendered HTML, technologies, image facts, sitemap, link check"
+  },
+  {
+    "date": "2026-11-18",
+    "subject": "fix: validate every browser connection through an in-process egress proxy"
+  },
+  {
+    "date": "2026-11-18",
+    "subject": "fix: ignore unknown query parameters instead of rejecting the request"
+  },
+  {
+    "date": "2026-11-18",
+    "subject": "feat: Omnillink site, extended API and SDK"
+  },
+  {
+    "date": "2026-11-18",
+    "subject": "fix: install every workspace on Vercel so the playground can build"
+  },
+  {
+    "date": "2026-11-18",
+    "subject": "fix: deploy as a single Fastify service that also serves the playground"
+  },
+  {
+    "date": "2026-11-18",
+    "subject": "fix: make the Vercel build pick the right API entry point"
+  },
+  {
+    "date": "2026-11-18",
+    "subject": "fix: configure Vercel services for the API and the playground"
+  },
+  {
+    "date": "2026-11-18",
+    "subject": "feat: deploy on Vercel instead of Docker"
+  },
+  {
+    "date": "2026-11-18",
+    "subject": "feat: bootstrap LinkForge link intelligence API"
+  }
+]

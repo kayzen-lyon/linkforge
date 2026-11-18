@@ -193,11 +193,13 @@ export const docs = {
   'security.li4':
     'En HTTP, la résolution DNS validée est épinglée à la connexion, et chaque redirection est revalidée.',
   'security.li5':
-    'Dans le navigateur, chaque requête est interceptée et validée, sous-ressources, redirections et iframes comprises. WebSockets et service workers sont coupés.',
+    'Dans le navigateur, deux couches. Chaque requête émise par la page est interceptée et validée ; WebSockets et service workers sont coupés. Et Chromium n’a pour seule sortie réseau qu’un proxy interne à l’API : à chaque connexion, redirections comprises, ce proxy applique la politique, résout le nom lui-même et se connecte à l’adresse qu’il vient de valider.',
   'security.p2':
-    'Limite connue : dans le navigateur, Chromium refait sa propre résolution DNS après ce contrôle. Le [README du dépôt](https://github.com/kayzen-lyon/linkforge#readme) décrit l’état de ce point.',
+    'Ce qui n’est pas couvert : ce proxy vit dans le même processus que l’API. Il ne remplace pas un filtrage de sortie au niveau du réseau (pare-feu, VPC), qui reste recommandé en défense en profondeur. La protection porte sur les destinations que le navigateur peut joindre, pas sur ce que fait une page une fois chargée. Le [README du dépôt](https://github.com/kayzen-lyon/linkforge#readme) donne le détail.',
   'extract.note':
     'Un champ vaut `null` quand rien ne correspond ou que la valeur ne peut pas être convertie. Les chaînes sont coupées à 10 000 caractères.',
   'html.note':
     '`/meta`, `/extract` et `/content` ont besoin d’un document HTML : pour une image, un PDF ou tout autre type de fichier, l’API répond `ENOTHTML` (422).',
+  'spec.note': 'Les sections qui suivent, et les tableaux « Autres paramètres », sont générés à partir de la spécification OpenAPI de l’API : leurs descriptions sont en anglais, telles qu’elle les publie.',
+  'params.more': 'Autres paramètres (spécification OpenAPI)',
 };
