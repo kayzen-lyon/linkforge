@@ -6,7 +6,8 @@
  * the reference exists in both languages. Keep names, types and defaults in
  * sync with the API implementation (apps/api): users rely on this page.
  */
-import type { common, docs } from '../i18n/fr.ts';
+import type { common } from '../i18n/fr/common.ts';
+import type { docs } from '../i18n/fr/docs.ts';
 import type { Lang } from '../lib/highlight.ts';
 import { SITE_ORIGIN } from '../site/config.ts';
 

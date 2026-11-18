@@ -5,7 +5,8 @@
  * fills them in French and the client can re-translate them. Code samples are
  * tokenised here so the page needs no highlighter at runtime.
  */
-import { tokenize, type Lang } from '../lib/highlight.ts';
+import { codeFigure, resetCodeCounter } from '../content/render.ts';
+import type { Lang } from '../lib/highlight.ts';
 import { escapeHtml, inlineToHtml } from '../lib/inline.ts';
 import {
   AUTH_SAMPLE,
@@ -29,29 +30,7 @@ type Key = DocsKey | CommonKey;
 const t = (key: Key): string => `data-i18n="${key}"`;
 const p = (key: Key): string => `<p ${t(key)}></p>`;
 
-let codeCounter = 0;
-
-function highlight(code: string, lang: Lang): string {
-  return tokenize(code, lang)
-    .map((token) =>
-      token.type === 'plain'
-        ? escapeHtml(token.text)
-        : `<span class="t-${token.type}">${escapeHtml(token.text)}</span>`,
-    )
-    .join('');
-}
-
-function codeBlock(label: DocsKey, code: string, lang: Lang): string {
-  codeCounter += 1;
-  const id = `code-${codeCounter}`;
-  return `<figure class="code">
-  <figcaption class="code-head">
-    <span ${t(label)}></span>
-    <button type="button" class="copy-btn" data-copy="#${id}"><span data-copy-label ${t('copy')}></span></button>
-  </figcaption>
-  <pre tabindex="0"><code id="${id}">${highlight(code, lang)}</code></pre>
-</figure>`;
-}
+const codeBlock = (label: DocsKey, code: string, lang: Lang): string => codeFigure(label, code, lang, true);
 
 function rowsTable(nameHeader: DocsKey, rows: readonly Row[], defaults: boolean): string {
   const body = rows
@@ -198,7 +177,7 @@ const section = (id: string, title: DocsKey, body: string): string =>
 </section>`;
 
 export function renderDocsBody(): string {
-  codeCounter = 0;
+  resetCodeCounter();
   return [
     section(
       'quick-start',

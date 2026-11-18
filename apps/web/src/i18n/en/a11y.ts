@@ -1,0 +1,51 @@
+/** English text: a11y. Typed against the French module: a missing key does not compile. */
+import type { a11y as source } from '../fr/a11y.ts';
+
+export const a11y: Record<keyof typeof source, string> = {
+  'meta.title': 'Accessibility · Omnillink',
+  'meta.description':
+    'What was built, checked and not checked for accessibility on the Omnillink site, its known limits and how to report a problem.',
+  'title': 'Accessibility',
+  'updated': 'Last updated: 18 November 2026',
+  'intro':
+    'KAYZEN wants Omnillink to be usable by everyone, whatever their hardware, software or disability. The site is built to the WCAG 2.2 level AA criteria.',
+  'notice':
+    'This page is not a statement of conformity. No audit by a person has been carried out yet: it says what was checked, what was not, and what is still imperfect.',
+  'built.title': 'What was built',
+  'built.1': 'A skip link, identified page regions, a single main heading per page and headings in order.',
+  'built.2': 'Every control works with the keyboard: demo tabs with the arrow keys, mobile menu and accessibility panel closed with Escape, focus always visible.',
+  'built.3': 'The colours of text, controls and the focus ring are chosen from computed contrast ratios, in the light theme and in the dark theme.',
+  'built.4': 'An options panel, at the bottom left of every page: text size, higher contrast, the Atkinson Hyperlegible font, pure black in the dark theme.',
+  'built.5': 'Animations are short, and switched off when your system asks for reduced motion.',
+  'built.6': 'The language of each page is declared, as is the language of passages written in another language.',
+  'built.7': 'Loading states, results and errors in the demo are announced with text, never with colour alone.',
+  'built.8': 'Buttons and navigation links offer a target of at least 44 pixels on each side.',
+  'built.9': 'Search opens with Ctrl+K; single-key shortcuts can be turned off in the options.',
+  'checked.title': 'What was checked',
+  'checked.intro': 'Checks carried out on 18 November 2026, with automated tools and a review of the rendered pages:',
+  'checked.1': 'the contrast ratio of every text and background pair actually used, computed by a script for both themes;',
+  'checked.2': 'the keyboard path through the tabs, the mobile menu, the language switcher and the accessibility panel, in a scripted browser;',
+  'checked.3': 'no horizontal scrolling at a width of 375 pixels, and no error in the console;',
+  'checked.4': 'the rendering of each page in French and in English, in the light and dark themes, on a wide screen and on a phone;',
+  'checked.5': 'the language selector, the search and the playground forms, with the mouse then the keyboard, in the same scripted browser.',
+  'unchecked.title': 'What was not checked',
+  'unchecked.1': 'Rendering by screen readers (NVDA, JAWS, VoiceOver, TalkBack).',
+  'unchecked.2': 'A criterion-by-criterion audit, WCAG or RGAA, by a trained person.',
+  'unchecked.3': 'Voice control, switch devices and other assistive technologies.',
+  'unchecked.4': 'Zoom at 400% and the forced-contrast mode of the system.',
+  'unchecked.5': 'The PDF documents the API produces from third-party pages.',
+  'limits.title': 'Known limits',
+  'limits.1': 'The demo shows content that comes from other sites. A screenshot is an image without a detailed description: the Content tab gives its text.',
+  'limits.2': 'The structure of extracted content depends on the source page; it may be incomplete.',
+  'limits.3': 'Error messages returned by the API are in English. The site adds an explanation in the language of the page.',
+  'limits.4': 'Long code samples scroll horizontally inside their own block.',
+  'settings.title': 'Adjusting the display',
+  'settings.p':
+    'The round button at the bottom left opens the accessibility options: theme, text size, contrast, legible font, line spacing, underlined links, reduced animations. Your choices are saved in your browser and apply to every page.',
+  'contact.title': 'Reporting a problem',
+  'contact.p': 'If some content or a function is not accessible to you, tell us: we will look for a solution with you.',
+  'contact.email': 'By email: [contact@kayzen-lyon.fr](mailto:contact@kayzen-lyon.fr)',
+  'contact.phone': 'By phone: [+33 4 87 77 68 61](tel:+33487776861)',
+  'contact.issues': 'On GitHub: [open an issue](https://github.com/kayzen-lyon/linkforge/issues)',
+  'disclaimer': 'Page written with the help of an AI tool. It replaces neither an accessibility audit nor legal advice.',
+};

@@ -1,0 +1,20 @@
+/** French text: 404 and offline pages. */
+export const system = {
+  'nf.meta.title': 'Page introuvable · Omnillink',
+  'nf.meta.description': 'Cette adresse ne correspond à aucune page du site Omnillink.',
+  'nf.title': 'Cette page n’existe pas',
+  'nf.lead': 'L’adresse est peut-être incomplète, ou la page a changé de place. Voici où aller.',
+  'nf.search': 'Rechercher dans le site',
+  'nf.home': 'Accueil',
+  'nf.playground': 'Bac à sable',
+  'nf.docs': 'Référence de l’API',
+  'nf.quickstart': 'Démarrage en cinq minutes',
+  'nf.status': 'État du service',
+  'nf.api': 'Vous cherchiez un point d’accès de l’API ? Ils commencent tous par `/api/v1/`.',
+  'off.meta.title': 'Hors ligne · Omnillink',
+  'off.meta.description': 'Vous êtes hors ligne : cette page du site Omnillink n’a pas pu être chargée.',
+  'off.title': 'Vous êtes hors ligne',
+  'off.lead': 'Cette page n’a pas pu être chargée. Vérifiez votre connexion, puis réessayez.',
+  'off.retry': 'Réessayer',
+  'guides.title': 'Guides',
+};
