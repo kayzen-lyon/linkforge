@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title data-i18n="meta.title"></title>
+    <meta name="description" data-i18n-attr="content:meta.description" />
+    <!--@head-->
+  </head>
+  <body>
+    <!--@header-->
+
+    <div class="shell lg:grid lg:grid-cols-[14rem_minmax(0,1fr)] lg:gap-12">
+      <details class="toc-mobile" id="toc-mobile">
+        <summary data-i18n="toc.label"></summary>
+        <nav class="toc-mobile-body" data-i18n-attr="aria-label:toc.label">
+          <!--@docs-nav-->
+        </nav>
+      </details>
+      <aside class="toc-side">
+        <nav data-i18n-attr="aria-label:toc.label" class="pt-12">
+          <!--@docs-nav-->
+        </nav>
+      </aside>
+
+      <main id="main" class="doc pt-10 lg:pt-12">
+        <header class="flex flex-col gap-3 pb-10">
+          <p class="eyebrow">/api/v1</p>
+          <h1 class="text-[clamp(2rem,1.4rem+2.6vw,2.75rem)] leading-[1.1] font-extrabold tracking-[-0.03em]" data-i18n="title"></h1>
+          <p class="section-lead" data-i18n="lead"></p>
+        </header>
+        <!--@docs-body-->
+      </main>
+    </div>
+
+    <!--@footer-->
+    <script type="module" src="/src/docs.ts"></script>
+  </body>
+</html>

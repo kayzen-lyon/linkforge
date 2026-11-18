@@ -12,7 +12,8 @@ import { ErrorCode } from './lib/errors.js';
 /** Version of the API contract, reported in `info.version`. */
 export const API_VERSION = '0.2.0';
 
-type JsonSchema = Readonly<Record<string, unknown>>;
+/** A JSON Schema object (TypeBox schemas are plain JSON Schema at runtime). */
+type JsonSchema = object;
 
 /** A TypeBox object schema, reduced to what parameter generation reads. */
 export interface QuerySchema {
@@ -115,7 +116,7 @@ const ERROR_SCHEMA = {
 function parametersOf(query: QuerySchema): object[] {
   const required = new Set(query.required ?? []);
   return Object.entries(query.properties).map(([name, property]) => {
-    const { description, ...schema } = property;
+    const { description, ...schema } = property as Record<string, unknown>;
     return {
       name,
       in: 'query',

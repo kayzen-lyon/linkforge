@@ -17,8 +17,10 @@ export const EXAMPLE_ORIGIN = 'http://localhost:3000';
 const TARGET = 'https://example.com/blog/launch';
 const ENCODED_TARGET = encodeURIComponent(TARGET);
 
-export interface Param {
+/** One row of a reference table: a query parameter, a rule property or a response field. */
+export interface Row {
   readonly name: string;
+  /** Rendered with the inline syntax, e.g. '`png` | `jpeg`'. Not translated. */
   readonly type: string;
   /** Default value. Omitted when there is none. */
   readonly fallback?: string;
@@ -35,7 +37,9 @@ export interface Sample {
 export interface FieldTable {
   readonly title: DocsKey;
   readonly nameHeader: DocsKey;
-  readonly rows: readonly Param[];
+  /** Whether the table has a "default" column. */
+  readonly defaults: boolean;
+  readonly rows: readonly Row[];
 }
 
 export interface Endpoint {
@@ -44,73 +48,87 @@ export interface Endpoint {
   readonly title: DocsKey;
   readonly returns: string;
   readonly intro: readonly DocsKey[];
-  readonly params: readonly Param[];
+  readonly params: readonly Row[];
   /** Extra reference tables shown after the parameters. */
   readonly tables?: readonly FieldTable[];
   readonly notes?: readonly DocsKey[];
   readonly samples: readonly Sample[];
 }
 
-const URL_PARAM: Param = {
-  name: 'url',
-  type: 'string',
-  required: true,
-  description:
-    'Absolute `http` or `https` URL of the page, URL-encoded. At most 2,048 characters, and it must not contain credentials.',
-};
-
-const RENDER_PARAM: Param = {
+const URL_PARAM: Row = { name: 'url', type: '`string`', required: true, description: 'p.url' };
+const RENDER_PARAM: Row = {
   name: 'render',
   type: '`auto` | `never` | `always`',
-  fallback: 'auto',
-  description:
-    '`auto` fetches the page over plain HTTP and opens a headless browser only when the result is poor or the page is an empty single-page-app shell. `never` stays on plain HTTP. `always` renders in the browser. See [Rendering](#rendering).',
+  fallback: '`auto`',
+  description: 'p.render',
 };
-
-const FORCE_PARAM: Param = {
-  name: 'force',
-  type: 'boolean',
-  fallback: 'false',
-  description:
-    'Skip the cache read and process the page again. The fresh result replaces the cached one.',
-};
-
-const TTL_PARAM: Param = {
-  name: 'ttl',
-  type: 'integer (seconds)',
-  fallback: 'server setting',
-  description:
-    'How long this result is kept in the cache, in seconds. Without it the server default applies. See [Caching](#caching).',
-};
+const FORCE_PARAM: Row = { name: 'force', type: '`boolean`', fallback: '`false`', description: 'p.force' };
+const TTL_PARAM: Row = { name: 'ttl', type: '`string`', description: 'p.ttl' };
 
 const json = (value: unknown): string => JSON.stringify(value, null, 2);
+
+const EXAMPLE_IMAGE = {
+  url: 'https://example.com/img/launch.png',
+  width: 1200,
+  height: 630,
+  type: 'image/png',
+  alt: 'The new editor',
+};
+
+const EXTRACT_RULES = {
+  price: { selector: '.price', attr: 'text', type: 'number' },
+  links: { selector: 'a', attr: 'href', type: 'url', all: true },
+};
 
 export const ENDPOINTS: readonly Endpoint[] = [
   {
     id: 'meta',
     path: '/api/v1/meta',
-    title: 'Metadata',
-    returns: 'application/json',
-    intro: [
-      'Returns normalised metadata for a page, merged from Open Graph, Twitter Card, JSON-LD, standard HTML tags and feeds. Use it to build link previews, enrich bookmarks or index pages.',
-      'Fields that the page does not provide are `null`, or an empty array for list fields.',
-    ],
+    title: 'meta.h',
+    returns: '`application/json`',
+    intro: ['meta.intro1', 'meta.intro2'],
     params: [
       URL_PARAM,
       RENDER_PARAM,
       FORCE_PARAM,
       TTL_PARAM,
+      { name: 'embed', type: '`string`', description: 'meta.p.embed' },
+    ],
+    tables: [
       {
-        name: 'embed',
-        type: 'string',
-        description:
-          'Dot path to a URL inside `data`, such as `image.url`, `logo.url` or `favicon`. Instead of JSON, the API answers with a redirect to that URL, so the request works directly as an `<img src>`. If the page has no value at that path the API answers with a 404 error.',
+        title: 'meta.fields.title',
+        nameHeader: 'th.field',
+        defaults: false,
+        rows: [
+          { name: 'url', type: '`string`', description: 'meta.f.url' },
+          { name: 'canonicalUrl', type: '`string` | `null`', description: 'meta.f.canonicalUrl' },
+          { name: 'title', type: '`string` | `null`', description: 'meta.f.title' },
+          { name: 'description', type: '`string` | `null`', description: 'meta.f.description' },
+          { name: 'author', type: '`string` | `null`', description: 'meta.f.author' },
+          { name: 'publisher', type: '`string` | `null`', description: 'meta.f.publisher' },
+          { name: 'lang', type: '`string` | `null`', description: 'meta.f.lang' },
+          { name: 'date', type: '`string` | `null`', description: 'meta.f.date' },
+          { name: 'image', type: '`object` | `null`', description: 'meta.f.image' },
+          { name: 'images', type: '`object[]`', description: 'meta.f.images' },
+          { name: 'favicon', type: '`string` | `null`', description: 'meta.f.favicon' },
+          { name: 'logo', type: '`object` | `null`', description: 'meta.f.logo' },
+          { name: 'video', type: '`object` | `null`', description: 'meta.f.video' },
+          { name: 'audio', type: '`object` | `null`', description: 'meta.f.audio' },
+          { name: 'keywords', type: '`string[]`', description: 'meta.f.keywords' },
+          { name: 'feeds', type: '`array`', description: 'meta.f.feeds' },
+          { name: 'jsonLd', type: '`object[]`', description: 'meta.f.jsonLd' },
+          { name: 'contentType', type: '`string` | `null`', description: 'meta.f.contentType' },
+        ],
       },
     ],
     samples: [
-      { label: 'Request', lang: 'bash', code: `curl "${EXAMPLE_ORIGIN}/api/v1/meta?url=${ENCODED_TARGET}"` },
       {
-        label: 'Response',
+        label: 'sample.request',
+        lang: 'bash',
+        code: `curl "${EXAMPLE_ORIGIN}/api/v1/meta?url=${ENCODED_TARGET}"`,
+      },
+      {
+        label: 'sample.response',
         lang: 'json',
         code: json({
           status: 'success',
@@ -123,28 +141,14 @@ export const ENDPOINTS: readonly Endpoint[] = [
             publisher: 'Example Blog',
             lang: 'en',
             date: '2025-03-04T09:00:00.000Z',
-            image: {
-              url: 'https://example.com/img/launch.png',
-              width: 1200,
-              height: 630,
-              type: 'image/png',
-              alt: 'The new editor',
-            },
-            images: [
-              {
-                url: 'https://example.com/img/launch.png',
-                width: 1200,
-                height: 630,
-                type: 'image/png',
-                alt: 'The new editor',
-              },
-            ],
+            image: EXAMPLE_IMAGE,
+            images: [EXAMPLE_IMAGE],
             favicon: 'https://example.com/favicon.ico',
             logo: { url: 'https://example.com/logo.png' },
             video: null,
             audio: null,
             keywords: ['editor', 'release'],
-            feeds: ['https://example.com/feed.xml'],
+            feeds: [],
             jsonLd: [{ '@type': 'BlogPosting', headline: 'Launching the new editor' }],
             contentType: 'text/html',
           },
@@ -152,7 +156,7 @@ export const ENDPOINTS: readonly Endpoint[] = [
         }),
       },
       {
-        label: 'Use a field as an image',
+        label: 'sample.embed',
         lang: 'html',
         code: `<img src="${EXAMPLE_ORIGIN}/api/v1/meta?url=${ENCODED_TARGET}&embed=image.url" alt="" />`,
       },
@@ -161,126 +165,71 @@ export const ENDPOINTS: readonly Endpoint[] = [
   {
     id: 'screenshot',
     path: '/api/v1/screenshot',
-    title: 'Screenshot',
-    returns: 'image/png or image/jpeg',
-    intro: [
-      'Renders the page in a headless browser and returns the image itself, not JSON. The request URL can be used directly as an `<img src>`.',
-    ],
+    title: 'screenshot.h',
+    returns: '`image/png` | `image/jpeg`',
+    intro: ['screenshot.intro1'],
     params: [
       URL_PARAM,
       {
         name: 'device',
         type: '`desktop` | `mobile`',
-        fallback: 'desktop',
-        description:
-          '`desktop` uses a 1280 × 800 viewport. `mobile` emulates a phone (Pixel 7 profile: touch, mobile user agent, high pixel density).',
+        fallback: '`desktop`',
+        description: 'screenshot.p.device',
       },
-      {
-        name: 'width',
-        type: 'integer (px)',
-        fallback: 'from `device`',
-        description: 'Viewport width, overriding the device preset.',
-      },
-      {
-        name: 'height',
-        type: 'integer (px)',
-        fallback: 'from `device`',
-        description: 'Viewport height, overriding the device preset.',
-      },
-      {
-        name: 'fullPage',
-        type: 'boolean',
-        fallback: 'false',
-        description:
-          'Capture the whole scrollable page instead of the viewport. Very tall pages are capped at 12,000 px.',
-      },
-      {
-        name: 'selector',
-        type: 'string',
-        description: 'CSS selector of a single element to capture instead of the page.',
-      },
-      {
-        name: 'format',
-        type: '`png` | `jpeg`',
-        fallback: 'png',
-        description: 'Image format of the response.',
-      },
-      {
-        name: 'quality',
-        type: 'integer 1–100',
-        fallback: '80',
-        description: 'JPEG quality. Ignored for PNG.',
-      },
+      { name: 'width', type: '`integer`', description: 'screenshot.p.width' },
+      { name: 'height', type: '`integer`', description: 'screenshot.p.height' },
+      { name: 'fullPage', type: '`boolean`', fallback: '`false`', description: 'screenshot.p.fullPage' },
+      { name: 'selector', type: '`string`', description: 'screenshot.p.selector' },
+      { name: 'format', type: '`png` | `jpeg`', fallback: '`png`', description: 'screenshot.p.format' },
+      { name: 'quality', type: '`integer`', fallback: '`80`', description: 'screenshot.p.quality' },
       {
         name: 'colorScheme',
         type: '`light` | `dark`',
-        fallback: 'light',
-        description: 'Value reported to the page for `prefers-color-scheme`.',
+        fallback: '`light`',
+        description: 'screenshot.p.colorScheme',
       },
-      {
-        name: 'hide',
-        type: 'string',
-        description:
-          'Comma-separated CSS selectors to hide before capturing, for example cookie banners: `hide=.cookie-banner,#newsletter`.',
-      },
-      {
-        name: 'waitFor',
-        type: 'integer (ms)',
-        fallback: '0',
-        description: 'Extra time to wait after the page has loaded, for late animations or lazy content.',
-      },
+      { name: 'hide', type: '`string`', description: 'screenshot.p.hide' },
+      { name: 'waitFor', type: '`integer`', fallback: '`0`', description: 'screenshot.p.waitFor' },
       FORCE_PARAM,
       TTL_PARAM,
     ],
-    notes: [
-      'Errors are still returned as JSON with the matching HTTP status, so check the status code (or the `content-type` header) before treating the body as an image.',
-    ],
+    notes: ['screenshot.note'],
     samples: [
       {
-        label: 'Request',
+        label: 'sample.request',
         lang: 'bash',
         code: `curl -o screenshot.png \\\n  "${EXAMPLE_ORIGIN}/api/v1/screenshot?url=${ENCODED_TARGET}&device=mobile&colorScheme=dark"`,
       },
       {
-        label: 'Use as an image',
+        label: 'sample.image',
         lang: 'html',
-        code: `<img src="${EXAMPLE_ORIGIN}/api/v1/screenshot?url=${ENCODED_TARGET}&format=jpeg" alt="Screenshot of example.com" />`,
+        code: `<img src="${EXAMPLE_ORIGIN}/api/v1/screenshot?url=${ENCODED_TARGET}&format=jpeg" alt="example.com" />`,
       },
     ],
   },
   {
     id: 'pdf',
     path: '/api/v1/pdf',
-    title: 'PDF',
-    returns: 'application/pdf',
-    intro: ['Renders the page in a headless browser and returns it as a PDF document.'],
+    title: 'pdf.h',
+    returns: '`application/pdf`',
+    intro: ['pdf.intro1'],
     params: [
       URL_PARAM,
-      {
-        name: 'format',
-        type: '`A4` | `Letter`',
-        fallback: 'A4',
-        description: 'Paper size.',
-      },
-      {
-        name: 'landscape',
-        type: 'boolean',
-        fallback: 'false',
-        description: 'Landscape orientation instead of portrait.',
-      },
+      { name: 'format', type: '`A4` | `Letter`', fallback: '`A4`', description: 'pdf.p.format' },
+      { name: 'landscape', type: '`boolean`', fallback: '`false`', description: 'pdf.p.landscape' },
       {
         name: 'printBackground',
-        type: 'boolean',
-        fallback: 'true',
-        description: 'Include background colours and images.',
+        type: '`boolean`',
+        fallback: '`true`',
+        description: 'pdf.p.printBackground',
       },
       FORCE_PARAM,
       TTL_PARAM,
     ],
-    notes: ['As with screenshots, errors are returned as JSON with the matching HTTP status.'],
+    notes: ['pdf.note'],
     samples: [
       {
-        label: 'Request',
+        label: 'sample.request',
         lang: 'bash',
         code: `curl -o page.pdf \\\n  "${EXAMPLE_ORIGIN}/api/v1/pdf?url=${ENCODED_TARGET}&format=Letter&landscape=true"`,
       },
@@ -289,48 +238,44 @@ export const ENDPOINTS: readonly Endpoint[] = [
   {
     id: 'extract',
     path: '/api/v1/extract',
-    title: 'Extract',
-    returns: 'application/json',
-    intro: [
-      'Scrapes the fields you describe. `fields` is a URL-encoded JSON object that maps each output name to a rule; the response returns the same names with the extracted values.',
-    ],
+    title: 'extract.h',
+    returns: '`application/json`',
+    intro: ['extract.intro1'],
     params: [
       URL_PARAM,
-      {
-        name: 'fields',
-        type: 'JSON object',
-        required: true,
-        description: 'Extraction rules, URL-encoded. One rule per output field; see the rule properties below.',
-      },
+      { name: 'fields', type: '`string` (JSON)', required: true, description: 'extract.p.fields' },
       RENDER_PARAM,
       FORCE_PARAM,
       TTL_PARAM,
     ],
+    tables: [
+      {
+        title: 'extract.rule.title',
+        nameHeader: 'th.property',
+        defaults: true,
+        rows: [
+          { name: 'selector', type: '`string`', required: true, description: 'extract.r.selector' },
+          { name: 'attr', type: '`string`', fallback: '`text`', description: 'extract.r.attr' },
+          { name: 'type', type: '`string`', fallback: '`string`', description: 'extract.r.type' },
+          { name: 'all', type: '`boolean`', fallback: '`false`', description: 'extract.r.all' },
+        ],
+      },
+    ],
     samples: [
+      { label: 'sample.rules', lang: 'json', code: json(EXTRACT_RULES) },
       {
-        label: 'Rules',
-        lang: 'json',
-        code: json({
-          price: { selector: '.price', attr: 'text', type: 'number' },
-          links: { selector: 'a', attr: 'href', type: 'url', all: true },
-        }),
-      },
-      {
-        label: 'Request',
+        label: 'sample.request',
         lang: 'bash',
-        code: `curl -G "${EXAMPLE_ORIGIN}/api/v1/extract" \\\n  --data-urlencode "url=${TARGET}" \\\n  --data-urlencode 'fields={"price":{"selector":".price","attr":"text","type":"number"},"links":{"selector":"a","attr":"href","type":"url","all":true}}'`,
+        code: `curl -G "${EXAMPLE_ORIGIN}/api/v1/extract" \\\n  --data-urlencode "url=${TARGET}" \\\n  --data-urlencode 'fields=${JSON.stringify(EXTRACT_RULES)}'`,
       },
       {
-        label: 'Response',
+        label: 'sample.response',
         lang: 'json',
         code: json({
           status: 'success',
           data: {
             url: TARGET,
-            fields: {
-              price: 49.9,
-              links: ['https://example.com/', 'https://example.com/pricing'],
-            },
+            fields: { price: 49.9, links: ['https://example.com/', 'https://example.com/pricing'] },
           },
           meta: { cached: false, source: 'http', durationMs: 118 },
         }),
@@ -340,16 +285,35 @@ export const ENDPOINTS: readonly Endpoint[] = [
   {
     id: 'content',
     path: '/api/v1/content',
-    title: 'Content',
-    returns: 'application/json',
-    intro: [
-      'Returns the readable part of a page, without navigation, ads or boilerplate, as plain text and as Markdown. It is meant for AI agents, summarisers and search indexing.',
-    ],
+    title: 'content.h',
+    returns: '`application/json`',
+    intro: ['content.intro1'],
     params: [URL_PARAM, RENDER_PARAM, FORCE_PARAM, TTL_PARAM],
-    samples: [
-      { label: 'Request', lang: 'bash', code: `curl "${EXAMPLE_ORIGIN}/api/v1/content?url=${ENCODED_TARGET}"` },
+    tables: [
       {
-        label: 'Response',
+        title: 'content.fields.title',
+        nameHeader: 'th.field',
+        defaults: false,
+        rows: [
+          { name: 'url', type: '`string`', description: 'content.f.url' },
+          { name: 'title', type: '`string` | `null`', description: 'content.f.title' },
+          { name: 'lang', type: '`string` | `null`', description: 'content.f.lang' },
+          { name: 'excerpt', type: '`string` | `null`', description: 'content.f.excerpt' },
+          { name: 'text', type: '`string`', description: 'content.f.text' },
+          { name: 'markdown', type: '`string`', description: 'content.f.markdown' },
+          { name: 'wordCount', type: '`integer`', description: 'content.f.wordCount' },
+          { name: 'readingTimeMinutes', type: '`integer`', description: 'content.f.readingTimeMinutes' },
+        ],
+      },
+    ],
+    samples: [
+      {
+        label: 'sample.request',
+        lang: 'bash',
+        code: `curl "${EXAMPLE_ORIGIN}/api/v1/content?url=${ENCODED_TARGET}"`,
+      },
+      {
+        label: 'sample.response',
         lang: 'json',
         code: json({
           status: 'success',
@@ -370,53 +334,29 @@ export const ENDPOINTS: readonly Endpoint[] = [
   },
 ];
 
-/** Properties of one rule of the `fields` object of `/extract`. */
-export const EXTRACT_RULE: readonly Param[] = [
-  {
-    name: 'selector',
-    type: 'string',
-    required: true,
-    description: 'CSS selector of the element to read.',
-  },
-  {
-    name: 'attr',
-    type: 'string',
-    fallback: 'text',
-    description: '`text` for the element text, or the name of an attribute such as `href`, `src` or `content`.',
-  },
-  {
-    name: 'type',
-    type: 'string',
-    fallback: 'string',
-    description:
-      'How the raw value is converted. `number` parses a numeric value out of the text; `url` resolves the value against the page URL into an absolute URL.',
-  },
-  {
-    name: 'all',
-    type: 'boolean',
-    fallback: 'false',
-    description: 'Return an array with every match instead of the first match only.',
-  },
-];
-
 export interface ErrorRow {
   readonly code: string;
   readonly http: string;
-  readonly status: 'fail' | 'error';
-  readonly meaning: string;
+  readonly meaning: CommonKey;
 }
 
+/** Ordered by HTTP status. `status` is "fail" below 500 and "error" from 500. */
 export const ERRORS: readonly ErrorRow[] = [
-  { code: 'EINVALIDPARAMS', http: '400', status: 'fail', meaning: 'A query parameter is missing, unknown or has an invalid value. Also returned with 404 for an unknown route.' },
-  { code: 'EINVALIDURL', http: '400', status: 'fail', meaning: 'The `url` is malformed or does not use `http` or `https`.' },
-  { code: 'EFORBIDDENURL', http: '403', status: 'fail', meaning: 'The destination is refused by the SSRF policy: private, loopback or metadata address, internal host name, or a port that is not allowed.' },
-  { code: 'ERATELIMIT', http: '429', status: 'fail', meaning: 'Too many requests. Wait for the delay given in the message and the `retry-after` header.' },
-  { code: 'EUNREACHABLE', http: '502', status: 'error', meaning: 'The target could not be reached: DNS failure, refused connection, TLS error.' },
-  { code: 'ETARGETSTATUS', http: '502', status: 'error', meaning: 'The target answered with an HTTP error status.' },
-  { code: 'EBUSY', http: '503', status: 'error', meaning: 'The rendering queue is full. Retry shortly.' },
-  { code: 'ETIMEOUT', http: '504', status: 'error', meaning: 'The target did not answer in time.' },
-  { code: 'EBROWSER', http: '500', status: 'error', meaning: 'The headless browser crashed or could not start.' },
-  { code: 'EINTERNAL', http: '500', status: 'error', meaning: 'Unexpected server error. No internal detail is disclosed.' },
+  { code: 'EINVALIDPARAMS', http: '400', meaning: 'err.EINVALIDPARAMS' },
+  { code: 'EINVALIDURL', http: '400', meaning: 'err.EINVALIDURL' },
+  { code: 'EUNAUTHORIZED', http: '401', meaning: 'err.EUNAUTHORIZED' },
+  { code: 'EFORBIDDENURL', http: '403', meaning: 'err.EFORBIDDENURL' },
+  { code: 'EEMBEDNOTFOUND', http: '404', meaning: 'err.EEMBEDNOTFOUND' },
+  { code: 'ESELECTORNOTFOUND', http: '404', meaning: 'err.ESELECTORNOTFOUND' },
+  { code: 'ENOTHTML', http: '422', meaning: 'err.ENOTHTML' },
+  { code: 'ETOOLARGE', http: '422', meaning: 'err.ETOOLARGE' },
+  { code: 'ERATELIMIT', http: '429', meaning: 'err.ERATELIMIT' },
+  { code: 'EBROWSER', http: '500', meaning: 'err.EBROWSER' },
+  { code: 'EINTERNAL', http: '500', meaning: 'err.EINTERNAL' },
+  { code: 'EUNREACHABLE', http: '502', meaning: 'err.EUNREACHABLE' },
+  { code: 'ETARGETSTATUS', http: '502', meaning: 'err.ETARGETSTATUS' },
+  { code: 'EBUSY', http: '503', meaning: 'err.EBUSY' },
+  { code: 'ETIMEOUT', http: '504', meaning: 'err.ETIMEOUT' },
 ];
 
 export const ERROR_SAMPLE = json({
@@ -429,6 +369,13 @@ export const ENVELOPE_SAMPLE = json({
   status: 'success',
   data: { url: TARGET, title: 'Launching the new editor' },
   meta: { cached: true, source: 'http', durationMs: 3 },
+});
+
+export const HEALTH_RESPONSE = json({
+  status: 'ok',
+  uptimeSeconds: 5121,
+  cache: 'memory',
+  browserPool: { active: 0, queued: 0, maxConcurrency: 4, browserConnected: true },
 });
 
 export const QUICK_START = `curl "${EXAMPLE_ORIGIN}/api/v1/meta?url=${ENCODED_TARGET}"`;

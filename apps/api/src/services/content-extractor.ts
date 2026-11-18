@@ -52,29 +52,43 @@ const PARAGRAPH_BREAKERS = new Set([
   'ul', 'ol', 'dl', 'table', 'hr', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'details', 'summary',
 ]);
 
-/** Plain text of a subtree with block boundaries turned into line breaks. */
+/**
+ * Plain text of a subtree, with block boundaries turned into line breaks:
+ * a blank line between paragraphs, a single break between list items and rows.
+ */
 function toPlainText(root: DomNode): string {
-  const parts: string[] = [];
+  let out = '';
+  /** Strongest break requested since the last text: 0 none, 1 line, 2 paragraph. */
+  let pending = 0;
+
+  const append = (text: string, preformatted: boolean): void => {
+    if (!preformatted && text.trim() === '') {
+      // Whitespace between inline elements is a word boundary; between blocks it is nothing.
+      if (pending === 0 && out !== '' && !/\s$/.test(out)) out += ' ';
+      return;
+    }
+    if (pending > 0 && out !== '') out = `${out.trimEnd()}${pending === 2 ? '\n\n' : '\n'}`;
+    const startsLine = out === '' || out.endsWith('\n');
+    pending = 0;
+    out += startsLine && !preformatted ? text.trimStart() : text;
+  };
+
   const visit = (node: DomNode, depth: number, preformatted: boolean): void => {
     if (node.type === 'text') {
-      parts.push(preformatted ? (node.data ?? '') : (node.data ?? '').replace(/\s+/g, ' '));
+      const data = node.data ?? '';
+      append(preformatted ? data : data.replace(/\s+/g, ' '), preformatted);
       return;
     }
     if (node.type !== 'tag' || depth > MAX_DEPTH) return;
     const name = node.name ?? '';
-    const separator = PARAGRAPH_BREAKERS.has(name) ? '\n\n' : LINE_BREAKERS.has(name) ? '\n' : '';
-    parts.push(separator);
+    const level = PARAGRAPH_BREAKERS.has(name) ? 2 : LINE_BREAKERS.has(name) ? 1 : 0;
+    pending = Math.max(pending, level);
     for (const child of node.children ?? []) visit(child, depth + 1, preformatted || name === 'pre');
-    parts.push(separator);
+    pending = Math.max(pending, level);
   };
   visit(root, 0, false);
 
-  return parts
-    .join('')
-    .replace(/[ \t]*\n[ \t]*/g, '\n')
-    .replace(/\n{3,}/g, '\n\n')
-    .replace(/[ \t]{2,}/g, ' ')
-    .trim();
+  return out.replace(/ {2,}/g, ' ').trim();
 }
 
 /** Length of a text once its whitespace is collapsed. */

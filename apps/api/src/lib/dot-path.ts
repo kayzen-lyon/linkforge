@@ -19,6 +19,8 @@ export function resolveDotPath(data: unknown, path: string): unknown {
   for (const segment of path.split('.')) {
     if (typeof current !== 'object' || current === null) return undefined;
     if (!Object.hasOwn(current, segment)) return undefined;
+    // `length` is an own property of arrays, but it is not data.
+    if (Array.isArray(current) && !/^\d+$/.test(segment)) return undefined;
     current = (current as Record<string, unknown>)[segment];
   }
   return current;

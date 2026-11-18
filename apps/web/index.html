@@ -1,107 +1,308 @@
 <!doctype html>
-<html lang="en" class="h-full">
+<html lang="fr">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>LinkForge — playground</title>
-    <meta name="description" content="Try the LinkForge metadata and screenshot API." />
+    <title data-i18n="meta.title"></title>
+    <meta name="description" data-i18n-attr="content:meta.description" />
+    <!--@head-->
   </head>
-  <body class="min-h-full bg-stone-50 text-stone-900 antialiased dark:bg-stone-950 dark:text-stone-100">
-    <main class="mx-auto flex max-w-5xl flex-col gap-8 px-4 py-12 sm:px-6">
-      <header class="flex flex-col gap-2">
-        <p class="font-mono text-sm text-teal-700 dark:text-teal-400">linkforge / playground</p>
-        <h1 class="text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
-          Turn any URL into structured data
-        </h1>
-        <p class="max-w-2xl text-stone-600 dark:text-stone-400">
-          Metadata, Open Graph images, JSON-LD and screenshots from a single REST API.
-        </p>
-      </header>
+  <body>
+    <!--@header-->
 
-      <form id="form" class="flex flex-col gap-3 sm:flex-row">
-        <label class="sr-only" for="url">URL to inspect</label>
-        <input
-          id="url"
-          name="url"
-          type="url"
-          required
-          placeholder="https://example.com/article"
-          class="min-w-0 flex-1 rounded-lg border border-stone-300 bg-white px-4 py-2.5 font-mono text-sm shadow-xs outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-600/30 dark:border-stone-700 dark:bg-stone-900"
-        />
-        <label class="sr-only" for="device">Screenshot device</label>
-        <select
-          id="device"
-          name="device"
-          class="rounded-lg border border-stone-300 bg-white px-3 py-2.5 text-sm dark:border-stone-700 dark:bg-stone-900"
-        >
-          <option value="desktop">Desktop</option>
-          <option value="mobile">Mobile</option>
-        </select>
-        <button
-          id="submit"
-          type="submit"
-          class="rounded-lg bg-teal-700 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-teal-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:opacity-50"
-        >
-          Inspect
-        </button>
-      </form>
-
-      <p
-        id="error"
-        role="alert"
-        hidden
-        class="rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200"
-      ></p>
-
-      <section id="results" hidden class="grid gap-6 lg:grid-cols-2">
-        <div class="flex min-w-0 flex-col gap-6">
-          <div>
-            <h2 class="mb-2 text-xs font-medium tracking-wide text-stone-500 uppercase">
-              Link preview
-            </h2>
-            <a
-              id="card"
-              target="_blank"
-              rel="noreferrer noopener"
-              class="block overflow-hidden rounded-xl border border-stone-200 bg-white shadow-xs transition-shadow hover:shadow-md dark:border-stone-800 dark:bg-stone-900"
-            >
-              <img id="card-image" alt="" hidden class="aspect-[1200/630] w-full object-cover" />
-              <div class="flex flex-col gap-1 p-4">
-                <p class="flex items-center gap-2 text-xs text-stone-500">
-                  <img id="card-favicon" alt="" hidden class="size-4 rounded-sm" />
-                  <span id="card-host" class="truncate"></span>
-                </p>
-                <p id="card-title" class="line-clamp-2 font-medium"></p>
-                <p
-                  id="card-description"
-                  class="line-clamp-3 text-sm text-stone-600 dark:text-stone-400"
-                ></p>
-              </div>
-            </a>
-          </div>
-          <div>
-            <h2 class="mb-2 text-xs font-medium tracking-wide text-stone-500 uppercase">
-              Screenshot
-            </h2>
-            <img
-              id="screenshot"
-              alt="Screenshot of the requested page"
-              class="w-full rounded-xl border border-stone-200 bg-stone-100 dark:border-stone-800 dark:bg-stone-900"
-            />
+    <main id="main">
+      <!-- Hero -->
+      <section class="shell grid gap-10 pt-12 pb-14 sm:pt-16 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] lg:items-center lg:gap-14 lg:pb-20">
+        <div class="flex min-w-0 flex-col items-start gap-5">
+          <p class="eyebrow" data-i18n="hero.eyebrow"></p>
+          <h1 class="text-[clamp(2.125rem,1.3rem+3.6vw,3.5rem)] leading-[1.05] font-extrabold tracking-[-0.035em]" data-i18n="hero.title"></h1>
+          <p class="section-lead" data-i18n="hero.lead"></p>
+          <div class="flex w-full flex-col gap-3 min-[480px]:w-auto min-[480px]:flex-row">
+            <a class="btn btn-primary" href="#demo" data-i18n="hero.cta.demo"></a>
+            <a class="btn btn-secondary" href="/docs" data-i18n="hero.cta.docs"></a>
           </div>
         </div>
-        <div class="min-w-0">
-          <h2 class="mb-2 flex items-center gap-2 text-xs font-medium tracking-wide text-stone-500 uppercase">
-            JSON response
-            <span id="badge" class="rounded-full bg-stone-200 px-2 py-0.5 font-mono normal-case dark:bg-stone-800"></span>
-          </h2>
-          <pre
-            id="json"
-            class="max-h-[42rem] overflow-auto rounded-xl border border-stone-200 bg-white p-4 font-mono text-xs leading-relaxed dark:border-stone-800 dark:bg-stone-900"
-          ></pre>
+
+        <div class="manifest min-w-0">
+          <p class="manifest-title" data-i18n="manifest.title"></p>
+          <ul>
+            <li>
+              <button type="button" class="manifest-row" data-goto="meta">
+                <span class="manifest-path"><span class="verb">GET</span>/meta</span>
+                <span class="manifest-desc" data-i18n="manifest.meta"></span>
+              </button>
+            </li>
+            <li>
+              <button type="button" class="manifest-row" data-goto="screenshot">
+                <span class="manifest-path"><span class="verb">GET</span>/screenshot</span>
+                <span class="manifest-desc" data-i18n="manifest.screenshot"></span>
+              </button>
+            </li>
+            <li>
+              <button type="button" class="manifest-row" data-goto="pdf">
+                <span class="manifest-path"><span class="verb">GET</span>/pdf</span>
+                <span class="manifest-desc" data-i18n="manifest.pdf"></span>
+              </button>
+            </li>
+            <li>
+              <button type="button" class="manifest-row" data-goto="extract">
+                <span class="manifest-path"><span class="verb">GET</span>/extract</span>
+                <span class="manifest-desc" data-i18n="manifest.extract"></span>
+              </button>
+            </li>
+            <li>
+              <button type="button" class="manifest-row" data-goto="content">
+                <span class="manifest-path"><span class="verb">GET</span>/content</span>
+                <span class="manifest-desc" data-i18n="manifest.content"></span>
+              </button>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- Live demo -->
+      <section id="demo" class="shell flex scroll-mt-20 flex-col gap-6" aria-labelledby="demo-title">
+        <div class="flex flex-col gap-2">
+          <h2 id="demo-title" class="section-title" data-i18n="demo.title"></h2>
+          <p class="section-lead" data-i18n="demo.lead"></p>
+        </div>
+
+        <div class="workbench min-w-0">
+          <form id="demo-form" class="flex flex-col gap-2 p-4 sm:flex-row sm:items-end" novalidate>
+            <div class="flex min-w-0 flex-1 flex-col gap-1">
+              <label for="demo-url" class="control-label" data-i18n="demo.url.label"></label>
+              <input id="demo-url" name="url" class="field" type="url" inputmode="url" autocomplete="off" spellcheck="false" autocapitalize="off" required value="https://github.com/kayzen-lyon/linkforge" />
+            </div>
+            <button id="demo-run" type="submit" class="btn btn-primary sm:min-w-28" data-i18n="demo.run"></button>
+          </form>
+          <p id="demo-url-error" class="mx-4 mb-3 text-sm font-medium text-(--danger)" role="alert" hidden></p>
+
+          <div class="tabs" role="tablist" data-i18n-attr="aria-label:demo.tabs.label">
+            <button type="button" class="tab" role="tab" id="tab-meta" aria-controls="panel-meta" aria-selected="true" data-tab="meta" data-i18n="demo.tab.meta"></button>
+            <button type="button" class="tab" role="tab" id="tab-screenshot" aria-controls="panel-screenshot" aria-selected="false" tabindex="-1" data-tab="screenshot" data-i18n="demo.tab.screenshot"></button>
+            <button type="button" class="tab" role="tab" id="tab-pdf" aria-controls="panel-pdf" aria-selected="false" tabindex="-1" data-tab="pdf" data-i18n="demo.tab.pdf"></button>
+            <button type="button" class="tab" role="tab" id="tab-extract" aria-controls="panel-extract" aria-selected="false" tabindex="-1" data-tab="extract" data-i18n="demo.tab.extract"></button>
+            <button type="button" class="tab" role="tab" id="tab-content" aria-controls="panel-content" aria-selected="false" tabindex="-1" data-tab="content" data-i18n="demo.tab.content"></button>
+          </div>
+
+          <div class="request-line">
+            <span class="verb">GET</span>
+            <code id="demo-request" tabindex="0" data-i18n-attr="aria-label:demo.request.label"></code>
+            <button type="button" class="copy-btn" data-copy="#demo-request"><span data-copy-label data-i18n="copy"></span></button>
+          </div>
+
+          <!-- Metadata -->
+          <div id="panel-meta" class="flex flex-col gap-4 p-4" role="tabpanel" aria-labelledby="tab-meta" tabindex="0">
+            <div id="status-meta" class="status" role="status" data-state="idle"></div>
+            <div id="result-meta" class="grid gap-5 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]" hidden>
+              <div class="flex min-w-0 flex-col gap-3">
+                <p class="pane-label"><span data-i18n="demo.meta.preview"></span></p>
+                <a id="meta-card" class="preview-card" target="_blank" rel="noopener noreferrer nofollow">
+                  <img id="meta-image" class="preview-image" alt="" hidden />
+                  <span class="flex flex-col gap-1 p-4">
+                    <span class="flex items-center gap-2 text-xs text-muted">
+                      <img id="meta-favicon" class="size-4 rounded-sm" alt="" hidden />
+                      <span id="meta-host" class="truncate font-mono"></span>
+                    </span>
+                    <span id="meta-title" class="line-clamp-2 font-bold leading-snug"></span>
+                    <span id="meta-description" class="line-clamp-3 text-sm text-muted"></span>
+                  </span>
+                </a>
+                <dl id="meta-facts" class="facts"></dl>
+              </div>
+              <div class="flex min-w-0 flex-col gap-3">
+                <p class="pane-label"><span data-i18n="demo.meta.json"></span><span id="meta-badges" class="flex flex-wrap gap-1.5"></span></p>
+                <figure class="code">
+                  <pre tabindex="0"><code id="meta-json"></code></pre>
+                </figure>
+              </div>
+            </div>
+          </div>
+
+          <!-- Screenshot -->
+          <div id="panel-screenshot" class="flex flex-col gap-4 p-4" role="tabpanel" aria-labelledby="tab-screenshot" tabindex="0" hidden>
+            <div class="flex flex-wrap items-center gap-x-5 gap-y-3">
+              <fieldset class="flex items-center gap-2">
+                <legend class="sr-only" data-i18n="demo.shot.device"></legend>
+                <div class="segmented">
+                  <label><input type="radio" name="device" id="shot-desktop" value="desktop" checked /><span data-i18n="demo.shot.desktop"></span></label>
+                  <label><input type="radio" name="device" id="shot-mobile" value="mobile" /><span data-i18n="demo.shot.mobile"></span></label>
+                </div>
+              </fieldset>
+              <label class="check"><input type="checkbox" id="shot-full" /><span data-i18n="demo.shot.fullPage"></span></label>
+              <label class="check"><input type="checkbox" id="shot-dark" /><span data-i18n="demo.shot.dark"></span></label>
+            </div>
+            <div id="status-screenshot" class="status" role="status" data-state="idle"></div>
+            <div id="result-screenshot" class="flex flex-col gap-3" hidden>
+              <div id="shot-frame" class="shot-frame" data-device="desktop" tabindex="0"><img id="shot-image" alt="" /></div>
+              <p><a id="shot-open" class="btn btn-secondary btn-sm" target="_blank" rel="noopener" data-i18n="demo.shot.open"></a></p>
+            </div>
+          </div>
+
+          <!-- PDF -->
+          <div id="panel-pdf" class="flex flex-col gap-4 p-4" role="tabpanel" aria-labelledby="tab-pdf" tabindex="0" hidden>
+            <div class="flex flex-wrap items-center gap-x-5 gap-y-3">
+              <label class="flex items-center gap-2"><span class="control-label" data-i18n="demo.pdf.format"></span>
+                <select id="pdf-format" class="field">
+                  <option value="A4">A4</option>
+                  <option value="Letter">Letter</option>
+                </select>
+              </label>
+              <label class="check"><input type="checkbox" id="pdf-landscape" /><span data-i18n="demo.pdf.landscape"></span></label>
+              <label class="check"><input type="checkbox" id="pdf-background" checked /><span data-i18n="demo.pdf.background"></span></label>
+            </div>
+            <div class="flex flex-col gap-3 min-[480px]:flex-row">
+              <a id="pdf-open" class="btn btn-primary" target="_blank" rel="noopener" data-i18n="demo.pdf.open"></a>
+              <a id="pdf-download" class="btn btn-secondary" download="page.pdf" data-i18n="demo.pdf.download"></a>
+            </div>
+            <p class="text-sm text-muted" data-i18n="demo.pdf.note"></p>
+          </div>
+
+          <!-- Extract -->
+          <div id="panel-extract" class="grid gap-5 p-4 lg:grid-cols-2" role="tabpanel" aria-labelledby="tab-extract" tabindex="0" hidden>
+            <div class="flex min-w-0 flex-col gap-2">
+              <label for="extract-rules" class="pane-label" data-i18n="demo.extract.rules"></label>
+              <textarea id="extract-rules" class="field" spellcheck="false" autocomplete="off" autocapitalize="off" aria-describedby="extract-hint extract-error"></textarea>
+              <p id="extract-hint" class="hint text-sm text-muted" data-i18n="demo.extract.hint"></p>
+              <p id="extract-error" class="text-sm font-medium text-(--danger)" role="alert" hidden></p>
+            </div>
+            <div class="flex min-w-0 flex-col gap-3">
+              <p class="pane-label"><span data-i18n="demo.extract.result"></span><span id="extract-badges" class="flex flex-wrap gap-1.5"></span></p>
+              <div id="status-extract" class="status" role="status" data-state="idle"></div>
+              <figure id="result-extract" class="code" hidden>
+                <pre tabindex="0"><code id="extract-json"></code></pre>
+              </figure>
+            </div>
+          </div>
+
+          <!-- Content -->
+          <div id="panel-content" class="flex flex-col gap-4 p-4" role="tabpanel" aria-labelledby="tab-content" tabindex="0" hidden>
+            <div class="flex flex-wrap items-center gap-x-5 gap-y-3">
+              <fieldset>
+                <legend class="sr-only" data-i18n="demo.content.view"></legend>
+                <div class="segmented">
+                  <label><input type="radio" name="content-view" id="content-view-rendered" value="rendered" checked /><span data-i18n="demo.content.rendered"></span></label>
+                  <label><input type="radio" name="content-view" id="content-view-markdown" value="markdown" /><span data-i18n="demo.content.markdown"></span></label>
+                  <label><input type="radio" name="content-view" id="content-view-text" value="text" /><span data-i18n="demo.content.text"></span></label>
+                </div>
+              </fieldset>
+              <p id="content-badges" class="flex flex-wrap gap-1.5"></p>
+            </div>
+            <div id="status-content" class="status" role="status" data-state="idle"></div>
+            <div id="result-content" class="flex flex-col gap-3" hidden>
+              <h3 id="content-title" class="text-xl leading-tight font-bold"></h3>
+              <div id="content-rendered" class="md" tabindex="0"></div>
+              <figure id="content-raw" class="code" hidden>
+                <pre class="wrap" tabindex="0"><code id="content-raw-code"></code></pre>
+              </figure>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Features -->
+      <section id="features" class="shell mt-24 flex scroll-mt-20 flex-col gap-8" aria-labelledby="features-title">
+        <div class="flex flex-col gap-2">
+          <h2 id="features-title" class="section-title" data-i18n="features.title"></h2>
+          <p class="section-lead" data-i18n="features.lead"></p>
+        </div>
+        <div class="grid gap-5 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+          <article class="feature feature-lg">
+            <h3 data-i18n="features.pipeline.title"></h3>
+            <p data-i18n="features.pipeline.body"></p>
+            <ol class="pipeline">
+              <li data-i18n="features.pipeline.step1"></li>
+              <li data-i18n="features.pipeline.step2"></li>
+              <li data-i18n="features.pipeline.step3"></li>
+              <li class="optional" data-i18n="features.pipeline.step4"></li>
+              <li data-i18n="features.pipeline.step5"></li>
+            </ol>
+          </article>
+          <article class="feature feature-lg">
+            <h3 data-i18n="features.ssrf.title"></h3>
+            <p data-i18n="features.ssrf.body"></p>
+          </article>
+        </div>
+        <div class="grid gap-x-8 gap-y-8 sm:grid-cols-2 lg:grid-cols-3">
+          <article class="feature feature-sm"><h3 data-i18n="features.cache.title"></h3><p data-i18n="features.cache.body"></p></article>
+          <article class="feature feature-sm"><h3 data-i18n="features.embed.title"></h3><p data-i18n="features.embed.body"></p></article>
+          <article class="feature feature-sm"><h3 data-i18n="features.extract.title"></h3><p data-i18n="features.extract.body"></p></article>
+          <article class="feature feature-sm"><h3 data-i18n="features.content.title"></h3><p data-i18n="features.content.body"></p></article>
+          <article class="feature feature-sm"><h3 data-i18n="features.openapi.title"></h3><p data-i18n="features.openapi.body"></p></article>
+          <article class="feature feature-sm"><h3 data-i18n="features.errors.title"></h3><p data-i18n="features.errors.body"></p></article>
+        </div>
+      </section>
+
+      <!-- Code examples -->
+      <section id="examples" class="shell mt-24 grid scroll-mt-20 gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:items-start" aria-labelledby="examples-title">
+        <div class="flex flex-col gap-3">
+          <h2 id="examples-title" class="section-title" data-i18n="examples.title"></h2>
+          <p class="section-lead" data-i18n="examples.lead"></p>
+          <label class="mt-2 flex items-center gap-2"><span class="control-label" data-i18n="examples.endpoint"></span>
+            <select id="example-endpoint" class="field font-mono!">
+              <option value="meta">/meta</option>
+              <option value="screenshot">/screenshot</option>
+              <option value="pdf">/pdf</option>
+              <option value="extract">/extract</option>
+              <option value="content">/content</option>
+            </select>
+          </label>
+          <p class="prose-inline text-sm text-muted" data-i18n="examples.more"></p>
+        </div>
+        <figure class="code">
+          <figcaption class="code-head">
+            <div class="code-tabs" role="tablist" data-i18n-attr="aria-label:examples.language">
+              <button type="button" class="code-tab" role="tab" id="example-tab-curl" aria-controls="example-panel" aria-selected="true" data-example="curl">curl</button>
+              <button type="button" class="code-tab" role="tab" id="example-tab-js" aria-controls="example-panel" aria-selected="false" tabindex="-1" data-example="js">JavaScript</button>
+              <button type="button" class="code-tab" role="tab" id="example-tab-python" aria-controls="example-panel" aria-selected="false" tabindex="-1" data-example="python">Python</button>
+            </div>
+            <button type="button" class="copy-btn" data-copy="#example-code"><span data-copy-label data-i18n="copy"></span></button>
+          </figcaption>
+          <pre id="example-panel" role="tabpanel" aria-labelledby="example-tab-curl" tabindex="0"><code id="example-code">curl "http://localhost:3000/api/v1/meta?url=https%3A%2F%2Fgithub.com%2Fkayzen-lyon%2Flinkforge"</code></pre>
+        </figure>
+      </section>
+
+      <!-- Self-hosting -->
+      <section id="self-host" class="shell mt-24 flex scroll-mt-20 flex-col gap-8" aria-labelledby="self-host-title">
+        <div class="flex flex-col gap-2">
+          <h2 id="self-host-title" class="section-title" data-i18n="selfHost.title"></h2>
+          <p class="section-lead" data-i18n="selfHost.lead"></p>
+        </div>
+        <div class="grid gap-10 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+          <div class="flex min-w-0 flex-col gap-4">
+            <ol class="steps flex flex-col gap-5">
+              <li>
+                <p data-i18n="selfHost.step1"></p>
+                <figure class="code"><pre tabindex="0"><code id="cmd-1"><span class="t-kw">git</span> clone https://github.com/kayzen-lyon/linkforge.git
+<span class="t-kw">cd</span> linkforge</code></pre></figure>
+              </li>
+              <li>
+                <p data-i18n="selfHost.step2"></p>
+                <figure class="code"><pre tabindex="0"><code id="cmd-2"><span class="t-kw">npm</span> install
+<span class="t-kw">npx</span> playwright-core install chromium</code></pre></figure>
+              </li>
+              <li>
+                <p data-i18n="selfHost.step3"></p>
+                <figure class="code"><pre tabindex="0"><code id="cmd-3"><span class="t-kw">cp</span> .env.example .env</code></pre></figure>
+              </li>
+              <li>
+                <p data-i18n="selfHost.step4"></p>
+                <figure class="code"><pre tabindex="0"><code id="cmd-4"><span class="t-kw">npm</span> run dev</code></pre></figure>
+              </li>
+            </ol>
+            <p class="prose-inline text-sm text-muted" data-i18n="selfHost.listening"></p>
+          </div>
+          <div class="flex min-w-0 flex-col gap-6">
+            <article class="feature feature-sm"><h3 data-i18n="selfHost.fact1.title"></h3><p data-i18n="selfHost.fact1.body"></p></article>
+            <article class="feature feature-sm"><h3 data-i18n="selfHost.fact2.title"></h3><p data-i18n="selfHost.fact2.body"></p></article>
+            <article class="feature feature-sm"><h3 data-i18n="selfHost.fact3.title"></h3><p data-i18n="selfHost.fact3.body"></p></article>
+            <p><a class="btn btn-secondary" href="https://github.com/kayzen-lyon/linkforge" rel="noopener" data-i18n="selfHost.cta"></a></p>
+          </div>
         </div>
       </section>
     </main>
+
+    <!--@footer-->
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
