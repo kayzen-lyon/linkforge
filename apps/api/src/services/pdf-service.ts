@@ -28,6 +28,8 @@ export interface PdfRequest {
   readonly printBackground: boolean;
   /** Hide common cookie / consent banners before printing. */
   readonly hideBanners: boolean;
+  /** Drop requests to well-known advertising and tracking hosts. */
+  readonly blockAds: boolean;
   /** CSS selector that must be in the DOM before printing; `null` for none. */
   readonly waitForSelector: string | null;
   readonly force: boolean;
@@ -81,6 +83,7 @@ export class PdfService {
       landscape: request.landscape,
       printBackground: request.printBackground,
       hideBanners: request.hideBanners,
+      blockAds: request.blockAds,
       waitForSelector,
     });
 
@@ -107,6 +110,7 @@ export class PdfService {
         deadline,
         reserveMs: PRINT_RESERVE_MS + SCROLL_PASS_BUDGET_MS + IMAGE_SETTLE_BUDGET_MS,
         waitForSelector: request.waitForSelector,
+        guard: { blockAds: request.blockAds },
         contextOptions: { viewport: { width: 1280, height: 800 } },
       },
       async ({ page, response }) => {

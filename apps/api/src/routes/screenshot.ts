@@ -69,6 +69,14 @@ const ScreenshotQuery = Type.Object(
           'stylesheet (nothing is clicked, no consent is given).',
       }),
     ),
+    blockAds: Type.Optional(
+      Type.Boolean({
+        default: false,
+        description:
+          'Drop requests to a built-in list of well-known advertising and tracking hosts ' +
+          '(faster, cleaner captures). Not a full ad blocker.',
+      }),
+    ),
     waitForSelector: WaitForSelectorParam,
     waitFor: Type.Optional(
       Type.Integer({
@@ -151,6 +159,7 @@ export const screenshotRoutes: FastifyPluginAsyncTypebox<ScreenshotRouteOptions>
       colorScheme: request.query.colorScheme ?? null,
       hide: request.query.hide ?? null,
       hideBanners: request.query.hideBanners ?? true,
+      blockAds: request.query.blockAds ?? false,
       waitForSelector: request.query.waitForSelector ?? null,
       force,
       ttlSeconds: request.query.ttl ?? null,

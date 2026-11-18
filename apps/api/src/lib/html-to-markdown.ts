@@ -175,7 +175,7 @@ export function bestImageSource(img: DomNode, picture?: DomNode): string | null 
 /** Escapes a line that would be read as a heading, list item, quote or rule. */
 function escapeLineStart(line: string): string {
   return line
-    .replace(/^(\s*)(#{1,6}(?:\s|$)|>|[-+](?:\s|$)|(?:-{3,}|={3,})\s*$)/, '$1\\$2')
+    .replace(/^(\s*)(#{1,6}(?:\s|$)|>|[-+*](?:\s|$)|(?:-{3,}|={3,})\s*$)/, '$1\\$2')
     .replace(/^(\s*\d+)([.)]\s)/, '$1\\$2');
 }
 

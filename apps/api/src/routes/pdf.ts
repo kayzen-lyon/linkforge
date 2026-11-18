@@ -29,6 +29,14 @@ const PdfQuery = Type.Object(
         description: 'Hide common cookie / consent banners before printing (nothing is clicked).',
       }),
     ),
+    blockAds: Type.Optional(
+      Type.Boolean({
+        default: false,
+        description:
+          'Drop requests to a built-in list of well-known advertising and tracking hosts ' +
+          '(faster, cleaner captures). Not a full ad blocker.',
+      }),
+    ),
     waitForSelector: WaitForSelectorParam,
     force: ForceParam,
     ttl: TtlParam,
@@ -77,6 +85,7 @@ export const pdfRoutes: FastifyPluginAsyncTypebox<PdfRouteOptions> = async (app,
       landscape,
       printBackground,
       hideBanners: request.query.hideBanners ?? false,
+      blockAds: request.query.blockAds ?? false,
       waitForSelector: request.query.waitForSelector ?? null,
       force,
       ttlSeconds: ttl ?? null,

@@ -36,9 +36,15 @@ beforeAll(async () => {
   expect(res.headers['content-type']).toContain('application/json');
   doc = res.json();
   // Fastify's own view of what is routable, to compare the document against.
+  // (The route tree is printed without leading slashes; children are nested.)
+  const stack: string[] = [];
   for (const line of app.printRoutes({ commonPrefix: false }).split('\n')) {
-    const match = line.match(/(\/[\w./-]*) \(GET/);
-    if (match?.[1] !== undefined) registered.push(match[1]);
+    const match = line.match(/^([│ ]*)[├└]── (\S+)(?: \(([A-Z, ]+)\))?/);
+    if (match === null) continue;
+    const depth = (match[1] ?? '').length / 4;
+    stack.length = depth;
+    stack.push(match[2] ?? '');
+    if (match[3] !== undefined) registered.push(stack.join('').replace(/^\/+/, '/'));
   }
 });
 afterAll(() => app.close());
@@ -56,24 +62,44 @@ describe('GET /api/v1/openapi.json', () => {
   it('describes every API route the server actually exposes', () => {
     const api = registered.filter((path) => path.startsWith('/api/v1/'));
     expect(api.sort()).toEqual(
-      ['content', 'extract', 'meta', 'openapi.json', 'pdf', 'screenshot'].map((p) => `/api/v1/${p}`),
+      ['content', 'extract', 'meta', 'meta/batch', 'openapi.json', 'pdf', 'screenshot'].map(
+        (p) => `/api/v1/${p}`,
+      ),
     );
-    for (const path of [...api, '/health']) expect(doc.paths[path]?.get).toBeDefined();
-    const ids = Object.values(doc.paths).map((item) => item.get.operationId);
+    for (const path of [...api, '/health']) {
+      const method = path.endsWith('/batch') ? 'post' : 'get';
+      expect((doc.paths[path] as Record<string, unknown> | undefined)?.[method], path).toBeDefined();
+      expect(app.hasRoute({ method: method === 'post' ? 'POST' : 'GET', url: path })).toBe(true);
+    }
+    const ids = Object.values(doc.paths).map(
+      (item) => ((item as Record<string, { operationId: string }>)['get'] ?? (item as Record<string, { operationId: string }>)['post'])!.operationId,
+    );
     expect(new Set(ids).size).toBe(ids.length);
   });
 
   it('documents the parameters with their constraints', () => {
     expect(Object.keys(params('/api/v1/meta'))).toEqual(['url', 'render', 'embed', 'force', 'ttl']);
     expect(Object.keys(params('/api/v1/screenshot'))).toEqual([
-      'url', 'device', 'width', 'height', 'fullPage', 'selector', 'hide', 'waitFor',
-      'colorScheme', 'format', 'quality', 'force', 'ttl',
+      'url', 'device', 'width', 'height', 'fullPage', 'selector', 'hide', 'hideBanners',
+      'blockAds', 'waitForSelector', 'waitFor', 'colorScheme', 'format', 'quality', 'force', 'ttl',
     ]);
     expect(Object.keys(params('/api/v1/pdf'))).toEqual([
-      'url', 'format', 'landscape', 'printBackground', 'force', 'ttl',
+      'url', 'format', 'landscape', 'printBackground', 'hideBanners', 'blockAds', 'waitForSelector', 'force',
+      'ttl',
     ]);
-    expect(Object.keys(params('/api/v1/extract'))).toEqual(['url', 'fields', 'render', 'force', 'ttl']);
-    expect(Object.keys(params('/api/v1/content'))).toEqual(['url', 'render', 'force', 'ttl']);
+    expect(Object.keys(params('/api/v1/extract'))).toEqual([
+      'url', 'fields', 'render', 'waitForSelector', 'force', 'ttl',
+    ]);
+    expect(Object.keys(params('/api/v1/content'))).toEqual([
+      'url', 'render', 'format', 'mainContent', 'include', 'exclude', 'citations',
+      'waitForSelector', 'force', 'ttl',
+    ]);
+    expect(params('/api/v1/screenshot')['hideBanners']!.schema).toMatchObject({ default: true });
+    expect(params('/api/v1/pdf')['hideBanners']!.schema).toMatchObject({ default: false });
+    expect(params('/api/v1/content')['format']!.schema).toMatchObject({
+      enum: ['json', 'markdown', 'text'],
+      default: 'json',
+    });
 
     const meta = params('/api/v1/meta');
     expect(meta['url']).toMatchObject({ in: 'query', required: true, schema: { type: 'string' } });
@@ -97,8 +123,23 @@ describe('GET /api/v1/openapi.json', () => {
   it('documents success and error responses', () => {
     const meta = doc.paths['/api/v1/meta']!.get.responses;
     expect(Object.keys(meta).sort()).toEqual(
-      ['200', '302', '400', '401', '403', '404', '429', '500', '502', '503', '504'],
+      ['200', '302', '304', '400', '401', '403', '404', '429', '500', '502', '503', '504'],
     );
+    expect(meta['502']!.description).toContain('EBLOCKED');
+    const headers = (meta['200'] as unknown as { headers: object }).headers;
+    expect(headers).toHaveProperty('etag');
+    expect(headers).toHaveProperty('x-render-source');
+
+    const batch = (doc.paths['/api/v1/meta/batch'] as unknown as Record<string, any>)['post'];
+    expect(batch.requestBody.content['application/json'].schema.properties.urls).toMatchObject({
+      type: 'array',
+      minItems: 1,
+      maxItems: 10,
+    });
+    expect(Object.keys(batch.responses).sort()).toEqual(['200', '400', '401', '429', '500']);
+    expect(Object.keys(doc.paths['/api/v1/content']!.get.responses['200']!.content!)).toEqual([
+      'application/json', 'text/markdown', 'text/plain',
+    ]);
     expect(meta['404']!.description).toContain('EEMBEDNOTFOUND');
     expect(meta['400']!.content!['application/json']!.schema).toEqual({
       $ref: '#/components/schemas/Error',

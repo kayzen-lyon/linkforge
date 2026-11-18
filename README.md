@@ -31,7 +31,7 @@ npm run dev:web
 
 ## API
 
-Toutes les routes sont en `GET` sous `/api/v1`. Les réponses JSON ont l'enveloppe `{ "status": "success", "data": …, "meta": { "cached", "source", "durationMs" } }` ; `/screenshot` et `/pdf` renvoient directement le fichier.
+Toutes les routes sont en `GET` sous `/api/v1`, sauf le lot de métadonnées (`POST /api/v1/meta/batch`). Les réponses JSON ont l'enveloppe `{ "status": "success", "data": …, "meta": { "cached", "source", "durationMs" } }` ; `/screenshot` et `/pdf` renvoient directement le fichier.
 
 En-têtes communs :
 
@@ -40,6 +40,9 @@ En-têtes communs :
 | `x-api-key` | requête | Clé d'API, facultative (voir [Clés d'API et quotas](#clés-dapi-et-quotas)) |
 | `x-request-id` | requête / réponse | Identifiant de la requête, présent sur **toutes** les réponses. Celui du client est repris s'il est bien formé (`[A-Za-z0-9_.:-]`, 128 caractères au plus), sinon un UUID est généré |
 | `x-cache` | réponse | `HIT` si la réponse vient du cache serveur, `MISS` sinon |
+| `x-render-source` | réponse | `http` ou `browser` : la chaîne qui a produit la réponse (toujours `browser` pour `/screenshot` et `/pdf`) |
+| `etag` / `if-none-match` | réponse / requête | Sur les réponses JSON (`/meta`, `/extract`, `/content`, y compris `format=markdown\|text`) : renvoyez l'`ETag` reçu dans `If-None-Match` pour obtenir `304 Not Modified` sans corps. L'`ETag` est calculé sur `data`, pas sur `meta` |
+| `x-ratelimit-limit`, `x-ratelimit-remaining`, `x-ratelimit-reset`, `retry-after` | réponse | Quota de la fenêtre courante. Ces en-têtes, comme `x-request-id`, `x-cache`, `x-render-source` et `etag`, sont exposés au code navigateur (CORS `Access-Control-Expose-Headers`) |
 | `cache-control` | réponse | `public, max-age=<ttl>, s-maxage=<ttl>` sur les réponses cachables |
 
 Paramètres communs aux routes cachables (`/meta`, `/screenshot`, `/pdf`, `/extract`, `/content`) :
@@ -50,7 +53,11 @@ Paramètres communs aux routes cachables (`/meta`, `/screenshot`, `/pdf`, `/extr
 | `force` | boolean | `false` | Ignore le cache en lecture (le résultat frais est tout de même mis en cache) |
 | `ttl` | 60–86400 | config serveur | Durée de vie en secondes de cette réponse : entrée du cache serveur et `Cache-Control` |
 
-Un paramètre inconnu est refusé (`400 EINVALIDPARAMS`).
+Un paramètre inconnu est ignoré : une URL publique ramasse couramment des paramètres de suivi (`utm_source`, `fbclid`). Un paramètre connu mais invalide reste refusé (`400 EINVALIDPARAMS`).
+
+Chaque requête dispose d'un budget de temps unique (`REQUEST_DEADLINE_MS`, 55 s par défaut) dont sont dérivés l'attente d'un navigateur, son lancement, la navigation, la stabilisation et la capture. Passé ce budget, l'API répond elle-même `504 ETIMEOUT` en JSON. Une page dont l'événement `load` n'arrive jamais n'est pas un échec : au bout de `BROWSER_NAVIGATION_TIMEOUT_MS`, le chargement est arrêté et la réponse est produite avec ce qui est rendu.
+
+Pages de blocage : si le site répond par un interstitiel anti-robot (« Just a moment… », CAPTCHA, « Access denied »), même en `200`, `/meta`, `/extract` et `/content` réessaient dans le navigateur, puis répondent `502 EBLOCKED` si le blocage persiste. Rien n'est alors mis en cache. `/screenshot` et `/pdf` ne font pas cette détection : ils rendent ce que le site affiche.
 
 ### `GET /api/v1/meta`
 
@@ -75,6 +82,15 @@ curl "http://localhost:3000/api/v1/meta?url=https://github.com"
     "publisher": "…",
     "lang": "en",
     "date": "2025-03-04T09:00:00.000Z",
+    "dateModified": "2025-03-05T10:30:00.000Z",
+    "type": "article",                // og:type, sinon le @type JSON-LD principal
+    "themeColor": "#0d1117",
+    "robots": "index, follow",        // <meta name="robots">, tel que déclaré
+    "oembed": "https://…/oembed?format=json&url=…",
+    "alternates": [ { "lang": "fr-FR", "url": "https://…/fr" } ],   // hreflang
+    "twitter": { "card": "summary_large_image", "site": "@github" },
+    "paywalled": false,               // true / false / null (JSON-LD isAccessibleForFree)
+    "domain": "github.com",           // hôte de `url`, sans « www. »
     "image": { "url": "…", "width": 1200, "height": 630, "type": null, "alt": "…" },
     "images": [ /* toutes les images OG / Twitter / JSON-LD */ ],
     "favicon": "https://…",
@@ -90,6 +106,10 @@ curl "http://localhost:3000/api/v1/meta?url=https://github.com"
 }
 ```
 
+- `lang` est normalisé en BCP 47 (`en_US` → `en-US`). `date` et `dateModified` n'acceptent qu'une date portant une année explicite ou un *epoch* (secondes ou millisecondes) : `"12"` ou `"May 5"` donnent `null`.
+- `twitter` est toujours un objet ; `card` et `site` valent `null` s'ils ne sont pas déclarés. `alternates` : 50 entrées au plus.
+- Quand plusieurs blocs JSON-LD sont présents, les champs (`title`, `description`, `author`, dates…) sont lus dans le nœud qui décrit la page (`Article`, `Product`…) avant ceux du site (`Organization`, `WebSite`).
+- Si l'URL pointe directement sur une image, `image.url` vaut cette URL (et `image.type` son type MIME) : `embed=image.url` fonctionne donc aussi.
 - `logo` : `logo` JSON-LD (du nœud ou de son `publisher`), sinon la plus grande icône déclarée par la page. `null` si la page n'en déclare aucune (contrairement à `favicon`, qui retombe sur `/favicon.ico`).
 - `video` : `og:video*`, sinon `twitter:player` (`type` vaut alors `text/html` : c'est un lecteur à intégrer), sinon `VideoObject` JSON-LD.
 - `audio` : `og:audio*`.
@@ -111,6 +131,39 @@ curl "http://localhost:3000/api/v1/meta?url=https://github.com"
 <img src="http://localhost:3000/api/v1/meta?url=https://github.com&embed=image.url">
 ```
 
+### `POST /api/v1/meta/batch`
+
+Métadonnées de plusieurs URL en un appel, en HTTP brut uniquement (l'équivalent de `render=never` : jamais de navigateur).
+
+Corps JSON :
+
+| Propriété | Type | Défaut | Description |
+| --- | --- | --- | --- |
+| `urls` | string[] | — | 1 à 10 URL absolues `http(s)` (obligatoire) |
+| `force` | boolean | `false` | Ignore le cache en lecture |
+| `ttl` | 60–86400 | config serveur | Durée de vie des entrées de cache écrites |
+
+```bash
+curl -X POST "http://localhost:3000/api/v1/meta/batch" \
+  -H "content-type: application/json" \
+  -d '{"urls":["https://github.com","https://example.com/404"]}'
+```
+
+```jsonc
+{
+  "status": "success",
+  "data": [
+    { "url": "https://github.com", "status": "success", "data": { /* comme /meta */ }, "cached": false },
+    { "url": "https://example.com/404", "status": "error", "code": "ETARGETSTATUS", "message": "…" }
+  ],
+  "meta": { "succeeded": 1, "failed": 1, "durationMs": 412 }
+}
+```
+
+- Un élément par URL, dans l'ordre d'entrée ; `url` est l'URL telle qu'elle a été soumise. Une URL en échec donne un élément d'erreur (`status` `fail` ou `error`, `code`, `message`, mêmes codes que `/meta`) et ne fait jamais échouer le lot : la réponse est `200` dès que le corps est valide.
+- Chaque URL passe par la même validation et les mêmes contrôles anti-SSRF que `GET /meta`, et lit/alimente le même cache serveur.
+- La réponse porte `Cache-Control: no-store`. Quota : un dixième de la limite normale de l'appelant, compté à part (6 lots par minute sans clé, 60 avec, par défaut).
+
 ### `GET /api/v1/screenshot`
 
 Renvoie directement l'image (utilisable dans un `<img src>`).
@@ -120,9 +173,12 @@ Renvoie directement l'image (utilisable dans un `<img src>`).
 | `device` | `desktop` \| `mobile` | `desktop` | 1280×800, ou profil Pixel 7 |
 | `width` | 320–2560 | celui du `device` | Largeur du viewport en pixels CSS |
 | `height` | 240–2160 | celui du `device` | Hauteur du viewport en pixels CSS |
-| `fullPage` | boolean | `false` | Page entière (plafonnée à 12 000 px de haut). Ignoré avec `selector` |
+| `fullPage` | boolean | `false` | Page entière (plafonnée à 12 000 px de haut), après un défilement complet qui déclenche le chargement paresseux. Ignoré avec `selector` |
 | `selector` | sélecteur CSS | — | Capture uniquement le premier élément correspondant (300 caractères au plus) |
 | `hide` | sélecteurs CSS séparés par des virgules | — | Éléments masqués avant la capture (bandeaux cookies, publicités) : 20 sélecteurs de 200 caractères au plus |
+| `hideBanners` | boolean | `true` | Masque les bandeaux cookies / consentement courants avec une feuille de style intégrée. Rien n'est cliqué, aucun consentement n'est donné |
+| `blockAds` | boolean | `false` | Abandonne les requêtes vers une courte liste intégrée d'hôtes publicitaires et de suivi. Ce n'est pas un bloqueur de publicité complet |
+| `waitForSelector` | sélecteur CSS | — | Attend que cet élément soit présent dans le DOM avant la capture (10 s au plus, 300 caractères au plus) |
 | `waitFor` | 0–10000 | `0` | Attente supplémentaire avant la capture, en millisecondes |
 | `colorScheme` | `light` \| `dark` | — | Émule `prefers-color-scheme` |
 | `format` | `png` \| `jpeg` | `png` | |
@@ -138,6 +194,8 @@ curl -o hero.png "http://localhost:3000/api/v1/screenshot?url=https://github.com
 
 - `width` / `height` ne remplacent que la taille : avec `device=mobile`, l'agent utilisateur, la densité de pixels et le tactile du profil sont conservés.
 - `selector` : seul le CSS est accepté (`xpath=…` ou `text=…` → `400 EINVALIDPARAMS`). Si aucun élément **visible** ne correspond dans les 3 secondes → `404 ESELECTORNOTFOUND`.
+- `waitForSelector` (aussi sur `/pdf`, `/extract`, `/content`) : CSS uniquement, mêmes refus que `selector`. Élément absent à l'échéance → `404 ESELECTORNOTFOUND`.
+- Avant la capture, l'API attend les polices et le décodage des images visibles (2,5 s au plus).
 - `hide` : les caractères `{ } ; @ <` et les commentaires CSS sont refusés (`400 EINVALIDPARAMS`). Un sélecteur que le navigateur ne comprend pas est ignoré.
 - Tous ces paramètres font partie de la clé de cache.
 
@@ -150,12 +208,15 @@ Renvoie la page imprimée en PDF (`application/pdf`), avec sa feuille de style d
 | `format` | `A4` \| `Letter` | `A4` | Format du papier |
 | `landscape` | boolean | `false` | Orientation paysage |
 | `printBackground` | boolean | `true` | Imprime les couleurs et images de fond CSS |
+| `hideBanners` | boolean | `false` | Masque les bandeaux cookies / consentement courants avant l'impression |
+| `blockAds` | boolean | `false` | Abandonne les requêtes vers les hôtes publicitaires et de suivi connus |
+| `waitForSelector` | sélecteur CSS | — | Attend cet élément avant l'impression (voir `/screenshot`) |
 
 ```bash
 curl -o page.pdf "http://localhost:3000/api/v1/pdf?url=https://example.com&format=Letter&landscape=true"
 ```
 
-Le document est limité à 100 pages. Au-delà de `PDF_MAX_BYTES` (10 Mo par défaut, 4 Mo en serverless) la réponse est `422 ETOOLARGE`.
+La page est défilée une fois avant l'impression pour charger le contenu paresseux. Le document est limité à 100 pages. Au-delà de `PDF_MAX_BYTES` (10 Mo par défaut, 4 Mo en serverless) la réponse est `422 ETOOLARGE`.
 
 ### `GET /api/v1/extract`
 
@@ -165,6 +226,7 @@ Extraction sur mesure : vous décrivez les champs, l'API les lit dans la page.
 | --- | --- | --- | --- |
 | `fields` | objet JSON encodé | — | Règles d'extraction (obligatoire, voir ci-dessous) |
 | `render` | `auto` \| `never` \| `always` | `auto` | `auto` : HTTP brut, puis navigateur si la page exécute des scripts et qu'un champ est resté vide |
+| `waitForSelector` | sélecteur CSS | — | Attend cet élément avant de lire la page. Impose le navigateur : refusé avec `render=never` (`400`) |
 
 `fields` associe un nom de champ à une règle :
 
@@ -203,9 +265,19 @@ Contenu lisible d'une page, pour les LLM et les agents : le texte principal sans
 | Paramètre | Type | Défaut | Description |
 | --- | --- | --- | --- |
 | `render` | `auto` \| `never` \| `always` | `auto` | `auto` : HTTP brut, puis navigateur si la page exécute des scripts et que le contenu statique est quasi vide |
+| `format` | `json` \| `markdown` \| `text` | `json` | `markdown` / `text` : le corps seul, en `text/markdown` ou `text/plain`, sans enveloppe |
+| `mainContent` | boolean | `true` | `false` : tout le `<body>` (hors scripts et styles) au lieu du contenu principal |
+| `include` | sélecteurs CSS séparés par des virgules | — | Ne garde que ces éléments, dans l'ordre du document ; remplace la détection du contenu principal. 20 sélecteurs de 200 caractères au plus |
+| `exclude` | sélecteurs CSS séparés par des virgules | — | Retire ces éléments avant l'extraction. Mêmes limites |
+| `citations` | boolean | `false` | Liens en style référence dans `markdown` : `[texte][1]` dans le texte, les URL numérotées à la fin |
+| `waitForSelector` | sélecteur CSS | — | Attend cet élément avant de lire la page. Impose le navigateur : refusé avec `render=never` (`400`) |
 
 ```bash
 curl "http://localhost:3000/api/v1/content?url=https://example.com/blog/post"
+```
+
+```bash
+curl "http://localhost:3000/api/v1/content?url=https://example.com/blog/post&format=markdown&citations=true"
 ```
 
 ```jsonc
@@ -219,13 +291,21 @@ curl "http://localhost:3000/api/v1/content?url=https://example.com/blog/post"
     "text": "…",                  // texte brut, un bloc par paragraphe
     "markdown": "# …",            // titres, listes, liens absolus, code, citations, tableaux
     "wordCount": 1240,
-    "readingTimeMinutes": 7       // à 200 mots par minute, arrondi au supérieur
+    "readingTimeMinutes": 7,      // à 200 mots par minute, arrondi au supérieur
+    "truncated": false,           // true si text ou markdown a été coupé au plafond
+    "links": [ { "url": "https://…", "text": "…", "internal": true } ],
+    "images": [ { "url": "https://…", "alt": "…" } ]
   },
   "meta": { "cached": false, "source": "http", "durationMs": 95 }
 }
 ```
 
-Le contenu principal est choisi parmi `<article>`, `<main>`, `[role="main"]` et `[itemprop="articleBody"]` ; à défaut, le bloc dont les paragraphes portent le plus de texte ; à défaut, tout le `<body>`. `text` et `markdown` sont plafonnés à 500 000 caractères chacun. Cible non HTML → `422 ENOTHTML`.
+Le contenu principal est choisi parmi `<article>`, `<main>`, `[role="main"]` et `[itemprop="articleBody"]` ; à défaut, le bloc dont les paragraphes portent le plus de texte ; à défaut, tout le `<body>`. Sur une page faite de plusieurs `<article>` voisins (index de blog, fil), tous sont gardés. Le mobilier de page est retiré par balise, rôle et nom de classe ou d'identifiant (`sidebar`, `cookie`, `share`…), mais jamais un élément qui porte la majorité du texte de la page (un `<form>` ASP.NET qui enveloppe tout, par exemple) ; si le nettoyage ne laisse rien, tout le `<body>` est rendu.
+
+- `links` : liens `http(s)` du contenu extrait, absolus, dédoublonnés (500 au plus) ; `internal` vaut `true` si l'hôte est celui de la page (`www.` ignoré). `images` : images du contenu, dédoublonnées (200 au plus), avec la plus grande variante déclarée (`srcset`, `data-src`, `<picture>`) ; les URI `data:` sont écartées.
+- `wordCount` segmente le texte selon la langue (`Intl.Segmenter`) : il est juste aussi en chinois ou en japonais.
+- Le Markdown n'échappe que ce que Markdown interpréterait : les URL nues et les identifiants (`snake_case`) sortent intacts.
+- `text` et `markdown` sont plafonnés à 500 000 caractères chacun (`truncated` le signale). Cible non HTML → `422 ENOTHTML`.
 
 ### `GET /api/v1/openapi.json`
 
@@ -267,14 +347,15 @@ Toutes les erreurs ont la forme `{ "status": "fail" | "error", "code": "…", "m
 | `EUNAUTHORIZED` | 401 | `x-api-key` inconnue |
 | `EFORBIDDENURL` | 403 | Destination refusée par la politique anti-SSRF |
 | `EEMBEDNOTFOUND` | 404 | `/meta` : le chemin `embed` est absent ou `null` pour cette URL |
-| `ESELECTORNOTFOUND` | 404 | `/screenshot` : aucun élément visible ne correspond à `selector` |
+| `ESELECTORNOTFOUND` | 404 | Aucun élément visible ne correspond à `selector`, ou `waitForSelector` n'est pas apparu à temps |
 | `ENOTHTML` | 422 | `/extract`, `/content` : la cible n'est pas un document HTML |
 | `ETOOLARGE` | 422 | `/pdf` : le document généré dépasse la taille maximale |
 | `ERATELIMIT` | 429 | Trop de requêtes |
 | `EUNREACHABLE` | 502 | Site injoignable (DNS, connexion refusée, TLS…) |
 | `ETARGETSTATUS` | 502 | Le site a répondu avec une erreur HTTP |
+| `EBLOCKED` | 502 | Le site a servi une page de blocage (défi anti-robot, CAPTCHA, accès refusé) au lieu de son contenu. Rien n'est mis en cache |
 | `EBUSY` | 503 | Pool de rendu saturé, réessayer |
-| `ETIMEOUT` | 504 | Le site n'a pas répondu à temps |
+| `ETIMEOUT` | 504 | Le site n'a pas répondu à temps, ou le budget de la requête est épuisé |
 | `EBROWSER` / `EINTERNAL` | 500 | Erreur côté serveur |
 
 ## Architecture
@@ -287,19 +368,33 @@ linkforge/
 │   │   │   ├── server.ts          # Point d'entrée, arrêt gracieux
 │   │   │   ├── create-app.ts      # Fabrique Fastify, injection des services, erreurs
 │   │   │   ├── config.ts          # Configuration typée (variables d'environnement)
-│   │   │   ├── lib/errors.ts      # AppError + codes d'erreur stables
+│   │   │   ├── openapi.ts         # Document OpenAPI 3.1 + catalogue typé des erreurs
+│   │   │   ├── lib/
+│   │   │   │   ├── errors.ts      # AppError + codes d'erreur stables
+│   │   │   │   ├── deadline.ts    # Budget de temps unique d'une requête
+│   │   │   │   ├── block-page.ts  # Détection des pages de blocage anti-robot
+│   │   │   │   ├── selectors.ts   # Durcissement des sélecteurs CSS reçus du client
+│   │   │   │   ├── html-to-markdown.ts  # HTML → Markdown (liens, images, citations)
+│   │   │   │   └── dot-path.ts    # Chemins pointés de `embed`
 │   │   │   ├── security/
-│   │   │   │   ├── ssrf.ts        # Validation d'URL, plages IP, lookup DNS épinglé
-│   │   │   │   └── browser-guard.ts  # Interception des requêtes du navigateur
+│   │   │   │   ├── ssrf.ts        # Validation d'URL, plages IP, résolution validée
+│   │   │   │   ├── egress-proxy.ts   # Proxy validant : seule sortie réseau du navigateur
+│   │   │   │   ├── browser-guard.ts  # Interception des requêtes du navigateur (1re couche)
+│   │   │   │   ├── api-keys.ts    # Clés d'API (comparaison en temps constant)
+│   │   │   │   └── request-identity.ts  # x-request-id, compteur de quota
 │   │   │   ├── services/
 │   │   │   │   ├── fetcher.ts     # Fetch HTTP sûr (redirections revalidées, corps plafonné)
+│   │   │   │   ├── page-loader.ts # HTML d'une page : HTTP, puis navigateur si nécessaire
 │   │   │   │   ├── meta-extractor.ts # HTML → métadonnées (pur, sans I/O)
 │   │   │   │   ├── meta-service.ts   # Cache → HTTP → navigateur
-│   │   │   │   ├── screenshot-service.ts
+│   │   │   │   ├── content-extractor.ts / content-service.ts  # Contenu lisible
+│   │   │   │   ├── field-extractor.ts / extract-service.ts    # Extraction sur mesure
+│   │   │   │   ├── screenshot-service.ts / pdf-service.ts
+│   │   │   │   ├── page-prep.ts   # Avant capture : défilement, images, bandeaux
 │   │   │   │   ├── renderer.ts    # Navigation Playwright + mapping des erreurs
 │   │   │   │   ├── browser-pool.ts   # Pool Chromium (concurrence, file, recyclage)
 │   │   │   │   └── cache/         # Interface Cache, LRU mémoire, Redis
-│   │   │   └── routes/            # meta, screenshot, health
+│   │   │   └── routes/            # meta (+ batch), screenshot, pdf, extract, content, openapi, health
 │   │   ├── test/                  # Vitest (unitaires + bout en bout)
 │   │   ├── scripts/embed-playground.mjs  # Intègre le playground au bundle de l'API
 │   │   └── vercel.json            # Installation et build sur Vercel
@@ -313,7 +408,7 @@ linkforge/
 1. Validation syntaxique de l'URL (schéma, identifiants, port, noms internes, IP littérales).
 2. Lecture du cache (Redis si `REDIS_URL`, sinon LRU mémoire).
 3. Fetch HTTP brut : DNS validé et épinglé à la connexion, chaque redirection revalidée, corps plafonné.
-4. Extraction (cheerio). Si le résultat est pauvre ou si la page est une coquille SPA vide → rendu Chromium, puis fusion des deux passes.
+4. Extraction (cheerio). Si le résultat est pauvre, si la page est une coquille SPA vide ou si c'est une page de blocage → rendu Chromium, puis fusion des deux passes. Si le navigateur n'obtient lui aussi qu'une page de blocage → `EBLOCKED`, sans écriture en cache.
 5. Écriture en cache. Les requêtes identiques concurrentes sont dédupliquées (*single flight*).
 
 ### Sécurité anti-SSRF
@@ -322,9 +417,19 @@ linkforge/
 - Refus de `localhost`, `*.local`, `*.internal`… et de toute adresse non routable publiquement (RFC 1918, loopback, link-local dont `169.254.169.254`, CGNAT, IPv6 ULA, NAT64, IPv4-mappées…). Les notations exotiques (`0x7f.1`, `2130706433`) sont normalisées avant contrôle.
 - Un seul enregistrement DNS privé suffit à refuser l'hôte.
 - Fetch brut : le `lookup` de la connexion est gardé, ce qui ferme la fenêtre de *DNS rebinding*.
-- Navigateur : chaque requête (sous-ressources, redirections, iframes) est interceptée et validée ; WebSockets et service workers sont coupés.
+- Navigateur, deux couches :
+  1. **Interception** (`browser-guard.ts`) : chaque requête émise par la page (sous-ressources, iframes, XHR, navigations) est validée avant de partir ; les WebSockets et les service workers sont coupés. Cette couche ne voit que la première URL d'une requête : Chromium suit les redirections HTTP sans la rappeler.
+  2. **Proxy validant** (`egress-proxy.ts`) : Chromium est lancé avec, pour seule sortie réseau, un proxy interne au processus, y compris pour les adresses de bouclage (`<-loopback>`). À **chaque connexion** — chaque saut de redirection, sous-ressource, iframe, tunnel `https` (`CONNECT`) — le proxy applique la politique (ports compris), résout le nom lui-même, refuse si une seule adresse n'est pas publique, puis se connecte à l'adresse qu'il vient de valider, sans seconde résolution. Chromium ne résout aucun nom (`--host-resolver-rules`). Le *DNS rebinding* et les redirections vers une adresse interne sont donc fermés sur ce chemin aussi.
+- Le proxy n'écoute que sur `127.0.0.1`, sur un port éphémère, et exige un identifiant aléatoire propre à l'instance : il ne peut pas servir de relais ouvert. Le trafic `https` est tunnelé tel quel : TLS reste de bout en bout entre Chromium et le site, la vérification des certificats n'est pas touchée.
+- WebRTC est limité au trafic passant par le proxy (`disable_non_proxied_udp`).
+- `SSRF_BLOCKED_HOSTS` ajoute des destinations refusées (`hôte` ou `hôte:port`), comparées au nom demandé et à chaque adresse résolue. Cette liste ne peut que restreindre.
 
-**Limite connue** : dans le navigateur, Chromium refait sa propre résolution DNS après notre contrôle. Une attaque par *DNS rebinding* reste théoriquement possible sur ce chemin. La correction (proxy validant devant le navigateur) est planifiée — voir `ROADMAP.md`, phase 2.
+**Ce qui n'est pas couvert** :
+
+- Le proxy vit dans le même processus et sur la même machine que l'API : il ne remplace pas un filtrage de sortie au niveau réseau (pare-feu, VPC), qui reste recommandé en défense en profondeur, notamment contre une compromission de Chromium lui-même.
+- Un rendu charge et exécute le JavaScript de la page dans Chromium (bac à sable et isolation de sites conservés). La protection porte sur *où* le navigateur peut se connecter, pas sur ce que la page fait une fois chargée.
+- La protection contre le *rebinding* suppose que la résolution du système n'est pas elle-même compromise.
+- Les compteurs de quota vivent en mémoire, par instance : ce n'est pas une protection contre le déni de service distribué.
 
 ## Déploiement sur Vercel
 
@@ -340,7 +445,8 @@ Limites propres au serverless :
 
 - Sans `REDIS_URL`, le cache applicatif et le rate limiting vivent en mémoire, **par instance**. Pour un cache partagé, ajoutez la variable `REDIS_URL` (n'importe quel Redis accessible par URL) dans les réglages du projet.
 - Le premier rendu d'une instance froide est plus lent (décompression de Chromium dans `/tmp`).
-- Une fonction a une durée maximale (60 s ici) et une mémoire bornée : les pages très lourdes peuvent échouer.
+- Une fonction a une durée maximale (60 s ici) et une mémoire bornée : les pages très lourdes peuvent échouer. Le budget d'une requête (`REQUEST_DEADLINE_MS`, 55 s) est réglé juste en dessous, pour que l'API réponde `ETIMEOUT` elle-même plutôt que d'être tuée par la plateforme.
+- Le proxy validant fonctionne aussi dans ce mode (Chromium mono-processus) : il démarre avec le premier rendu de l'instance.
 
 ## Scripts
 

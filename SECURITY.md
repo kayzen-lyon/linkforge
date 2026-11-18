@@ -17,6 +17,14 @@ Indiquez si possible :
 - Dans le périmètre : le code de ce dépôt (`apps/api`, `apps/web`, `packages/*`).
 - Hors périmètre : les sites tiers dont LinkForge lit le contenu, et les attaques qui supposent un accès préalable à l'infrastructure d'hébergement.
 
-## Limite connue
+## Modèle de protection du navigateur
 
-Sur le chemin de rendu par navigateur, Chromium effectue sa propre résolution DNS après la validation de l'URL. Une attaque par *DNS rebinding* reste théoriquement possible sur ce chemin. La correction est planifiée (voir `ROADMAP.md`, phase 2). Les signalements qui précisent ou aggravent ce point sont bienvenus.
+Chromium n'a qu'une sortie réseau : un proxy validant interne au processus (`apps/api/src/security/egress-proxy.ts`), lié à `127.0.0.1` sur un port éphémère et protégé par un identifiant aléatoire. À chaque connexion (saut de redirection, sous-ressource, iframe, tunnel `https`), il applique la politique anti-SSRF, résout le nom lui-même et se connecte à l'adresse qu'il vient de valider. Les redirections vers une adresse interne et le *DNS rebinding*, qui échappaient à l'interception des requêtes seule, sont fermés sur ce chemin.
+
+## Limites connues
+
+- Le proxy vit dans le même processus que l'API. Il ne remplace pas un filtrage de sortie au niveau réseau (pare-feu, VPC), recommandé en production, en particulier contre une compromission de Chromium lui-même.
+- La protection contre le *rebinding* suppose que la résolution DNS du système n'est pas elle-même compromise.
+- Le JavaScript des pages rendues s'exécute dans Chromium, bac à sable et isolation de sites conservés.
+
+Les signalements qui précisent ou contournent ces points sont bienvenus.

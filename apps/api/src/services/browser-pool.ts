@@ -249,6 +249,7 @@ export class BrowserPool {
             : presetAgent.replace(/Chrome\/[\d.]+/, `Chrome/${slot.majorVersion}.0.0.0`),
       });
       const page = await context.newPage();
+      await this.alignClientHints(context, page, slot, contextOptions?.isMobile === true);
       return { slot, context, page };
     } catch (error) {
       await context?.close().catch(() => undefined);
@@ -258,6 +259,45 @@ export class BrowserPool {
 
       if (attempt === 0 && !this.closed) return this.openPage(contextOptions, 1);
       throw AppError.browser('Could not open a browser page', error);
+    }
+  }
+
+  /**
+   * Makes the User-Agent Client Hints (`sec-ch-ua`, `navigator.userAgentData`)
+   * say the same thing as the `User-Agent` header. Overriding the header alone
+   * leaves "HeadlessChrome" in the hints: two identities in one request.
+   * Best effort: a failure here must not fail the job.
+   */
+  private async alignClientHints(
+    context: BrowserContext,
+    page: Page,
+    slot: Slot,
+    mobile: boolean,
+  ): Promise<void> {
+    try {
+      const userAgent = (await page.evaluate('navigator.userAgent')) as string;
+      // The session lives as long as the page: the override ends with it.
+      const session = await context.newCDPSession(page);
+      await session.send('Emulation.setUserAgentOverride', {
+        userAgent,
+        userAgentMetadata: {
+          brands: [
+            { brand: 'Chromium', version: slot.majorVersion },
+            { brand: 'Not_A Brand', version: '8' },
+          ],
+          fullVersionList: [
+            { brand: 'Chromium', version: `${slot.majorVersion}.0.0.0` },
+            { brand: 'Not_A Brand', version: '8.0.0.0' },
+          ],
+          platform: mobile ? 'Android' : 'Linux',
+          platformVersion: '',
+          architecture: mobile ? '' : 'x86',
+          model: '',
+          mobile,
+        },
+      });
+    } catch (error) {
+      this.logger.warn({ err: error }, 'could not align user-agent client hints');
     }
   }
 

@@ -21,6 +21,46 @@ import { assertSafeUrl } from './ssrf.js';
 export interface BrowserGuardOptions {
   /** Resource types to drop for speed (e.g. images when only the DOM matters). */
   readonly blockResourceTypes?: readonly string[];
+  /** Drop requests to well-known advertising and tracking hosts. */
+  readonly blockAds?: boolean;
+}
+
+/**
+ * Registrable domains of widespread ad servers, trackers and tag managers.
+ * Deliberately short and hand-written: a few dozen suffix comparisons per
+ * request cost nothing, where a full filter-list engine would add megabytes
+ * to the function bundle and to its cold start. A request is dropped when its
+ * host is one of these or a sub-domain of one.
+ */
+const AD_TRACKER_DOMAINS: ReadonlySet<string> = new Set([
+  'doubleclick.net', 'googlesyndication.com', 'googleadservices.com', 'google-analytics.com',
+  'googletagmanager.com', 'googletagservices.com', 'adservice.google.com', 'amazon-adsystem.com',
+  'adnxs.com', 'adsrvr.org', 'criteo.com', 'criteo.net', 'taboola.com', 'outbrain.com',
+  'pubmatic.com', 'rubiconproject.com', 'openx.net', 'casalemedia.com', 'moatads.com',
+  'scorecardresearch.com', 'quantserve.com', 'hotjar.com', 'mixpanel.com', 'segment.io',
+  'segment.com', 'fullstory.com', 'mouseflow.com', 'clarity.ms', 'bat.bing.com',
+  'connect.facebook.net', 'analytics.tiktok.com', 'ads-twitter.com', 'analytics.twitter.com',
+  'snap.licdn.com', 'px.ads.linkedin.com', 'adform.net', 'smartadserver.com', 'teads.tv',
+  'bidswitch.net', '3lift.com', 'sharethrough.com', 'yieldmo.com', 'media.net', 'zedo.com',
+  'chartbeat.com', 'newrelic.com', 'nr-data.net', 'optimizely.com', 'matomo.cloud',
+  'plausible.io', 'stats.wp.com', 'pixel.wp.com', 'amplitude.com', 'heap.io', 'crazyegg.com',
+]);
+
+/** Tells whether `rawUrl` points to a known advertising or tracking host. */
+export function isAdOrTracker(rawUrl: string): boolean {
+  let host: string;
+  try {
+    host = new URL(rawUrl).hostname.toLowerCase();
+  } catch {
+    return false;
+  }
+  // `a.b.example.com` → `a.b.example.com`, `b.example.com`, `example.com`
+  for (let dot = -1; ; ) {
+    const candidate = host.slice(dot + 1);
+    if (AD_TRACKER_DOMAINS.has(candidate)) return true;
+    dot = host.indexOf('.', dot + 1);
+    if (dot === -1) return false;
+  }
 }
 
 export interface BrowserGuard {
@@ -44,6 +84,7 @@ export async function installBrowserGuard(
 ): Promise<BrowserGuard> {
   const verdicts = new Map<string, Promise<boolean>>();
   const blockedTypes = new Set(options.blockResourceTypes ?? []);
+  const blockAds = options.blockAds ?? false;
   const state = { navigationBlocked: false };
 
   const isAllowed = (rawUrl: string): Promise<boolean> => {
@@ -68,7 +109,9 @@ export async function installBrowserGuard(
   await context.route('**/*', async (route: Route) => {
     const request = route.request();
     try {
-      if (blockedTypes.has(request.resourceType())) {
+      // Never the document itself: an ad host asked for by the client is the client's choice.
+      const isDocument = request.isNavigationRequest() && request.frame().parentFrame() === null;
+      if (blockedTypes.has(request.resourceType()) || (blockAds && !isDocument && isAdOrTracker(request.url()))) {
         await route.abort('blockedbyclient');
         return;
       }

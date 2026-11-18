@@ -45,6 +45,8 @@ export interface ScreenshotRequest {
   readonly hide: string | null;
   /** Hide common cookie / consent banners before the capture. */
   readonly hideBanners: boolean;
+  /** Drop requests to well-known advertising and tracking hosts. */
+  readonly blockAds: boolean;
   /** CSS selector that must be in the DOM before the capture; `null` for none. */
   readonly waitForSelector: string | null;
   readonly force: boolean;
@@ -126,6 +128,7 @@ export class ScreenshotService {
       colorScheme: request.colorScheme,
       hide,
       hideBanners: request.hideBanners,
+      blockAds: request.blockAds,
       waitForSelector,
     });
 
@@ -165,6 +168,7 @@ export class ScreenshotService {
           request.waitForMs +
           (request.selector === null ? 0 : SELECTOR_TIMEOUT_MS),
         waitForSelector: request.waitForSelector,
+        guard: { blockAds: request.blockAds },
         contextOptions: {
           ...preset,
           // Only the size is overridden: a mobile preset keeps its UA, DPR and touch.

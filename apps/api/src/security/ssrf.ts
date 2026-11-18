@@ -12,8 +12,11 @@
  * 3. **Connection-time pinning** ({@link createSafeLookup}): the HTTP client
  *    resolves through a guarded `lookup`, so the address that was validated is
  *    the address that is dialled (defeats DNS rebinding for the raw fetcher).
- * 4. **Every redirect hop and every browser sub-request** goes through the
- *    same checks (see `fetcher.ts` and `browser-guard.ts`).
+ * 4. **Every redirect hop** of the raw fetcher goes through the same checks
+ *    (`fetcher.ts`), and **every connection of the headless browser** goes
+ *    through a validating proxy that resolves and dials by itself
+ *    ({@link resolveDestination}, `egress-proxy.ts`), on top of request
+ *    interception (`browser-guard.ts`).
  */
 import dns from 'node:dns';
 import type { LookupAddress } from 'node:dns';
