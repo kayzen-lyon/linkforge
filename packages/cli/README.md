@@ -38,7 +38,7 @@ npx @omnillink/cli meta https://github.com
 
 | Flag | Environment | Default | |
 | --- | --- | --- | --- |
-| `--base-url <url>` | `OMNILLINK_URL` | `https://linkforge-sable.vercel.app` (public demo) | Origin of the Omnillink instance. |
+| `--base-url <url>` | `OMNILLINK_URL` | `https://omnillink.kayzen-lyon.com` (public demo) | Origin of the Omnillink instance. |
 | `--api-key <key>` | `OMNILLINK_API_KEY` | — | Sent as the `x-api-key` header. Prefer the variable: arguments are visible in `ps`. |
 
 The key is never printed, never put in a URL, and redacted from any error message that would echo it. Because a key belongs to one instance, the CLI refuses to run with a key and no explicit instance rather than send it to the public default.

@@ -5,7 +5,7 @@ export const BRAND = 'Omnillink';
 export const PUBLISHER = 'KAYZEN';
 export const PUBLISHER_URL = 'https://www.kayzen-lyon.com';
 /** Production origin, used for canonical URLs, the sitemap and social tags. */
-export const SITE_ORIGIN = 'https://linkforge-sable.vercel.app';
+export const SITE_ORIGIN = 'https://omnillink.kayzen-lyon.com';
 export const REPO_URL = 'https://github.com/kayzen-lyon/linkforge';
 /** Where the site's own sources live in the repository ("edit this page" links). */
 export const REPO_WEB_DIR = `${REPO_URL}/blob/main/apps/web`;

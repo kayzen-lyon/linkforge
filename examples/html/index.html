@@ -19,12 +19,12 @@
     <h1>&lt;link-preview&gt;</h1>
     <p>Three cards, one custom element. Pass <code>?api=https://your-instance</code> to use another Omnillink instance.</p>
 
-    <link-preview url="https://github.com" base-url="https://linkforge-sable.vercel.app"></link-preview>
+    <link-preview url="https://github.com" base-url="https://omnillink.kayzen-lyon.com"></link-preview>
 
-    <link-preview url="https://developer.mozilla.org/en-US/docs/Web/API/Web_components" base-url="https://linkforge-sable.vercel.app" size="large" theme="dark"></link-preview>
+    <link-preview url="https://developer.mozilla.org/en-US/docs/Web/API/Web_components" base-url="https://omnillink.kayzen-lyon.com" size="large" theme="dark"></link-preview>
 
     <!-- Your own fallback: displayed before JavaScript runs, and if the preview fails. -->
-    <link-preview url="https://example.com" base-url="https://linkforge-sable.vercel.app" loading="eager">
+    <link-preview url="https://example.com" base-url="https://omnillink.kayzen-lyon.com" loading="eager">
       <a href="https://example.com">example.com</a>
     </link-preview>
 
@@ -35,7 +35,7 @@
       import { createClient, OmnillinkError } from '../../packages/sdk/dist/index.js';
 
       // ?api=… overrides the instance, for the cards and for the client.
-      const api = new URLSearchParams(location.search).get('api') ?? 'https://linkforge-sable.vercel.app';
+      const api = new URLSearchParams(location.search).get('api') ?? 'https://omnillink.kayzen-lyon.com';
       for (const card of document.querySelectorAll('link-preview')) card.baseUrl = api;
 
       document.addEventListener('link-preview:load', (event) => {

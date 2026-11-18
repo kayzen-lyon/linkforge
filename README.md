@@ -543,7 +543,7 @@ linkforge/
 
 ## Déploiement sur Vercel
 
-Démo en ligne : https://linkforge-skyymar69-9413s-projects.vercel.app
+Démo en ligne : https://omnillink.kayzen-lyon.com
 
 Le projet Vercel a pour dossier racine `apps/api` et le preset Fastify ; `apps/api/vercel.json` définit l'installation et le build.
 

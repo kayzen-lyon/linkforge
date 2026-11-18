@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
 /** Public demo instance, used when `OMNILLINK_URL` is not set. */
-export const DEFAULT_BASE_URL = 'https://linkforge-sable.vercel.app';
+export const DEFAULT_BASE_URL = 'https://omnillink.kayzen-lyon.com';
 
 export interface Config {
   readonly baseUrl: string;

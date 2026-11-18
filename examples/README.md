@@ -10,4 +10,4 @@ Minimal integrations of [Omnillink](../README.md). Each folder has its own READM
 | [`nextjs/`](nextjs) | Next.js App Router | Server Component, `@omnillink/react`, a route that hides the API key |
 | [`astro/`](astro) | Astro | A zero-JavaScript server-rendered card, and the custom element |
 
-They all default to the public demo instance, `https://linkforge-sable.vercel.app`; set `OMNILLINK_URL` (or `?api=` for the HTML page) to use your own.
+They all default to the public demo instance, `https://omnillink.kayzen-lyon.com`; set `OMNILLINK_URL` (or `?api=` for the HTML page) to use your own.

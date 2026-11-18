@@ -12,7 +12,7 @@ interface Props {
 const { url } = Astro.props;
 
 const omnillink = createClient({
-  baseUrl: import.meta.env.OMNILLINK_URL ?? 'https://linkforge-sable.vercel.app',
+  baseUrl: import.meta.env.OMNILLINK_URL ?? 'https://omnillink.kayzen-lyon.com',
   // Server-side only: variables without the PUBLIC_ prefix never reach the browser.
   ...(import.meta.env.OMNILLINK_API_KEY ? { apiKey: import.meta.env.OMNILLINK_API_KEY } : {}),
 });
