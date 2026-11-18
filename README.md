@@ -13,7 +13,7 @@ npm install
 ```
 
 ```bash
-npx playwright install chromium
+npx playwright-core install chromium
 ```
 
 ```bash
@@ -28,12 +28,6 @@ L'API écoute sur `http://localhost:3000`. Le playground (optionnel) se lance da
 
 ```bash
 npm run dev:web
-```
-
-Avec Docker (API + Redis) :
-
-```bash
-docker compose up --build
 ```
 
 ## API
@@ -133,9 +127,9 @@ linkforge/
 │   │   │   │   └── cache/         # Interface Cache, LRU mémoire, Redis
 │   │   │   └── routes/            # meta, screenshot, health
 │   │   ├── test/                  # Vitest (unitaires + bout en bout)
-│   │   └── Dockerfile
 │   └── web/                       # Playground Vite + Tailwind CSS v4
-├── docker-compose.yml             # API + Redis
+├── api/index.js                   # Point d'entrée Vercel (une fonction → app Fastify)
+├── vercel.json                    # Build, fonction, réécritures /api/* et /health
 ├── ROADMAP.md                     # Feuille de route détaillée
 └── PROMPT.md                      # Prompt maître pour faire évoluer le projet avec un agent IA
 ```
@@ -156,7 +150,22 @@ linkforge/
 - Fetch brut : le `lookup` de la connexion est gardé, ce qui ferme la fenêtre de *DNS rebinding*.
 - Navigateur : chaque requête (sous-ressources, redirections, iframes) est interceptée et validée ; WebSockets et service workers sont coupés.
 
-**Limite connue** : dans le navigateur, Chromium refait sa propre résolution DNS après notre contrôle. Une attaque par *DNS rebinding* reste théoriquement possible sur ce chemin. En production, ajoutez un filtrage réseau en sortie (pare-feu ou proxy validant) — voir `ROADMAP.md`, phase 2.
+**Limite connue** : dans le navigateur, Chromium refait sa propre résolution DNS après notre contrôle. Une attaque par *DNS rebinding* reste théoriquement possible sur ce chemin. La correction (proxy validant devant le navigateur) est planifiée — voir `ROADMAP.md`, phase 2.
+
+## Déploiement sur Vercel
+
+Le dépôt se déploie tel quel : importez-le dans Vercel, sans réglage à modifier (`vercel.json` fait foi).
+
+- Le playground (`apps/web`) est servi en statique par le CDN.
+- `/api/*` et `/health` sont réécrits vers une seule fonction (`api/index.js`) qui transmet la requête à l'application Fastify. L'application est construite une fois par instance et réutilisée entre les requêtes.
+- Le Chromium de Playwright ne tourne pas dans une fonction serverless. Sur Vercel (détecté par la variable `VERCEL`), le pool lance `@sparticuz/chromium`, un binaire prévu pour cet environnement. Ce binaire s'arrête quand sa dernière page se ferme : chaque rendu y reçoit donc son propre navigateur (`BROWSER_MAX_USES=1`).
+- Les réponses portent `s-maxage` : le CDN de Vercel les met en cache, ce qui évite de relancer une fonction pour une URL déjà demandée.
+
+Limites propres au serverless :
+
+- Sans `REDIS_URL`, le cache applicatif et le rate limiting vivent en mémoire, **par instance**. Pour un cache partagé, ajoutez la variable `REDIS_URL` (n'importe quel Redis accessible par URL) dans les réglages du projet.
+- Le premier rendu d'une instance froide est plus lent (décompression de Chromium dans `/tmp`).
+- Une fonction a une durée maximale (60 s ici) et une mémoire bornée : les pages très lourdes peuvent échouer.
 
 ## Scripts
 

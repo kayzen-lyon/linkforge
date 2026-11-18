@@ -20,8 +20,9 @@ import {
   type Browser,
   type BrowserContext,
   type BrowserContextOptions,
+  type LaunchOptions,
   type Page,
-} from 'playwright';
+} from 'playwright-core';
 
 import type { AppConfig } from '../config.js';
 import { AppError } from '../lib/errors.js';
@@ -56,6 +57,12 @@ interface Slot {
   retiring: boolean;
 }
 
+interface OpenedPage {
+  readonly slot: Slot;
+  readonly context: BrowserContext;
+  readonly page: Page;
+}
+
 interface Waiter {
   resolve(): void;
   reject(error: Error): void;
@@ -73,6 +80,25 @@ const CHROMIUM_ARGS = [
   '--no-first-run',
   '--no-default-browser-check',
 ];
+
+/**
+ * Picks the Chromium build to launch.
+ *
+ * Serverless functions cannot run the regular Playwright browser (missing
+ * system libraries, size limits): there we use `@sparticuz/chromium`, a
+ * compressed build that unpacks itself into `/tmp` on first use. The import is
+ * dynamic so local development never loads it.
+ */
+async function resolveLaunchOptions(serverless: boolean): Promise<LaunchOptions> {
+  if (!serverless) return { headless: true, args: CHROMIUM_ARGS };
+
+  const { default: serverlessChromium } = await import('@sparticuz/chromium');
+  return {
+    headless: true,
+    args: serverlessChromium.args,
+    executablePath: await serverlessChromium.executablePath(),
+  };
+}
 
 export class BrowserPool {
   private slot: Slot | null = null;
@@ -102,22 +128,12 @@ export class BrowserPool {
     if (this.closed) throw AppError.browser('The browser pool is shut down');
 
     await this.acquire();
-    let slot: Slot | null = null;
-    let context: BrowserContext | null = null;
+    let opened: OpenedPage | null = null;
     let deadline: NodeJS.Timeout | undefined;
 
     try {
-      slot = await this.getSlot();
-      slot.uses += 1;
-      slot.active += 1;
-      if (slot.uses >= this.config.maxUsesPerBrowser) this.retire(slot);
-
-      context = await slot.browser.newContext({
-        // Service workers would let requests escape `context.route()`.
-        serviceWorkers: 'block',
-        ...options.contextOptions,
-      });
-      const page = await context.newPage();
+      opened = await this.openPage(options.contextOptions);
+      const { page, context } = opened;
 
       const timedOut = new Promise<never>((_, reject) => {
         deadline = setTimeout(() => {
@@ -131,16 +147,52 @@ export class BrowserPool {
       return await Promise.race([running, timedOut]);
     } finally {
       clearTimeout(deadline);
-      if (context !== null) {
-        await context.close().catch((error: unknown) => {
+      if (opened !== null) {
+        await opened.context.close().catch((error: unknown) => {
           this.logger.warn({ err: error }, 'failed to close browser context');
         });
-      }
-      if (slot !== null) {
-        slot.active -= 1;
-        this.disposeIfIdle(slot);
+        opened.slot.active -= 1;
+        this.disposeIfIdle(opened.slot);
       }
       this.release();
+    }
+  }
+
+  /**
+   * Opens an isolated page on the current browser.
+   *
+   * A browser can die between two jobs (crash, OOM kill, or a serverless
+   * build that exits with its last page). When that happens the dead process
+   * is discarded and the page is opened once more on a fresh one.
+   */
+  private async openPage(
+    contextOptions: BrowserContextOptions | undefined,
+    attempt = 0,
+  ): Promise<OpenedPage> {
+    let slot = await this.getSlot();
+    // Jobs that awaited the same launch may already have used this browser up.
+    while (slot.retiring || !slot.browser.isConnected()) slot = await this.getSlot();
+    slot.uses += 1;
+    slot.active += 1;
+    if (slot.uses >= this.config.maxUsesPerBrowser) this.retire(slot);
+
+    let context: BrowserContext | null = null;
+    try {
+      context = await slot.browser.newContext({
+        // Service workers would let requests escape `context.route()`.
+        serviceWorkers: 'block',
+        ...contextOptions,
+      });
+      const page = await context.newPage();
+      return { slot, context, page };
+    } catch (error) {
+      await context?.close().catch(() => undefined);
+      slot.active -= 1;
+      if (!slot.retiring) this.retire(slot);
+      this.disposeIfIdle(slot);
+
+      if (attempt === 0 && !this.closed) return this.openPage(contextOptions, 1);
+      throw AppError.browser('Could not open a browser page', error);
     }
   }
 
@@ -216,7 +268,7 @@ export class BrowserPool {
   private async launch(): Promise<Slot> {
     let browser: Browser;
     try {
-      browser = await chromium.launch({ headless: true, args: CHROMIUM_ARGS });
+      browser = await chromium.launch(await resolveLaunchOptions(this.config.serverless));
     } catch (error) {
       throw AppError.browser('Could not start the headless browser', error);
     }

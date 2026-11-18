@@ -1,0 +1,17 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "installCommand": "npm install && npm run build --workspace @linkforge/api",
+  "buildCommand": "npm run build --workspace @linkforge/web",
+  "outputDirectory": "apps/web/dist",
+  "functions": {
+    "api/index.js": {
+      "maxDuration": 60,
+      "includeFiles": "node_modules/@sparticuz/chromium/bin/**"
+    }
+  },
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api" },
+    { "source": "/health", "destination": "/api" }
+  ]
+}

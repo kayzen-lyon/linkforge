@@ -37,7 +37,7 @@ export const metaRoutes: FastifyPluginAsyncTypebox<MetaRouteOptions> = async (ap
 
     return reply
       .header('x-cache', result.cached ? 'HIT' : 'MISS')
-      .header('cache-control', `public, max-age=${options.cacheTtlSeconds}`)
+      .header('cache-control', `public, max-age=${options.cacheTtlSeconds}, s-maxage=${options.cacheTtlSeconds}`)
       .send({
         status: 'success',
         data: result.data,

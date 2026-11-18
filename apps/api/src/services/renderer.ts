@@ -1,7 +1,7 @@
 /**
  * Shared browser-navigation helper used by the metadata and screenshot services.
  */
-import type { BrowserContext, BrowserContextOptions, Page, Response } from 'playwright';
+import type { BrowserContext, BrowserContextOptions, Page, Response } from 'playwright-core';
 
 import type { AppConfig } from '../config.js';
 import { AppError, findAppError } from '../lib/errors.js';

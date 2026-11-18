@@ -11,7 +11,7 @@
  * race here. Production deployments MUST add network-level egress filtering
  * (see ROADMAP, phase 2: validating forward proxy / firewall rules).
  */
-import type { BrowserContext, Route } from 'playwright';
+import type { BrowserContext, Route } from 'playwright-core';
 
 import type { SsrfPolicy } from '../config.js';
 import { assertSafeUrl } from './ssrf.js';

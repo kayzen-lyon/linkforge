@@ -42,6 +42,11 @@ export interface AppConfig {
     /** A Chromium process is recycled after serving this many jobs. */
     readonly maxUsesPerBrowser: number;
     readonly navigationTimeoutMs: number;
+    /**
+     * When true, Chromium comes from `@sparticuz/chromium` (a build made for
+     * serverless functions) instead of the locally installed Playwright browser.
+     */
+    readonly serverless: boolean;
   };
   readonly ssrf: SsrfPolicy;
   readonly rateLimit: {
@@ -146,6 +151,12 @@ export function loadConfig(env: Env = process.env): AppConfig {
       acquireTimeoutMs: readInt(env, 'BROWSER_ACQUIRE_TIMEOUT_MS', 15_000, 1),
       maxUsesPerBrowser: readInt(env, 'BROWSER_MAX_USES', 200, 1),
       navigationTimeoutMs: readInt(env, 'BROWSER_NAVIGATION_TIMEOUT_MS', 20_000, 1),
+      // Vercel and AWS Lambda are detected automatically.
+      serverless: readBool(
+        env,
+        'BROWSER_SERVERLESS',
+        env['VERCEL'] === '1' || (env['AWS_LAMBDA_FUNCTION_NAME'] ?? '') !== '',
+      ),
     },
     ssrf: {
       allowPrivateNetworks,

@@ -56,7 +56,7 @@ export const screenshotRoutes: FastifyPluginAsyncTypebox<ScreenshotRouteOptions>
     return reply
       .header('content-type', result.contentType)
       .header('x-cache', result.cached ? 'HIT' : 'MISS')
-      .header('cache-control', `public, max-age=${options.cacheTtlSeconds}`)
+      .header('cache-control', `public, max-age=${options.cacheTtlSeconds}, s-maxage=${options.cacheTtlSeconds}`)
       .send(result.image);
   });
 };

@@ -13,6 +13,9 @@ des services comme Microlink, avec une identité, un code et une documentation q
 Monorepo npm workspaces, Node.js >= 22, ESM, TypeScript strict.
 - apps/api : Fastify 5, schémas TypeBox, Playwright (Chromium), cheerio, undici, ioredis, Vitest.
 - apps/web : playground Vite + Tailwind CSS v4, sans framework.
+- Déploiement : Vercel. api/index.js est l'unique fonction (elle délègue à Fastify), vercel.json décrit
+  le build et les réécritures. Pas de Docker. En serverless le navigateur est @sparticuz/chromium
+  et rien ne persiste entre instances : pas d'état en mémoire dont dépend la justesse d'une réponse.
 Avant d'écrire du code, lis README.md (architecture, contrat d'API, codes d'erreur) et ROADMAP.md
 (phases, état actuel, limites connues). Ces deux fichiers font foi ; s'ils contredisent le code,
 signale-le au lieu de choisir en silence.
@@ -38,7 +41,8 @@ Ces règles existent pour des raisons précises ; respecte-les ou explique pourq
   doit d'abord chercher une solution sans navigateur ; le navigateur est le dernier recours.
 - Toute page ouverte passe par BrowserPool.withPage / Renderer.render : c'est ce qui garantit la
   fermeture du contexte et le respect des limites de concurrence. N'appelle jamais
-  chromium.launch() ni browser.newContext() ailleurs.
+  chromium.launch() ni browser.newContext() ailleurs. Importe depuis playwright-core, jamais
+  depuis playwright.
 - Les erreurs prévues sont des AppError avec un code stable (src/lib/errors.ts). Un nouveau cas
   d'erreur = un nouveau code, documenté dans le tableau du README. Ne laisse jamais fuiter une
   trace ou un message interne vers le client.

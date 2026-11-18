@@ -15,7 +15,7 @@ Les durées sont des ordres de grandeur pour une à deux personnes à temps plei
 | Cache mémoire LRU + Redis, déduplication des requêtes concurrentes | Fait, testé |
 | Erreurs typées, rate limiting par IP, CORS, health check | Fait |
 | Playground Vite + Tailwind | Fait |
-| Dockerfile + docker-compose | Écrit, **non testé** (pas de démon Docker dans l'environnement de génération) |
+| Déploiement Vercel (fonction unique + playground statique, Chromium serverless) | Configuré, mode serverless testé en local |
 
 ---
 
@@ -36,7 +36,7 @@ Livrable : document d'analyse + liste priorisée des fonctionnalités.
 
 But : qu'un inconnu puisse lancer le projet et s'en servir en cinq minutes.
 
-- [ ] Valider `docker compose up --build` de bout en bout ; publier l'image sur un registre.
+- [ ] Brancher un Redis managé (`REDIS_URL`) pour partager cache et rate limiting entre instances Vercel.
 - [ ] **Contrat OpenAPI** généré depuis les schémas TypeBox (`@fastify/swagger`) + interface de documentation.
 - [ ] Schémas de **réponse** (pas seulement de requête) : sérialisation plus rapide et contrat vérifiable.
 - [ ] CI : typecheck, tests, build, audit des dépendances, sur chaque pull request.
@@ -52,8 +52,8 @@ Critère de sortie : installation documentée et reproductible, CI verte, contra
 
 But : pouvoir exposer le service sur Internet sans mauvaise surprise. À faire **avant** toute offre hébergée.
 
-- [ ] **Fermer la limite de rebinding côté navigateur** : faire sortir Chromium par un proxy HTTP local qui applique la politique SSRF au moment de la connexion, *et* ajouter des règles réseau de sortie (pare-feu / politique réseau) interdisant les plages privées et l'adresse de métadonnées du fournisseur cloud.
-- [ ] **Isolation du rendu** : sortir le navigateur dans un processus *worker* séparé de l'API (file de tâches adossée à Redis), conteneur sans privilèges, système de fichiers en lecture seule, limites mémoire et CPU.
+- [ ] **Fermer la limite de rebinding côté navigateur** : faire sortir Chromium par un proxy HTTP local (dans le même processus) qui applique la politique SSRF au moment de la connexion.
+- [ ] **Isolation du rendu** : séparer la fonction de rendu (navigateur) de la fonction d'API légère, avec des limites de durée et de mémoire propres à chacune.
 - [ ] Limites de ressources par page : taille totale téléchargée, nombre de requêtes, blocage des téléchargements de fichiers.
 - [ ] Tests de charge et de **fuite mémoire** : rejouer quelques milliers de rendus, suivre la mémoire résidente, ajuster `BROWSER_MAX_USES` et la concurrence.
 - [ ] Rate limiting distribué (magasin Redis) dès qu'il y a plus d'une instance.
@@ -106,7 +106,7 @@ Critère de sortie : un utilisateur peut s'inscrire, obtenir une clé, payer et 
 
 ## Phase 5 — Passage à l'échelle et différenciation (continu)
 
-- [ ] Mise à l'échelle automatique des *workers* de rendu selon la longueur de la file.
+- [ ] Si les limites serverless deviennent bloquantes (durée, mémoire, démarrage à froid) : déplacer le rendu vers des *workers* longue durée, l'API restant sur Vercel.
 - [ ] Déploiement multi-région, cache en périphérie.
 - [ ] Proxys de sortie configurables pour les sites qui bloquent les centres de données (avec cadre d'usage strict).
 - [ ] Analyse de performance et détection de technologies d'une page.

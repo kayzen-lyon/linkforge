@@ -1,7 +1,7 @@
 /**
  * Screenshot orchestration: cache → headless browser capture.
  */
-import { devices, type BrowserContextOptions } from 'playwright';
+import { devices, type BrowserContextOptions } from 'playwright-core';
 
 import type { AppConfig } from '../config.js';
 import { AppError } from '../lib/errors.js';
