@@ -6,7 +6,7 @@ import { ErrorCode } from '../lib/errors.js';
 import { TARGET_ERRORS, type EndpointDoc } from '../openapi.js';
 import type { ScreenshotService } from '../services/screenshot-service.js';
 import {
-  CACHE_HEADERS,
+  RENDERED_HEADERS,
   cacheControl,
   ForceParam,
   TargetHeaderParams,
@@ -163,7 +163,7 @@ export const screenshotDoc: EndpointDoc = {
   responses: {
     '200': {
       description: 'The image.',
-      headers: CACHE_HEADERS,
+      headers: RENDERED_HEADERS,
       content: { 'image/png': Binary, 'image/jpeg': Binary },
     },
   },

@@ -14,6 +14,7 @@ export type ApiErrorCode =
   | 'EBLOCKED'
   | 'EBUSY'
   | 'ECIRCUITOPEN'
+  | 'EROUTENOTFOUND'
   | 'ETIMEOUT'
   | 'EBROWSER'
   | 'EINTERNAL';

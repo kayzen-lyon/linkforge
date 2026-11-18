@@ -45,6 +45,7 @@ export const healthDoc: EndpointDoc = {
   },
   // No parameters and no rate limit on this route.
   errors: [ErrorCode.Unauthorized, ErrorCode.Internal],
+  rateLimited: false,
 };
 
 export interface HealthRouteOptions {

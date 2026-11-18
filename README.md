@@ -40,18 +40,21 @@ En-têtes communs :
 | `x-api-key` | requête | Clé d'API, facultative (voir [Clés d'API et quotas](#clés-dapi-et-quotas)) |
 | `x-request-id` | requête / réponse | Identifiant de la requête, présent sur **toutes** les réponses. Celui du client est repris s'il est bien formé (`[A-Za-z0-9_.:-]`, 128 caractères au plus), sinon un UUID est généré |
 | `x-cache` | réponse | `HIT` si la réponse vient du cache serveur, `MISS` sinon |
-| `x-render-source` | réponse | `http` ou `browser` : la chaîne qui a produit la réponse (toujours `browser` pour `/screenshot` et `/pdf`) |
-| `etag` / `if-none-match` | réponse / requête | Sur les réponses JSON (`/meta`, `/extract`, `/content`, y compris `format=markdown\|text`) : renvoyez l'`ETag` reçu dans `If-None-Match` pour obtenir `304 Not Modified` sans corps. L'`ETag` est calculé sur `data`, pas sur `meta` |
-| `x-ratelimit-limit`, `x-ratelimit-remaining`, `x-ratelimit-reset`, `retry-after` | réponse | Quota de la fenêtre courante. Ces en-têtes, comme `x-request-id`, `x-cache`, `x-render-source` et `etag`, sont exposés au code navigateur (CORS `Access-Control-Expose-Headers`) |
+| `x-render-source` | réponse | `http` ou `browser` : la chaîne qui a produit la réponse (toujours `browser` pour `/screenshot`, `/pdf`, `/animation` et `/og`). Absent de `/check`, `/qr` et `/meta/batch` |
+| `etag` / `if-none-match` | réponse / requête | Sur toutes les réponses JSON sauf `/check` (jamais mis en cache) et `/meta/batch`, ainsi que sur `/content?format=markdown\|text`, `/tables?format=csv`, `/html` et `/qr` : renvoyez l'`ETag` reçu dans `If-None-Match` pour obtenir `304 Not Modified` sans corps. Un validateur faible (`W/"…"`), une liste de validateurs et `*` sont acceptés. L'`ETag` est calculé sur `data`, pas sur `meta` (sur le corps pour les réponses non JSON). Les fichiers rendus par le navigateur (`/screenshot`, `/pdf`, `/animation`, `/og`) n'en portent pas |
+| `x-ratelimit-limit`, `x-ratelimit-remaining`, `x-ratelimit-reset` | réponse | Quota de la fenêtre courante : limite, requêtes restantes, secondes avant la remise à zéro. Sur toutes les réponses des routes soumises au quota, erreurs comprises (donc pas sur `/health`) |
+| `retry-after` | réponse | Secondes à attendre avant de réessayer (entier ≥ 1), sur `429 ERATELIMIT`, `503 EBUSY` et `503 ECIRCUITOPEN`. Ces en-têtes, comme `x-request-id`, `x-cache`, `x-render-source` et `etag`, sont exposés au code navigateur (CORS `Access-Control-Expose-Headers`) |
 | `cache-control` | réponse | `public, max-age=<ttl>, s-maxage=<ttl>` sur les réponses cachables |
 
-Paramètres communs aux routes cachables (`/meta`, `/screenshot`, `/pdf`, `/animation`, `/extract`, `/content`, `/tables`, `/links`, `/html`, `/tech`, `/insights`, `/image`, `/palette`, `/favicon`, `/oembed`, `/sitemap`, `/og`) :
+Paramètres communs aux routes cachables (`/meta`, `/screenshot`, `/pdf`, `/animation`, `/extract`, `/content`, `/tables`, `/links`, `/html`, `/tech`, `/insights`, `/image`, `/palette`, `/favicon`, `/oembed`, `/sitemap`) :
 
 | Paramètre | Type | Défaut | Description |
 | --- | --- | --- | --- |
 | `url` | string | — | URL absolue `http(s)` (obligatoire) |
 | `force` | boolean | `false` | Ignore le cache en lecture (le résultat frais est tout de même mis en cache) |
 | `ttl` | 60–86400 | config serveur | Durée de vie en secondes de cette réponse : entrée du cache serveur et `Cache-Control` |
+
+`/og` accepte aussi `force` et `ttl`, mais pas `url` : elle part d'un `title` et n'appelle aucune URL. `/qr` et `/check` prennent une `url` sans `force` ni `ttl`.
 
 Un paramètre inconnu est ignoré : une URL publique ramasse couramment des paramètres de suivi (`utm_source`, `fbclid`). Un paramètre connu mais invalide reste refusé (`400 EINVALIDPARAMS`).
 
@@ -68,6 +71,8 @@ En-têtes envoyés à la cible — trois seulement, sur `/meta`, `/content`, `/e
 - Toute valeur contenant un retour à la ligne ou un caractère de contrôle est refusée (`400 EINVALIDPARAMS`) : un paramètre ne peut pas ajouter un second en-tête.
 
 Chaque requête dispose d'un budget de temps unique (`REQUEST_DEADLINE_MS`, 55 s par défaut) dont sont dérivés l'attente d'un navigateur, son lancement, la navigation, la stabilisation et la capture. Passé ce budget, l'API répond elle-même `504 ETIMEOUT` en JSON. Une page dont l'événement `load` n'arrive jamais n'est pas un échec : au bout de `BROWSER_NAVIGATION_TIMEOUT_MS`, le chargement est arrêté et la réponse est produite avec ce qui est rendu.
+
+Rendu automatique (`render=auto`) : sur `/extract`, `/content`, `/tables`, `/links` et `/tech`, le navigateur n'est lancé que si la page **exécute des scripts** : sans script, il produirait exactement le même DOM. Les blocs de données ne comptent pas comme des scripts — `<script type="application/ld+json">`, `application/json`, `text/template`, `importmap`, `speculationrules`… Une page statique dont le seul `<script>` est son JSON-LD reste donc sur le chemin HTTP (`source: http`), même courte ou incomplète.
 
 Pages de blocage : si le site répond par un interstitiel anti-robot (« Just a moment… », CAPTCHA, « Access denied »), même en `200`, `/meta`, `/extract` et `/content` réessaient dans le navigateur, puis répondent `502 EBLOCKED` si le blocage persiste. Rien n'est alors mis en cache. `/screenshot` et `/pdf` ne font pas cette détection : ils rendent ce que le site affiche.
 
@@ -433,14 +438,18 @@ curl "http://localhost:3000/api/v1/tech?url=https://example.com"
 
 ```jsonc
 {
-  "url": "https://example.com/",
-  "technologies": [
-    { "name": "React", "category": "library", "evidence": "bundle /assets/index-BqK3xT9a.js: version:\"19.1.0\",rendererPackageName:\"react-dom\"", "confidence": "high", "version": "19.1.0" },
-    { "name": "Tailwind CSS", "category": "ui", "evidence": "bundle /assets/index-DiwrgTda.css: tailwindcss v4.1.4", "confidence": "high", "version": "4.1.4" },
-    { "name": "Vite", "category": "build-tool", "evidence": "bundle /assets/index-BqK3xT9a.js: __vite__mapDeps", "confidence": "high", "version": null },
-    { "name": "Vercel", "category": "hosting", "evidence": "header x-vercel-id: cdg1::iad1::…", "confidence": "high", "version": null }
-  ],
-  "inspected": { "bundles": 3, "rendered": false }
+  "status": "success",
+  "data": {
+    "url": "https://example.com/",
+    "technologies": [
+      { "name": "React", "category": "library", "evidence": "bundle /assets/index-BqK3xT9a.js: version:\"19.1.0\",rendererPackageName:\"react-dom\"", "confidence": "high", "version": "19.1.0" },
+      { "name": "Tailwind CSS", "category": "ui", "evidence": "bundle /assets/index-DiwrgTda.css: tailwindcss v4.1.4", "confidence": "high", "version": "4.1.4" },
+      { "name": "Vite", "category": "build-tool", "evidence": "bundle /assets/index-BqK3xT9a.js: __vite__mapDeps", "confidence": "high", "version": null },
+      { "name": "Vercel", "category": "hosting", "evidence": "header x-vercel-id: cdg1::iad1::…", "confidence": "high", "version": null }
+    ],
+    "inspected": { "bundles": 3, "rendered": false }
+  },
+  "meta": { "cached": false, "source": "http", "durationMs": 640 }
 }
 ```
 
@@ -466,23 +475,27 @@ curl "http://localhost:3000/api/v1/insights?url=https://example.com"
 
 ```jsonc
 {
-  "url": "https://example.com/",
-  "device": "desktop",
-  "measurement": "lab",            // toujours « lab »
-  "measuredAt": "2026-11-18T10:00:00.000Z",
-  "status": 200,
-  "loaded": true,                  // false si `load` n'est pas arrivé à temps : chiffres partiels
-  "timings": { "ttfbMs": 84, "domContentLoadedMs": 412, "loadMs": 960 },
-  "vitals": { "fcpMs": 380, "lcpMs": 720, "lcpElement": "img", "cls": 0.012 },
-  "network": {
-    "requests": 31,
-    "transferBytes": 684120,       // octets reçus, compressés, en-têtes compris
-    "byType": { "document": { "requests": 1, "transferBytes": 18200 }, "script": { /* … */ }, "stylesheet": {}, "image": {}, "font": {}, "media": {}, "xhr": {}, "other": {} },
-    "thirdParty": { "hostCount": 2, "hosts": ["fonts.gstatic.com", "www.googletagmanager.com"], "requests": 5, "transferBytes": 132000 },
-    "limitReached": null           // « requests » ou « bytes » si un plafond par page a arrêté le chargement
+  "status": "success",
+  "data": {
+    "url": "https://example.com/",
+    "device": "desktop",
+    "measurement": "lab",            // toujours « lab »
+    "measuredAt": "2026-11-18T10:00:00.000Z",
+    "status": 200,
+    "loaded": true,                  // false si `load` n'est pas arrivé à temps : chiffres partiels
+    "timings": { "ttfbMs": 84, "domContentLoadedMs": 412, "loadMs": 960 },
+    "vitals": { "fcpMs": 380, "lcpMs": 720, "lcpElement": "img", "cls": 0.012 },
+    "network": {
+      "requests": 31,
+      "transferBytes": 684120,       // octets reçus, compressés, en-têtes compris
+      "byType": { "document": { "requests": 1, "transferBytes": 18200 }, "script": { /* … */ }, "stylesheet": {}, "image": {}, "font": {}, "media": {}, "xhr": {}, "other": {} },
+      "thirdParty": { "hostCount": 2, "hosts": ["fonts.gstatic.com", "www.googletagmanager.com"], "requests": 5, "transferBytes": 132000 },
+      "limitReached": null           // « requests » ou « bytes » si un plafond par page a arrêté le chargement
+    },
+    "dom": { "elements": 842 },
+    "technologies": [ /* comme /tech, sur le DOM rendu */ ]
   },
-  "dom": { "elements": 842 },
-  "technologies": [ /* comme /tech, sur le DOM rendu */ ]
+  "meta": { "cached": false, "source": "browser", "durationMs": 2310 }
 }
 ```
 
@@ -634,7 +647,7 @@ Le QR code d'une URL, en SVG (défaut) ou PNG. L'URL est seulement encodée, jam
 
 - Encodeur écrit pour le projet (ISO/IEC 18004, mode octet, versions 1 à 40), sans dépendance. Le plus petit symbole suffisant est choisi ; l'en-tête `x-qr-version` l'indique. URL trop longue pour le niveau demandé, ou `size` inférieur à un pixel par module en PNG → `400 EINVALIDPARAMS`.
 - Les couleurs n'acceptent que de l'hexadécimal : rien d'autre ne peut entrer dans le SVG. Gardez un fort contraste, sinon les lecteurs échouent.
-- Réponse déterministe : `Cache-Control: public, max-age=86400, immutable` et `ETag`.
+- Réponse déterministe : `Cache-Control: public, max-age=86400, immutable` et `ETag` ; `If-None-Match` est comparé comme sur les autres routes (validateur faible, liste, `*`) et donne `304`.
 
 ### `GET /api/v1/og`
 
@@ -741,16 +754,17 @@ Toutes les erreurs ont la forme `{ "status": "fail" | "error", "code": "…", "m
 | `EINVALIDURL` | 400 | URL mal formée ou schéma non supporté |
 | `EUNAUTHORIZED` | 401 | `x-api-key` inconnue |
 | `EFORBIDDENURL` | 403 | Destination refusée par la politique anti-SSRF |
+| `EROUTENOTFOUND` | 404 | Aucune route ne répond à cette méthode et à ce chemin |
 | `EEMBEDNOTFOUND` | 404 | L'élément demandé n'existe pas pour cette URL : chemin `embed` (`/meta`), image principale (`/image`, `/palette`), lien oEmbed (`/oembed`), icône (`/favicon`), tableau (`/tables?format=csv`) |
 | `ESELECTORNOTFOUND` | 404 | Aucun élément visible ne correspond à `selector`, `click` ou `scrollTo`, ou `waitForSelector` n'est pas apparu à temps |
 | `ENOTHTML` | 422 | La cible n'est pas un document HTML (ou, pour une capture, déclenche un téléchargement de fichier) |
 | `ETOOLARGE` | 422 | Le résultat généré dépasse la taille maximale (`/pdf`, `/animation`, capture MCP) |
-| `ERATELIMIT` | 429 | Trop de requêtes |
+| `ERATELIMIT` | 429 | Trop de requêtes. `Retry-After` donne le temps restant avant la fin de la fenêtre |
 | `EUNREACHABLE` | 502 | Site injoignable (DNS, connexion refusée, TLS…) |
 | `ETARGETSTATUS` | 502 | Le site a répondu avec une erreur HTTP |
 | `EBLOCKED` | 502 | Le site a servi une page de blocage (défi anti-robot, CAPTCHA, accès refusé) au lieu de son contenu. Rien n'est mis en cache |
-| `EBUSY` | 503 | Pool de rendu saturé, réessayer |
-| `ECIRCUITOPEN` | 503 | L'hôte cible a échoué plusieurs fois de suite (délais dépassés, connexions refusées) : il n'est plus contacté pendant un court moment (voir [Fiabilité](#fiabilité)) |
+| `EBUSY` | 503 | Pool de rendu saturé, réessayer : `Retry-After` propose une courte attente (2 s) |
+| `ECIRCUITOPEN` | 503 | L'hôte cible a échoué plusieurs fois de suite (délais dépassés, connexions refusées) : il n'est plus contacté pendant un court moment, dont `Retry-After` donne le reste en secondes (voir [Fiabilité](#fiabilité)) |
 | `ETIMEOUT` | 504 | Le site n'a pas répondu à temps, ou le budget de la requête est épuisé |
 | `EBROWSER` / `EINTERNAL` | 500 | Erreur côté serveur |
 
@@ -852,7 +866,7 @@ linkforge/
 ### Fiabilité
 
 - **Plafonds par page rendue** : `BROWSER_PAGE_MAX_REQUESTS` requêtes (1 500) et `BROWSER_PAGE_MAX_BYTES` octets reçus (60 Mo, 30 Mo en serverless). Au-delà, les requêtes suivantes sont abandonnées et le chargement arrêté : la page est utilisée telle qu'elle est, ce n'est pas une erreur (`/insights` le signale dans `network.limitReached`). Les téléchargements de fichiers sont refusés (`ENOTHTML`).
-- **Disjoncteur par hôte cible** : après `CIRCUIT_BREAKER_THRESHOLD` échecs réseau consécutifs (5 ; `ETIMEOUT` ou `EUNREACHABLE`, jamais une réponse HTTP du site), l'hôte n'est plus contacté pendant `CIRCUIT_BREAKER_COOLDOWN_MS` (30 s) et les requêtes répondent aussitôt `503 ECIRCUITOPEN`. Une requête d'essai est ensuite relâchée ; son issue referme ou rouvre le circuit. Le disjoncteur est commun au chemin HTTP et au navigateur, en mémoire et par instance. `0` le désactive.
+- **Disjoncteur par hôte cible** : après `CIRCUIT_BREAKER_THRESHOLD` échecs réseau consécutifs (5 ; `ETIMEOUT` ou `EUNREACHABLE`, jamais une réponse HTTP du site), l'hôte n'est plus contacté pendant `CIRCUIT_BREAKER_COOLDOWN_MS` (30 s) et les requêtes répondent aussitôt `503 ECIRCUITOPEN`, avec un en-tête `Retry-After` qui donne les secondes restantes. Une requête d'essai est ensuite relâchée ; son issue referme ou rouvre le circuit. Le disjoncteur est commun au chemin HTTP et au navigateur, en mémoire et par instance. `0` le désactive.
 - **Quota partagé** par Redis quand `REDIS_URL` est défini, **métriques** Prometheus (`/metrics`) et **journaux structurés** sans donnée personnelle : voir [API](#api).
 - **Corpus de non-régression** (`apps/api/test/corpus/`) : des pages figées, modelées sur de vraies sorties (application Vite + React + Tailwind, application Next.js, page WordPress + WooCommerce, article, fiches produit JSON-LD et microdonnées, recette, événement), avec leurs résultats attendus.
 

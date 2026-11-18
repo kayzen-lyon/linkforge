@@ -107,7 +107,7 @@ export function etagOf(body: string | Buffer): string {
 }
 
 /** Tells whether `If-None-Match` lists `etag` (weak comparison, `*` included). */
-function matchesEtag(header: string | undefined, etag: string): boolean {
+export function matchesEtag(header: string | undefined, etag: string): boolean {
   if (header === undefined) return false;
   return header
     .split(',')
@@ -176,6 +176,12 @@ export const CACHE_HEADERS = {
   'x-cache': '`HIT` when served from the server cache, `MISS` otherwise.',
   'cache-control': '`public, max-age=<ttl>, s-maxage=<ttl>`.',
   'x-render-source': '`http` or `browser`: the pipeline that produced the answer.',
+} as const;
+
+/** Cache headers of answers only the headless browser can produce (images, PDF). */
+export const RENDERED_HEADERS = {
+  ...CACHE_HEADERS,
+  'x-render-source': 'Always `browser`: the answer is drawn by the headless browser.',
 } as const;
 
 /** Headers of JSON answers, which can be revalidated. */

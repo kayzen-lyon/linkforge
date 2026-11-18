@@ -236,6 +236,10 @@ export async function buildApp(config: AppConfig, seams: AppSeams = {}): Promise
         code: error.code,
         message: error.message,
       };
+      // The wait is also in the message, but only a header is machine-readable.
+      if (error.retryAfterSeconds !== undefined) {
+        void reply.header('retry-after', String(Math.max(1, Math.ceil(error.retryAfterSeconds))));
+      }
       return reply.status(error.statusCode).send(body);
     }
 
@@ -268,10 +272,12 @@ export async function buildApp(config: AppConfig, seams: AppSeams = {}): Promise
     return reply.status(500).send(body);
   });
 
+  // Its own code: `EINVALIDPARAMS` is documented as a 400 about parameters,
+  // and a client switching on the code must not take a wrong path for one.
   app.setNotFoundHandler((request, reply) => {
     const body: ErrorBody = {
       status: 'fail',
-      code: ErrorCode.InvalidParams,
+      code: ErrorCode.RouteNotFound,
       message: `Route ${request.method} ${request.url.split('?')[0]} not found`,
     };
     return reply.status(404).send(body);

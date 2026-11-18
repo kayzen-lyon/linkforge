@@ -136,4 +136,5 @@ export const common = {
   'built': 'Page générée le',
   'err.EBLOCKED': 'La cible a répondu par une page de blocage anti-robot au lieu de son contenu. Cette réponse n’est jamais mise en cache.',
   'err.ECIRCUITOPEN': 'La cible a échoué plusieurs fois de suite : elle n’est plus contactée pendant un court délai.',
+  'err.EROUTENOTFOUND': 'Le chemin demandé n’existe pas dans l’API.',
 };

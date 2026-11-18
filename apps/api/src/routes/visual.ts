@@ -8,7 +8,7 @@ import { ANIMATION_LIMITS, type AnimationService } from '../services/animation-s
 import { OG_LIMITS, OG_SIZE, OG_TEMPLATES, type OgService } from '../services/og-service.js';
 import type { PaletteService } from '../services/palette-service.js';
 import {
-  CACHE_HEADERS,
+  RENDERED_HEADERS,
   cacheControl,
   envelope,
   ForceParam,
@@ -66,7 +66,7 @@ export const ogDoc: EndpointDoc = {
   responses: {
     '200': {
       description: 'The image.',
-      headers: { 'x-cache': CACHE_HEADERS['x-cache'], 'cache-control': CACHE_HEADERS['cache-control'] },
+      headers: RENDERED_HEADERS,
       content: { 'image/png': Binary, 'image/jpeg': Binary },
     },
   },
@@ -177,7 +177,10 @@ export const animationDoc: EndpointDoc = {
   responses: {
     '200': {
       description: 'The animated PNG.',
-      headers: { ...CACHE_HEADERS, 'x-animation-frames': 'Frames in the animation (may be lower than requested).' },
+      headers: {
+        ...RENDERED_HEADERS,
+        'x-animation-frames': 'Frames in the animation (may be lower than requested).',
+      },
       content: { 'image/apng': Binary },
     },
   },

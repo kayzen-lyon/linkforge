@@ -13,11 +13,13 @@ import {
 } from '../services/page-tools-service.js';
 import { TABLE_LIMITS, tableToCsv } from '../services/table-extractor.js';
 import {
+  CACHE_HEADERS,
   cacheControl,
   envelope,
   etagOf,
   ForceParam,
   JSON_HEADERS,
+  matchesEtag,
   NOT_MODIFIED,
   RenderParam,
   revalidate,
@@ -290,7 +292,14 @@ export const faviconDoc: EndpointDoc = {
         meta: { cached: false, source: 'http', durationMs: 120 },
       },
     },
-    '302': { description: 'With `redirect=true`: redirect to the best icon.', headers: { location: 'URL of the icon.' } },
+    '302': {
+      description: 'With `redirect=true`: redirect to the best icon.',
+      headers: {
+        location: 'URL of the icon.',
+        'x-cache': CACHE_HEADERS['x-cache'],
+        'cache-control': CACHE_HEADERS['cache-control'],
+      },
+    },
     '304': NOT_MODIFIED,
   },
   errors: [...HTTP_ONLY_ERRORS, ErrorCode.EmbedNotFound],
@@ -331,6 +340,14 @@ const QrQuery = Type.Object(
 
 const Binary = Type.String({ format: 'binary' });
 
+/** Headers of every `/qr` answer, `304` included. */
+const QR_HEADERS = {
+  'cache-control': '`public, max-age=86400, immutable`: the image only depends on the parameters.',
+  etag: 'Validator of the image. Send it back in `If-None-Match` to get `304 Not Modified`.',
+  'x-qr-version': 'Symbol version chosen (1–40).',
+  'x-content-type-options': '`nosniff`.',
+} as const;
+
 export const qrDoc: EndpointDoc = {
   path: '/api/v1/qr',
   operationId: 'getQr',
@@ -345,13 +362,13 @@ export const qrDoc: EndpointDoc = {
     '200': {
       description: 'The image.',
       headers: {
-        'cache-control': '`public, max-age=86400, immutable`: the image only depends on the parameters.',
-        etag: 'Validator of the image.',
-        'x-qr-version': 'Symbol version chosen (1–40).',
+        ...QR_HEADERS,
+        'content-security-policy':
+          "`default-src 'none'; style-src 'unsafe-inline'; sandbox`: an SVG opened on its own can only draw itself.",
       },
       content: { 'image/svg+xml': Type.String(), 'image/png': Binary },
     },
-    '304': { description: 'The `ETag` sent in `If-None-Match` is still current; no body.' },
+    '304': { description: 'The `ETag` sent in `If-None-Match` is still current; no body.', headers: QR_HEADERS },
   },
   errors: [...COMMON_ERRORS, ErrorCode.InvalidUrl],
 };
@@ -466,7 +483,7 @@ export const pageToolsRoutes: FastifyPluginAsyncTypebox<PageToolsRouteOptions> =
       .header('cache-control', 'public, max-age=86400, immutable')
       .header('x-qr-version', String(qr.version))
       .header('x-content-type-options', 'nosniff');
-    if (request.headers['if-none-match'] === etag) return reply.status(304).send();
+    if (matchesEtag(request.headers['if-none-match'], etag)) return reply.status(304).send();
     return reply
       // An SVG opened directly is a document: forbid it everything but drawing itself.
       .header('content-security-policy', "default-src 'none'; style-src 'unsafe-inline'; sandbox")
