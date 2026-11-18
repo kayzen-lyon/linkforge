@@ -1,9 +1,9 @@
 /**
  * Dimensions of an image read from the first bytes of the file (pure, no I/O,
- * no pixel decoding): PNG, JPEG, GIF and WebP.
+ * no pixel decoding): PNG, JPEG, GIF, WebP and ICO.
  */
 export interface ImageHeader {
-  readonly format: 'png' | 'jpeg' | 'gif' | 'webp';
+  readonly format: 'png' | 'jpeg' | 'gif' | 'webp' | 'ico';
   readonly width: number;
   readonly height: number;
 }
@@ -29,6 +29,19 @@ export function readImageHeader(bytes: Buffer): ImageHeader | null {
       return { format: 'webp', width: bytes.readUInt16LE(26) & 0x3fff, height: bytes.readUInt16LE(28) & 0x3fff };
     }
     return null;
+  }
+  // ICO: a directory of images; the largest entry is the icon's best size (0 stands for 256).
+  if (bytes.length >= 22 && bytes.readUInt16LE(0) === 0 && bytes.readUInt16LE(2) === 1) {
+    const count = bytes.readUInt16LE(4);
+    if (count === 0 || count > 64) return null;
+    let width = 0;
+    let height = 0;
+    for (let i = 0; i < count && 6 + (i + 1) * 16 <= bytes.length; i += 1) {
+      const w = bytes[6 + i * 16] || 256;
+      const h = bytes[7 + i * 16] || 256;
+      if (w * h > width * height) [width, height] = [w, h];
+    }
+    return width === 0 ? null : { format: 'ico', width, height };
   }
   if (bytes.length >= 4 && bytes[0] === 0xff && bytes[1] === 0xd8) {
     // Walk the segments up to the first start-of-frame marker.

@@ -187,10 +187,10 @@ export class Renderer {
     const contextOptions: BrowserContextOptions = {
       ...options.contextOptions,
       ...(headers?.userAgent != null && { userAgent: headers.userAgent }),
+      // Sent as an extra header (on every request of the page) rather than through
+      // `locale`, which would rewrite the value: the site gets exactly what was asked.
       ...(headers?.acceptLanguage != null && {
         extraHTTPHeaders: { 'accept-language': headers.acceptLanguage },
-        // `navigator.language` then agrees with the header.
-        locale: headers.acceptLanguage.split(/[,;]/)[0]?.trim().replace('*', 'en') ?? 'en',
       }),
     };
     const meter = new NetworkMeter(

@@ -17,6 +17,7 @@ export const UrlParam = Type.String({
   minLength: 1,
   maxLength: 2048,
   description: 'Absolute http(s) URL of the target page.',
+  examples: ['https://example.com'],
 });
 
 export const RenderParam = Type.Optional(

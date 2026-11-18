@@ -4,6 +4,7 @@
 import type { AppConfig } from '../config.js';
 import { Deadline } from '../lib/deadline.js';
 import type { TargetHeaders } from '../lib/target-headers.js';
+import { AppError } from '../lib/errors.js';
 import { parseTargetUrl } from '../security/ssrf.js';
 import { cacheKey, getJson, setJson, SingleFlight, type Cache } from './cache/index.js';
 import {
@@ -15,12 +16,21 @@ import {
 } from './field-extractor.js';
 import { parseWaitForSelector } from './content-service.js';
 import type { PageLoader, RenderMode } from './page-loader.js';
+import {
+  extractPreset,
+  presetIsIncomplete,
+  type FieldSource,
+  type Preset,
+  type PresetValue,
+} from './structured-extractor.js';
 
 export interface ExtractRequest {
   readonly url: string;
   readonly render: RenderMode;
-  /** JSON-encoded rules, exactly as received from the client. */
-  readonly fields: string;
+  /** JSON-encoded rules, exactly as received from the client; `null` with a preset. */
+  readonly fields: string | null;
+  /** Built-in set of typed fields; exclusive with `fields`. */
+  readonly preset?: Preset | null;
   /** CSS selector to wait for (implies a browser render); `null` for none. */
   readonly waitForSelector: string | null;
   /** Caller-chosen request headers for the target; part of the cache key. */
@@ -35,7 +45,11 @@ export interface ExtractResult {
   readonly data: {
     /** Final URL of the document (after redirects). */
     readonly url: string;
-    readonly fields: Readonly<Record<string, FieldValue>>;
+    readonly fields: Readonly<Record<string, FieldValue | PresetValue>>;
+    /** With a preset only: the preset, the schema.org type found, and where each field came from. */
+    readonly preset?: Preset;
+    readonly schemaType?: string | null;
+    readonly sources?: Readonly<Record<string, FieldSource | null>>;
   };
   readonly source: 'http' | 'browser';
   readonly cached: boolean;
@@ -63,7 +77,12 @@ export class ExtractService {
   async extract(request: ExtractRequest): Promise<ExtractResult> {
     const deadline = new Deadline(this.config.requestDeadlineMs);
     const target = parseTargetUrl(request.url, this.config.ssrf);
-    const rules = parseFieldRules(request.fields);
+    const preset = request.preset ?? null;
+    if ((preset === null) === (request.fields === null)) {
+      throw AppError.invalidParams('Provide exactly one of `fields` and `preset`');
+    }
+    if (preset !== null) return this.extractPreset(target, preset, request, deadline);
+    const rules = parseFieldRules(request.fields ?? '');
     const waitForSelector = parseWaitForSelector(request.waitForSelector, request.render);
     const headers = request.headers ?? null;
     const ttlSeconds = request.ttlSeconds ?? this.config.cache.extractTtlSeconds;
@@ -83,6 +102,47 @@ export class ExtractService {
 
     const fresh = await this.flights.run(key, async () => {
       const result = await this.compute(target, request.render, rules, waitForSelector, deadline, headers);
+      await setJson(this.cache, key, result, ttlSeconds);
+      return result;
+    });
+    return { ...fresh, cached: false, ttlSeconds };
+  }
+
+  /** Preset flavour: same cache, same loader, fields read from what the page declares. */
+  private async extractPreset(
+    target: URL,
+    preset: Preset,
+    request: ExtractRequest,
+    deadline: Deadline,
+  ): Promise<ExtractResult> {
+    const headers = request.headers ?? null;
+    const waitForSelector = parseWaitForSelector(request.waitForSelector, request.render);
+    const ttlSeconds = request.ttlSeconds ?? this.config.cache.extractTtlSeconds;
+    const key = cacheKey('extract-preset', {
+      url: target.href,
+      render: request.render,
+      preset,
+      waitForSelector,
+      ...(headers !== null && { headers }),
+    });
+    if (!request.force) {
+      const hit = await getJson<CachedExtract>(this.cache, key);
+      if (hit !== null) return { ...hit, cached: true, ttlSeconds };
+    }
+    const fresh = await this.flights.run(key, async (): Promise<CachedExtract> => {
+      const page = await this.loader.load(target, {
+        render: request.render,
+        deadline,
+        waitForSelector,
+        headers,
+        // A missing key field (no price, no date) hints at client-side rendering.
+        isSufficient: (candidate) => !presetIsIncomplete(extractPreset(candidate.html, candidate.url, preset)),
+      });
+      const { schemaType, fields, sources } = extractPreset(page.html, page.url, preset);
+      const result: CachedExtract = {
+        data: { url: page.url, preset, schemaType, fields, sources },
+        source: page.source,
+      };
       await setJson(this.cache, key, result, ttlSeconds);
       return result;
     });

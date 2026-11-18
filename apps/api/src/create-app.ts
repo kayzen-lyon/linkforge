@@ -10,11 +10,13 @@
 import cors from '@fastify/cors';
 import rateLimit from '@fastify/rate-limit';
 import type { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
-import Fastify, { type FastifyError, type FastifyInstance } from 'fastify';
+import Fastify, { LogController, type FastifyError, type FastifyInstance } from 'fastify';
+import { Redis } from 'ioredis';
 
 import type { AppConfig } from './config.js';
 import { CircuitBreaker } from './lib/circuit-breaker.js';
 import { AppError, ErrorCode, type ErrorBody } from './lib/errors.js';
+import { Metrics } from './lib/metrics.js';
 import { McpServer } from './mcp/server.js';
 import { McpToolbox } from './mcp/tools.js';
 import { API_VERSION, buildOpenApiDocument } from './openapi.js';
@@ -24,10 +26,19 @@ import { healthDoc, healthRoutes } from './routes/health.js';
 import { insightsDoc, insightsRoutes } from './routes/insights.js';
 import { mcpDoc, mcpRoutes } from './routes/mcp.js';
 import { metaBatchDoc, metaDoc, metaRoutes } from './routes/meta.js';
+import { metricsDoc, metricsRoutes } from './routes/metrics.js';
 import { openApiDoc, openApiRoutes } from './routes/openapi.js';
+import {
+  faviconDoc,
+  oembedDoc,
+  pageToolsRoutes,
+  qrDoc,
+  tablesDoc,
+} from './routes/page-tools.js';
 import { pdfDoc, pdfRoutes } from './routes/pdf.js';
 import { playgroundRoutes } from './routes/playground.js';
 import { screenshotDoc, screenshotRoutes } from './routes/screenshot.js';
+import { animationDoc, ogDoc, paletteDoc, visualRoutes } from './routes/visual.js';
 import {
   checkDoc,
   htmlDoc,
@@ -44,13 +55,17 @@ import {
   rateLimitBucket,
   requestIdOf,
 } from './security/request-identity.js';
+import { AnimationService } from './services/animation-service.js';
 import { BrowserPool } from './services/browser-pool.js';
 import { createCache } from './services/cache/index.js';
 import { ContentService } from './services/content-service.js';
 import { ExtractService } from './services/extract-service.js';
 import { SafeFetcher } from './services/fetcher.js';
 import { MetaService } from './services/meta-service.js';
+import { OgService } from './services/og-service.js';
 import { PageLoader } from './services/page-loader.js';
+import { PaletteService } from './services/palette-service.js';
+import { PageToolsService } from './services/page-tools-service.js';
 import { PdfService } from './services/pdf-service.js';
 import { Renderer } from './services/renderer.js';
 import { ScreenshotService } from './services/screenshot-service.js';
@@ -66,6 +81,8 @@ export interface AppSeams {
    * never relaxed.
    */
   readonly tlsCa?: string;
+  /** Where log lines are written instead of stdout, so a test can read them. */
+  readonly logStream?: { write(line: string): void };
 }
 
 /**
@@ -75,7 +92,10 @@ export interface AppSeams {
  */
 export async function buildApp(config: AppConfig, seams: AppSeams = {}): Promise<FastifyInstance> {
   const app = Fastify({
-    logger: { level: config.logLevel },
+    logger: { level: config.logLevel, ...(seams.logStream !== undefined && { stream: seams.logStream }) },
+    // The default per-request lines carry the client address and the raw URL.
+    // One structured line per request is written below instead, without either.
+    logController: new LogController({ disableRequestLogging: true }),
     trustProxy: config.trustProxy,
     genReqId: requestIdOf,
     // Query-string booleans/integers arrive as strings: let Ajv coerce them.
@@ -104,11 +124,31 @@ export async function buildApp(config: AppConfig, seams: AppSeams = {}): Promise
   const extractService = new ExtractService(config, cache, pageLoader);
   const contentService = new ContentService(config, cache, pageLoader);
   const siteTools = new SiteToolsService(config, cache, fetcher, pageLoader);
+  const pageTools = new PageToolsService(config, cache, fetcher, pageLoader);
+  const ogService = new OgService(config, cache, renderer);
+  const paletteService = new PaletteService(config, cache, fetcher, renderer);
+  const animationService = new AnimationService(config, cache, renderer);
   const techService = new TechService(config, cache, fetcher, renderer);
   const insightsService = new InsightsService(config, cache, renderer);
   const apiKeys = new ApiKeyRegistry(config.apiKeys);
+  const metrics = new Metrics();
+  metrics.gauge({ name: 'omnillink_browser_jobs_active', help: 'Rendering jobs in progress.', read: () => pool.stats().active });
+  metrics.gauge({ name: 'omnillink_browser_jobs_queued', help: 'Rendering jobs waiting for a slot.', read: () => pool.stats().queued });
+  metrics.gauge({ name: 'omnillink_circuit_open_hosts', help: 'Target hosts currently short-circuited.', read: () => breaker.openCount() });
+  metrics.gauge({ name: 'omnillink_circuit_opened_total', help: 'Times a circuit has opened since boot.', read: () => breaker.openedTotal });
+  metrics.gauge({ name: 'omnillink_process_resident_memory_bytes', help: 'Resident memory of the process.', read: () => process.memoryUsage().rss });
+  metrics.gauge({ name: 'omnillink_process_uptime_seconds', help: 'Seconds since the process started.', read: () => Math.round(process.uptime()) });
+
+  // Shared rate-limit counters when Redis is configured; in memory otherwise.
+  // A dedicated connection: the limiter must fail fast and never queue behind cache traffic.
+  const rateLimitRedis =
+    config.redisUrl === null
+      ? null
+      : new Redis(config.redisUrl, { connectTimeout: 1000, maxRetriesPerRequest: 1, enableOfflineQueue: false });
+  rateLimitRedis?.on('error', (error: Error) => app.log.warn({ err: error }, 'rate-limit redis connection error'));
 
   app.addHook('onClose', async () => {
+    rateLimitRedis?.disconnect();
     await Promise.allSettled([pool.close(), fetcher.close(), cache.close()]);
     // After the browser: its connections end with it.
     await egress.close();
@@ -121,6 +161,8 @@ export async function buildApp(config: AppConfig, seams: AppSeams = {}): Promise
     origin: config.corsOrigin === '*' ? true : config.corsOrigin,
     // Without this, browser code cannot read our custom response headers.
     exposedHeaders: [
+      'x-animation-frames',
+      'x-qr-version',
       'x-request-id',
       'x-cache',
       'x-render-source',
@@ -134,6 +176,12 @@ export async function buildApp(config: AppConfig, seams: AppSeams = {}): Promise
     methods: ['GET', 'HEAD', 'POST'],
   });
   await app.register(rateLimit, {
+    ...(rateLimitRedis !== null && {
+      redis: rateLimitRedis,
+      nameSpace: 'linkforge:v1:ratelimit:',
+      // The limiter is a protection, not a dependency: if Redis is down, requests pass.
+      skipOnError: true,
+    }),
     max: (request) => (request.apiKeyId === null ? config.rateLimit.max : config.rateLimit.keyMax),
     keyGenerator: rateLimitBucket,
     timeWindow: config.rateLimit.windowMs,
@@ -145,6 +193,38 @@ export async function buildApp(config: AppConfig, seams: AppSeams = {}): Promise
         `Rate limit exceeded, retry in ${context.after}`,
       );
     },
+  });
+
+  // --- Observability --------------------------------------------------------------
+  // One line per request: route pattern, status, timing, cache verdict and the
+  // target's host. No client address, no query string, no key: nothing personal.
+  app.addHook('onResponse', async (request, reply) => {
+    const route = request.routeOptions.url ?? 'unmatched';
+    const cacheHeader = reply.getHeader('x-cache');
+    const cacheResult = cacheHeader === 'HIT' ? 'hit' : cacheHeader === 'MISS' ? 'miss' : null;
+    metrics.observe(route, request.method, reply.statusCode, reply.elapsedTime / 1000, cacheResult);
+    let targetHost: string | undefined;
+    const target = (request.query as { url?: unknown } | null)?.url;
+    if (typeof target === 'string') {
+      try {
+        targetHost = new URL(target).host;
+      } catch {
+        // Not a URL: nothing worth logging.
+      }
+    }
+    request.log.info(
+      {
+        route,
+        method: request.method,
+        status: reply.statusCode,
+        durationMs: Math.round(reply.elapsedTime),
+        ...(cacheResult !== null && { cache: cacheResult }),
+        ...(typeof reply.getHeader('x-render-source') === 'string' && { source: reply.getHeader('x-render-source') }),
+        ...(targetHost !== undefined && { targetHost }),
+        keyed: request.apiKeyId !== null,
+      },
+      'request completed',
+    );
   });
 
   // --- Error handling -----------------------------------------------------------
@@ -198,7 +278,8 @@ export async function buildApp(config: AppConfig, seams: AppSeams = {}): Promise
   });
 
   // --- Routes -------------------------------------------------------------------
-  await app.register(healthRoutes, { pool, cache });
+  await app.register(healthRoutes, { pool, cache, rateLimitStore: rateLimitRedis === null ? 'memory' : 'redis' });
+  if (config.metricsToken !== null) await app.register(metricsRoutes, { metrics, token: config.metricsToken });
   await app.register(playgroundRoutes);
   if (config.mcpEnabled) {
     const toolbox = new McpToolbox({
@@ -232,24 +313,34 @@ export async function buildApp(config: AppConfig, seams: AppSeams = {}): Promise
       await v1.register(contentRoutes, { contentService });
       await v1.register(siteToolsRoutes, { siteTools, techService });
       await v1.register(insightsRoutes, { insightsService });
+      await v1.register(pageToolsRoutes, { pageTools });
+      await v1.register(visualRoutes, { ogService, paletteService, animationService });
       await v1.register(openApiRoutes, {
         document: buildOpenApiDocument([
           metaDoc,
           metaBatchDoc,
           screenshotDoc,
           pdfDoc,
+          animationDoc,
           extractDoc,
           contentDoc,
+          tablesDoc,
           linksDoc,
           htmlDoc,
           techDoc,
           insightsDoc,
+          faviconDoc,
+          oembedDoc,
+          paletteDoc,
+          qrDoc,
+          ogDoc,
           imageDoc,
           sitemapDoc,
           checkDoc,
           ...(config.mcpEnabled ? [mcpDoc] : []),
           openApiDoc,
           healthDoc,
+          ...(config.metricsToken !== null ? [metricsDoc] : []),
         ]),
       });
     },

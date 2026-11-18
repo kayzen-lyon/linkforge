@@ -14,6 +14,13 @@ export const healthDoc: EndpointDoc = {
   responses: {
     '200': {
       description: 'The service is up.',
+      example: {
+        status: 'ok',
+        uptimeSeconds: 5123,
+        cache: 'memory',
+        rateLimit: 'memory',
+        browserPool: { active: 0, queued: 0, maxConcurrency: 4, browserConnected: true },
+      },
       content: {
         'application/json': {
           type: 'object',
@@ -21,6 +28,7 @@ export const healthDoc: EndpointDoc = {
             status: { type: 'string', const: 'ok' },
             uptimeSeconds: { type: 'integer' },
             cache: { type: 'string', enum: ['memory', 'redis'] },
+            rateLimit: { type: 'string', enum: ['memory', 'redis'], description: 'Where rate-limit counters live: shared (`redis`) or per instance (`memory`).' },
             browserPool: {
               type: 'object',
               properties: {
@@ -42,6 +50,7 @@ export const healthDoc: EndpointDoc = {
 export interface HealthRouteOptions {
   readonly pool: BrowserPool;
   readonly cache: Cache;
+  readonly rateLimitStore: 'memory' | 'redis';
 }
 
 /** `GET /health` — liveness probe plus a snapshot of the browser pool. */
@@ -50,6 +59,7 @@ export const healthRoutes: FastifyPluginAsync<HealthRouteOptions> = async (app, 
     status: 'ok',
     uptimeSeconds: Math.round(process.uptime()),
     cache: options.cache.kind,
+    rateLimit: options.rateLimitStore,
     browserPool: options.pool.stats(),
   }));
 };

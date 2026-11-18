@@ -89,6 +89,8 @@ export interface AppConfig {
     /** Largest PDF the API accepts to return; bigger documents fail with `ETOOLARGE`. */
     readonly maxBytes: number;
   };
+  /** Largest animated capture returned; frames stop being added past it. */
+  readonly animationMaxBytes: number;
   readonly ssrf: SsrfPolicy;
   /**
    * Accepted `x-api-key` values. Empty means the feature is off: the header is
@@ -277,6 +279,7 @@ export function loadConfig(env: Env = process.env): AppConfig {
       // Serverless platforms cap the response body (4.5 MB on Vercel): stay under it.
       maxBytes: readInt(env, 'PDF_MAX_BYTES', (serverless ? 4 : 10) * 1024 * 1024, 1024),
     },
+    animationMaxBytes: readInt(env, 'ANIMATION_MAX_BYTES', (serverless ? 4 : 10) * 1024 * 1024, 65_536),
     ssrf: {
       allowPrivateNetworks,
       allowedPorts: readPorts(env, 'SSRF_ALLOWED_PORTS', [80, 443]),

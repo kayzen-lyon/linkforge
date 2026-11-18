@@ -10,7 +10,7 @@
 import { ErrorCode } from './lib/errors.js';
 
 /** Version of the API contract, reported in `info.version`. */
-export const API_VERSION = '0.3.0';
+export const API_VERSION = '0.4.0';
 
 /** A JSON Schema object (TypeBox schemas are plain JSON Schema at runtime). */
 type JsonSchema = object;
@@ -225,9 +225,11 @@ export function buildOpenApiDocument(endpoints: readonly EndpointDoc[]): Record<
       title: 'Omnillink API',
       version: API_VERSION,
       description:
-        'Link intelligence over HTTP: metadata, screenshots, PDF, custom extraction and ' +
-        'readable content. Every endpoint is a `GET`, except the metadata batch; errors ' +
-        'share one JSON shape. Query parameters the API does not know are ignored.',
+        'Link intelligence over HTTP: metadata, readable content, typed extraction, tables, ' +
+        'screenshots, PDF, page insights, technology detection and small generators (QR code, ' +
+        'social card). Every REST endpoint is a `GET`, except the metadata batch; `POST /mcp` ' +
+        'exposes the read-only ones to AI agents over the Model Context Protocol. Errors share ' +
+        'one JSON shape. Query parameters the API does not know are ignored.',
       license: { name: 'MIT', identifier: 'MIT' },
     },
     servers: [{ url: '/', description: 'This deployment' }],

@@ -40,6 +40,40 @@ const PdfQuery = Type.Object(
       }),
     ),
     waitForSelector: WaitForSelectorParam,
+    margin: Type.Optional(
+      Type.Integer({
+        minimum: 0,
+        maximum: 50,
+        description: 'Margin on every side, in millimetres. Default: the page\'s own `@page` margins.',
+      }),
+    ),
+    scale: Type.Optional(
+      Type.Number({ minimum: 0.1, maximum: 2, default: 1, description: 'Scale of the rendering.' }),
+    ),
+    pageRanges: Type.Optional(
+      Type.String({
+        minLength: 1,
+        maxLength: 80,
+        pattern: '^[0-9,\\- ]+$',
+        description: 'Pages to keep, e.g. `1-3,5` (pages 1 to 100, at most 10 ranges). Default: all.',
+      }),
+    ),
+    headerText: Type.Optional(
+      Type.String({
+        minLength: 1,
+        maxLength: 200,
+        description:
+          'Plain text printed at the top of every page. It is escaped (no HTML); the tokens ' +
+          '`{page}`, `{pages}`, `{title}`, `{url}` and `{date}` are filled in. Forces a top margin of at least 12 mm.',
+      }),
+    ),
+    footerText: Type.Optional(
+      Type.String({
+        minLength: 1,
+        maxLength: 200,
+        description: 'Plain text printed at the bottom of every page; same rules as `headerText`. Example: `Page {page} / {pages}`.',
+      }),
+    ),
     ...TargetHeaderParams,
     force: ForceParam,
     ttl: TtlParam,
@@ -63,7 +97,7 @@ export const pdfDoc: EndpointDoc = {
       content: { 'application/pdf': Type.String({ format: 'binary' }) },
     },
   },
-  errors: [...TARGET_ERRORS, ErrorCode.TooLarge, ErrorCode.SelectorNotFound],
+  errors: [...TARGET_ERRORS, ErrorCode.TooLarge, ErrorCode.SelectorNotFound, ErrorCode.NotHtml],
 };
 
 export interface PdfRouteOptions {
@@ -90,6 +124,11 @@ export const pdfRoutes: FastifyPluginAsyncTypebox<PdfRouteOptions> = async (app,
       hideBanners: request.query.hideBanners ?? false,
       blockAds: request.query.blockAds ?? false,
       waitForSelector: request.query.waitForSelector ?? null,
+      marginMm: request.query.margin ?? null,
+      scale: request.query.scale ?? 1,
+      pageRanges: request.query.pageRanges ?? null,
+      headerText: request.query.headerText ?? null,
+      footerText: request.query.footerText ?? null,
       headers: targetHeadersOf(request.query),
       force,
       ttlSeconds: ttl ?? null,

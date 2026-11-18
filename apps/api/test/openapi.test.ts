@@ -63,14 +63,14 @@ describe('GET /api/v1/openapi.json', () => {
     const api = registered.filter((path) => path.startsWith('/api/v1/'));
     expect(api.sort()).toEqual(
       [
-        'check', 'content', 'extract', 'html', 'image', 'insights', 'links', 'meta', 'meta/batch', 'openapi.json', 'pdf',
-        'screenshot', 'sitemap', 'tech',
+        'animation', 'check', 'content', 'extract', 'favicon', 'html', 'image', 'insights', 'links', 'meta',
+        'meta/batch', 'oembed', 'og', 'openapi.json', 'palette', 'pdf', 'qr', 'screenshot', 'sitemap', 'tables', 'tech',
       ].map(
         (p) => `/api/v1/${p}`,
       ),
     );
-    for (const path of [...api, '/health']) {
-      const method = path.endsWith('/batch') ? 'post' : 'get';
+    for (const path of [...api, '/health', '/mcp']) {
+      const method = path.endsWith('/batch') || path === '/mcp' ? 'post' : 'get';
       expect((doc.paths[path] as Record<string, unknown> | undefined)?.[method], path).toBeDefined();
       expect(app.hasRoute({ method: method === 'post' ? 'POST' : 'GET', url: path })).toBe(true);
     }
@@ -84,14 +84,16 @@ describe('GET /api/v1/openapi.json', () => {
     expect(Object.keys(params('/api/v1/meta'))).toEqual(['url', 'render', 'embed', 'acceptLanguage', 'userAgent', 'referer', 'force', 'ttl']);
     expect(Object.keys(params('/api/v1/screenshot'))).toEqual([
       'url', 'device', 'width', 'height', 'fullPage', 'selector', 'hide', 'hideBanners',
-      'blockAds', 'waitForSelector', 'waitFor', 'colorScheme', 'format', 'quality', 'acceptLanguage', 'userAgent', 'referer', 'force', 'ttl',
+      'blockAds', 'waitForSelector', 'click', 'scrollTo', 'waitFor', 'colorScheme', 'frame', 'radius', 'padding',
+      'background', 'format', 'quality', 'acceptLanguage', 'userAgent', 'referer', 'force', 'ttl',
     ]);
     expect(Object.keys(params('/api/v1/pdf'))).toEqual([
       'url', 'format', 'landscape', 'printBackground', 'hideBanners', 'blockAds', 'waitForSelector',
+      'margin', 'scale', 'pageRanges', 'headerText', 'footerText',
       'acceptLanguage', 'userAgent', 'referer', 'force', 'ttl',
     ]);
     expect(Object.keys(params('/api/v1/extract'))).toEqual([
-      'url', 'fields', 'render', 'waitForSelector', 'acceptLanguage', 'userAgent', 'referer', 'force', 'ttl',
+      'url', 'fields', 'preset', 'render', 'waitForSelector', 'acceptLanguage', 'userAgent', 'referer', 'force', 'ttl',
     ]);
     expect(Object.keys(params('/api/v1/content'))).toEqual([
       'url', 'render', 'format', 'mainContent', 'include', 'exclude', 'citations',
@@ -120,7 +122,16 @@ describe('GET /api/v1/openapi.json', () => {
     expect(shot['waitFor']!.schema).toMatchObject({ minimum: 0, maximum: 10000 });
     expect(shot['colorScheme']!.schema).toMatchObject({ enum: ['light', 'dark'] });
     expect(params('/api/v1/pdf')['format']!.schema).toMatchObject({ enum: ['A4', 'Letter'], default: 'A4' });
-    expect(params('/api/v1/extract')['fields']!.required).toBe(true);
+    expect(params('/api/v1/extract')['fields']!.required).toBe(false);
+    expect(params('/api/v1/extract')['preset']!.schema).toMatchObject({ enum: ['article', 'product', 'recipe', 'event'] });
+    expect(Object.keys(params('/api/v1/tech'))).toEqual(['url', 'render', 'acceptLanguage', 'userAgent', 'referer', 'force', 'ttl']);
+    expect(Object.keys(params('/api/v1/qr'))).toEqual(['url', 'format', 'size', 'margin', 'ecc', 'color', 'background']);
+    expect(params('/api/v1/qr')['size']!.schema).toMatchObject({ minimum: 64, maximum: 2048, default: 512 });
+    expect(params('/api/v1/og')['title']!.required).toBe(true);
+    expect(params('/api/v1/animation')['frames']!.schema).toMatchObject({ minimum: 2, maximum: 10, default: 6 });
+    expect(meta['url']!.schema).toMatchObject({ examples: ['https://example.com'] });
+    for (const name of ['acceptLanguage', 'userAgent', 'referer']) expect(meta[name]!.description).toBeTypeOf('string');
+    expect(Object.keys(meta)).not.toContain('cookie');
   });
 
   it('documents success and error responses', () => {
@@ -153,6 +164,23 @@ describe('GET /api/v1/openapi.json', () => {
     expect(doc.paths['/api/v1/screenshot']!.get.responses['404']!.description).toContain('ESELECTORNOTFOUND');
     expect(doc.paths['/api/v1/extract']!.get.responses['422']!.description).toContain('ENOTHTML');
     expect(doc.paths['/api/v1/content']!.get.responses['422']!.description).toContain('ENOTHTML');
+  });
+
+  it('gives every JSON answer an example and every parameter a description', () => {
+    for (const [path, item] of Object.entries(doc.paths)) {
+      const operation = Object.values(item as Record<string, Operation>)[0]!;
+      const json = (operation.responses['200']!.content ?? {})['application/json'] as { example?: unknown } | undefined;
+      if (json !== undefined && path !== '/api/v1/openapi.json') expect(json.example, `${path} example`).toBeDefined();
+      for (const parameter of operation.parameters) {
+        if (['format', 'landscape', 'theme'].includes(parameter.name)) continue;
+        expect(parameter.description, `${path} ${parameter.name}`).toBeTypeOf('string');
+      }
+    }
+    // Lab measurements say so, number by number.
+    const insights = JSON.stringify(doc.paths['/api/v1/insights']!.get.responses['200']);
+    expect(insights.match(/Lab measurement from a single load/g)!.length).toBeGreaterThanOrEqual(10);
+    expect(JSON.stringify(doc.paths['/api/v1/oembed']!.get.responses['200'])).toContain('UNTRUSTED third-party markup');
+    expect(JSON.stringify(doc.paths['/mcp'])).toContain('tools/call');
   });
 
   it('lists every error code in the shared error schema', () => {
