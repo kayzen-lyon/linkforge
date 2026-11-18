@@ -1,0 +1,76 @@
+name: Omnillink link preview
+description: >-
+  Fetch the metadata of a URL (and optionally a screenshot) from an Omnillink
+  instance, expose it as outputs and write a link preview to the job summary.
+author: Omnillink contributors
+branding:
+  icon: link
+  color: blue
+
+inputs:
+  url:
+    description: Absolute http(s) URL of the page to preview.
+    required: true
+  base-url:
+    description: Origin of the Omnillink instance, e.g. https://links.example.com.
+    required: true
+  api-key:
+    description: >-
+      API key of the instance, sent as the x-api-key header. Pass it from a
+      secret; it is masked in the logs and never written to the summary or the outputs.
+    required: false
+    default: ''
+  render:
+    description: 'Headless-browser strategy for the metadata: auto, never or always.'
+    required: false
+    default: auto
+  screenshot:
+    description: 'Also take a screenshot of the page: "true" or "false".'
+    required: false
+    default: 'false'
+  device:
+    description: 'Viewport profile of the screenshot: desktop or mobile.'
+    required: false
+    default: desktop
+  full-page:
+    description: 'Capture the whole page instead of the first screen: "true" or "false".'
+    required: false
+    default: 'false'
+  summary:
+    description: 'Write the preview to the job summary: "true" or "false".'
+    required: false
+    default: 'true'
+  fail-on-error:
+    description: >-
+      "true": the step fails when the preview cannot be fetched. "false": the
+      step succeeds, with the outputs `ok` = false and `error-code` set.
+    required: false
+    default: 'true'
+  timeout-ms:
+    description: Time allowed for each request to the instance, in milliseconds.
+    required: false
+    default: '60000'
+
+outputs:
+  ok:
+    description: '"true" when the metadata was fetched, "false" otherwise.'
+  error-code:
+    description: Omnillink error code (EFORBIDDENURL, ETIMEOUT, ENETWORK…) when `ok` is false, empty otherwise.
+  title:
+    description: Title of the page, or an empty string.
+  description:
+    description: Description of the page, or an empty string.
+  image:
+    description: URL of the preview image, or an empty string.
+  canonical-url:
+    description: Canonical URL of the page, falling back to its final URL after redirects.
+  publisher:
+    description: Site or publisher name, or an empty string.
+  metadata:
+    description: The whole metadata object as JSON (the `data` of GET /meta; `jsonLd` is dropped when the object is very large).
+  screenshot-path:
+    description: Absolute path of the screenshot on the runner (for actions/upload-artifact), or an empty string.
+
+runs:
+  using: node24
+  main: dist/index.mjs
