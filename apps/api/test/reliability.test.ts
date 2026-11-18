@@ -330,3 +330,26 @@ describe.skipIf(!hasRedis)('rate limiting shared through Redis', () => {
     await memory.close();
   });
 });
+
+describe('anti-SSRF policy on every new endpoint (production defaults)', () => {
+  it('refuses internal destinations before any connection', async () => {
+    const prod = await buildApp(loadConfig({ NODE_ENV: 'test', RATE_LIMIT_MAX: '1000' }));
+    try {
+      const endpoints = [
+        'insights?', 'tech?render=never&', 'tech?render=always&', 'tables?', 'oembed?', 'favicon?', 'palette?', 'animation?',
+        'extract?preset=article&', 'screenshot?click=a&', 'pdf?footerText=x&',
+      ];
+      const targets = ['http://169.254.169.254/latest/meta-data/', 'http://localhost:6379/', 'http://[::1]/', 'http://10.0.0.5/', 'http://0x7f.1/', 'https://example.com:22/'];
+      for (const endpoint of endpoints) {
+        for (const target of targets) {
+          const res = await prod.inject(`/api/v1/${endpoint}url=${enc(target)}`);
+          expect(res.statusCode, `${endpoint} ${target}`).toBe(403);
+          expect(res.json().code).toBe('EFORBIDDENURL');
+        }
+      }
+      expect((await prod.inject(`/api/v1/insights?url=${enc('file:///etc/passwd')}`)).json().code).toBe('EINVALIDURL');
+    } finally {
+      await prod.close();
+    }
+  });
+});
