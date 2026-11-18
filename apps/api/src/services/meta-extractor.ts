@@ -105,8 +105,8 @@ function resolveUrl(reference: string | null | undefined, base: string): string 
   }
 }
 
-function toInt(value: string | undefined): number | null {
-  if (value === undefined) return null;
+function toInt(value: string | null | undefined): number | null {
+  if (value === undefined || value === null) return null;
   const parsed = Number.parseInt(value, 10);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 }
@@ -296,8 +296,8 @@ function extractVideo($: CheerioAPI, base: string, jsonLd: readonly unknown[]): 
     return {
       url: ogUrl,
       type: meta($, 'og:video:type'),
-      width: toInt(meta($, 'og:video:width') ?? undefined),
-      height: toInt(meta($, 'og:video:height') ?? undefined),
+      width: toInt(meta($, 'og:video:width')),
+      height: toInt(meta($, 'og:video:height')),
     };
   }
 
@@ -307,8 +307,8 @@ function extractVideo($: CheerioAPI, base: string, jsonLd: readonly unknown[]): 
       url: player,
       // A Twitter player is an iframe-able page, not a media file.
       type: 'text/html',
-      width: toInt(meta($, 'twitter:player:width') ?? undefined),
-      height: toInt(meta($, 'twitter:player:height') ?? undefined),
+      width: toInt(meta($, 'twitter:player:width')),
+      height: toInt(meta($, 'twitter:player:height')),
     };
   }
 
