@@ -128,7 +128,6 @@ linkforge/
 │   │   │   └── routes/            # meta, screenshot, health
 │   │   ├── test/                  # Vitest (unitaires + bout en bout)
 │   └── web/                       # Playground Vite + Tailwind CSS v4
-├── vercel.json                    # Deux services Vercel (api, web) + réécritures
 ├── ROADMAP.md                     # Feuille de route détaillée
 └── PROMPT.md                      # Prompt maître pour faire évoluer le projet avec un agent IA
 ```
