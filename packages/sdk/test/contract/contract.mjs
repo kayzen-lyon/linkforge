@@ -268,7 +268,7 @@ async function run(call, endpoint, invoke, { method = 'get', describe = () => ''
     const result = await invoke();
     const info = responseInfo(result);
     row.headers = info ?? {};
-    observedHeaders.set(endpoint, info);
+    observedHeaders.set(call, { endpoint, method, info });
     row.sdk = walk(typeOf(`R_${ident(call)}`), result, 'result');
     const schema = jsonSchema(endpoint, method);
     if (schema !== undefined && result !== null && typeof result === 'object' && 'meta' in result && result.meta !== undefined) {
@@ -365,13 +365,18 @@ const conditional = {
   palette: (etag) => client.palette(home, { count: 3, ifNoneMatch: etag }),
   insights: (etag) => client.insights(home, { ifNoneMatch: etag }),
   html: (etag) => client.html(home, { render: 'never', ifNoneMatch: etag }),
+  contentText: (etag) => client.contentText(home, { ifNoneMatch: etag }),
+  tablesCsv: (etag) => client.tablesCsv(home, { ifNoneMatch: etag }),
 };
+let revalidated = 0;
 for (const [name, again] of Object.entries(conditional)) {
-  const etag = observedHeaders.get(name)?.etag;
+  const seen = observedHeaders.get(name);
+  const etag = seen?.info?.etag;
   if (typeof etag !== 'string') {
-    findings.push(`${name}: no etag on the response, although the OpenAPI document ${operation(name)?.responses?.['304'] === undefined ? 'does not document' : 'documents'} a 304`);
+    findings.push(`${name}: no etag on the response, although the OpenAPI document ${operation(seen?.endpoint ?? name)?.responses?.['304'] === undefined ? 'does not document' : 'documents'} a 304`);
     continue;
   }
+  revalidated += 1;
   const outcome = await again(etag).catch((error) => error);
   if (outcome?.notModified !== true) findings.push(`${name}: sending its etag back did not yield 304 (${isOmnillinkError(outcome) ? outcome.code : 'got data'})`);
 }
@@ -391,6 +396,33 @@ for (let attempt = 0; attempt < 8 && circuit?.code !== 'ECIRCUITOPEN'; attempt +
 await expectError('error: ECIRCUITOPEN (after repeated failures)', 'ECIRCUITOPEN', () => client.check('http://127.0.0.1:9/'));
 if (circuit?.code === 'ECIRCUITOPEN' && circuit.retryAfter === undefined) {
   findings.push(`ECIRCUITOPEN: the delay is only in the message (${show(circuit.message)}); no Retry-After header is sent`);
+}
+
+// URL builders: what a browser gets when the URL sits in a `src` or `href`.
+const builders = [];
+async function builder(name, url, expect) {
+  const response = await fetch(url, { redirect: 'manual' });
+  await response.arrayBuffer();
+  const type = (response.headers.get('content-type') ?? '').split(';')[0];
+  const location = response.headers.get('location');
+  const got = response.status >= 300 && response.status < 400 ? `${response.status} → ${location}` : `${response.status} ${type}`;
+  const ok = got === expect;
+  builders.push({ name, ok, got, expect });
+}
+await builder('screenshotUrl', client.screenshotUrl(home, { format: 'jpeg', quality: 50, frame: 'browser', padding: 20 }), '200 image/jpeg');
+await builder('pdfUrl', client.pdfUrl(home, { footerText: 'Page {page} / {pages}', margin: 10 }), '200 application/pdf');
+await builder('animationUrl', client.animationUrl(home, { frames: 3, width: 400, height: 300 }), '200 image/apng');
+await builder('qrUrl', client.qrUrl(home, { format: 'png', size: 256 }), '200 image/png');
+await builder('ogUrl', client.ogUrl({ title: 'Contract check', site: 'Omnillink', template: 'gradient' }), '200 image/png');
+await builder('faviconUrl', client.faviconUrl(home), `302 → ${SITE}/apple.png`);
+await builder('metaEmbedUrl(image.url)', client.metaEmbedUrl(home, 'image.url'), `302 → ${SITE}/cover.png`);
+await builder('metaEmbedUrl(title)', client.metaEmbedUrl(home, 'title'), '200 text/plain');
+
+// The walker must not be lenient: a wrong value has to be caught.
+const selfTest = walk(typeOf('R_links'), { data: { url: 1, total: 0, internal: 0, external: 0, links: [{}], surprise: true }, meta: {} }, 'x');
+if (!['x.data.url:', 'x.data.surprise:', 'x.data.truncated:', 'x.data.links[0].url:', 'x.meta.cached:', 'x.response:'].every((start) => selfTest.some((problem) => problem.startsWith(start)))) {
+  console.error('The type walker missed a planted mismatch:', selfTest);
+  process.exit(2);
 }
 
 // ---- 4. document vs SDK ----------------------------------------------------------------------
@@ -449,9 +481,9 @@ for (const category of sdkCategories) if (!documentedCategories.has(category)) s
 
 // Headers the document promises on a 200, against what came back.
 const HEADER_FIELDS = { 'x-cache': 'cache', 'x-render-source': 'renderSource', etag: 'etag', 'x-request-id': 'requestId', 'x-final-url': 'finalUrl', 'x-animation-frames': 'animationFrames', 'x-qr-version': 'qrVersion' };
-for (const [endpoint, info] of observedHeaders) {
-  if (info === undefined) continue;
-  const method = endpoint === 'meta/batch' ? 'post' : 'get';
+for (const [call, { endpoint, method, info }] of observedHeaders) {
+  // The text variants share a 200 with their JSON method; the 304 outcome has no body to describe.
+  if (info === undefined || call === 'notModified') continue;
   const documented = Object.keys(operation(endpoint, method)?.responses?.['200']?.headers ?? {});
   for (const [headerName, field] of Object.entries(HEADER_FIELDS)) {
     const present = info[field] !== null;
@@ -477,6 +509,9 @@ for (const row of rows) {
   for (const problem of row.sdk) console.log(`       SDK type    ✗ ${problem}`);
   for (const problem of row.openapi) console.log(`       OpenAPI doc ✗ ${problem}`);
 }
+console.log(`\nURL builders (fetched like an <img src>, redirects not followed):`);
+for (const item of builders) console.log(`${mark(item.ok)} ${item.name.padEnd(24)} ${item.got}${item.ok ? '' : `   (expected ${item.expect})`}`);
+console.log(`\nConditional requests: ${revalidated} method(s) revalidated with their own etag`);
 const openapiProblems = rows.flatMap((row) => row.openapi.map((problem) => `${row.call}: ${problem}`));
 console.log(`\nSDK types vs responses: ${rows.length - failed.length}/${rows.length} calls match`);
 console.log(`SDK vs OpenAPI document (parameters, error codes, enums): ${sdkMismatches.length === 0 ? 'no difference' : ''}`);
@@ -485,4 +520,4 @@ console.log(`OpenAPI document vs real responses: ${openapiProblems.length + find
 for (const line of [...new Set([...openapiProblems, ...findings])]) console.log(`  • ${line}`);
 
 if (REPORT !== undefined) await writeFile(REPORT, JSON.stringify({ api: API, openapi: openapi.info.version, rows, sdkMismatches, findings }, null, 2));
-process.exitCode = failed.length === 0 && sdkMismatches.length === 0 ? 0 : 1;
+process.exitCode = failed.length === 0 && sdkMismatches.length === 0 && builders.every((item) => item.ok) ? 0 : 1;

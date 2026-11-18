@@ -1,6 +1,6 @@
 # Omnillink — 150 améliorations
 
-Liste de travail. État au dernier pointage : 125 livrés, 21 partiels, 4 à faire.
+Liste de travail. État au dernier pointage : 130 livrés, 18 partiels, 2 à faire.
 
 Chaque ligne porte un statut tenu à jour à l'intégration : `[ ]` à faire, `[x]` livré et vérifié, `[~]` partiel (la note dit ce qui manque), `[-]` écarté (la note dit pourquoi).
 
@@ -14,7 +14,7 @@ Règle commune à toutes les lignes : rien d'inventé. Pas de témoignages, de l
 4. [x] Démonstration animée dans le hero : une URL se « transforme » en carte d'aperçu, capture et JSON.
 5. [x] Variante du logo pour le thème sombre (la moitié marine est trop peu visible).
 6. [x] Micro-interactions sur tous les boutons : pression, survol avec ombre de la charte.
-7. [~] Cartes de fonctionnalités avec illustration propre à chaque point d'accès. — miniatures réelles pour six points d'accès ; carte générique pour les autres.
+7. [x] Cartes de fonctionnalités avec illustration propre à chaque point d'accès
 8. [x] Icônes en un seul jeu cohérent, tracées au même poids.
 9. [x] Révélation des sections au défilement, sobre, désactivée si « moins d'animations ».
 10. [x] Barre de progression de lecture en haut de page, comme sur Kayzen.
@@ -67,7 +67,7 @@ Règle commune à toutes les lignes : rien d'inventé. Pas de témoignages, de l
 51. [x] Exemples prêts à cliquer (article, boutique, vidéo, documentation, application).
 52. [x] Aperçu de carte en plusieurs formats : compact, large, style messagerie.
 53. [x] Capture affichée dans un cadre d'appareil (ordinateur, mobile).
-54. [~] Comparateur avant/après : clair et sombre, ordinateur et mobile. — deux captures côte à côte, sans curseur de comparaison.
+54. [x] Comparateur avant/après : clair et sombre, ordinateur et mobile
 55. [x] Téléchargement du résultat : image, PDF, JSON, Markdown.
 56. [x] Visionneuse JSON repliable avec recherche et copie d'un chemin.
 57. [x] Rendu Markdown et vue source côte à côte pour le contenu.
@@ -77,7 +77,7 @@ Règle commune à toutes les lignes : rien d'inventé. Pas de témoignages, de l
 61. [x] Champ de clé d'API facultatif, gardé en mémoire de session uniquement.
 62. [x] Générateur de code en huit langages : curl, JavaScript, TypeScript (SDK), Python, PHP, Go, Ruby, Rust.
 63. [x] Générateur de balise `<img>` et de carte `<link-preview>` prête à coller.
-64. [ ] Démonstration en direct du composant `<link-preview>`. — le composant du SDK n'est pas encore branché dans le site.
+64. [x] Démonstration en direct du composant `<link-preview>`
 65. [x] Traitement par lot : coller plusieurs adresses, tableau de résultats, export CSV.
 66. [x] Messages d'erreur expliqués, avec la cause probable et la correction.
 67. [x] Annulation d'une requête en cours.
@@ -89,16 +89,16 @@ Règle commune à toutes les lignes : rien d'inventé. Pas de témoignages, de l
 
 71. [x] Guide de démarrage en cinq minutes.
 72. [~] Page par point d'accès, avec paramètres, exemples et erreurs. — une section par point d'accès principal, pas une page chacun.
-73. [x] Explorateur interactif branché sur la spécification OpenAPI (« essayer »).
+73. [x] Explorateur interactif branché sur la spécification OpenAPI (« essayer »)
 74. [~] Téléchargement de la spécification OpenAPI et d'une collection Postman/Bruno. — OpenAPI et collection Postman ; pas de fichier Bruno.
 75. [x] Guide d'auto-hébergement : Vercel, Node, variables d'environnement.
 76. [x] Guide du SDK et du composant `<link-preview>`.
-77. [~] Guide pour agents IA : contenu lisible, serveur MCP, `llms.txt`. — guide et llms.txt faits ; MCP pas encore décrit sur le site.
+77. [x] Guide pour agents IA : contenu lisible, serveur MCP, `llms.txt`
 78. [x] Recettes : aperçus de liens dans un blog, images de partage, veille de prix, archivage en PDF.
 79. [x] Référence des codes d'erreur avec causes et remèdes.
-80. [x] Page sécurité : modèle de menace, protection SSRF, ce qui est couvert ou non.
+80. [x] Page sécurité : modèle de menace, protection SSRF, ce qui est couvert ou non
 81. [x] Page limites et quotas : débits, tailles, durées.
-82. [ ] Journal des modifications alimenté par le dépôt. — pas de journal des modifications à publier pour l'instant.
+82. [x] Journal des modifications alimenté par le dépôt
 83. [ ] Feuille de route publique. — feuille de route à réécrire pour une publication.
 84. [x] Page d'état branchée sur `/health` (disponibilité mesurée en direct, sans historique inventé).
 85. [x] FAQ authentique, balisée en données structurées.

@@ -73,13 +73,13 @@ export function formatBytes(bytes: number): string {
   return `${(bytes / 1_000_000).toFixed(1)} MB`;
 }
 
-function footer(meta: ResponseMeta | undefined, style: Style): string {
+export function footer(meta: ResponseMeta | undefined, style: Style): string {
   if (meta === undefined || meta === null) return '';
   const parts = [meta.source, `${Math.round(meta.durationMs)} ms`, meta.cached ? 'cached' : 'fresh'];
   return style.dim(`  ${parts.join(' · ')}`);
 }
 
-function rows(pairs: readonly (readonly [string, string | null | undefined])[], style: Style): string[] {
+export function rows(pairs: readonly (readonly [string, string | null | undefined])[], style: Style): string[] {
   const kept = pairs.filter((pair): pair is readonly [string, string] => typeof pair[1] === 'string' && pair[1] !== '');
   const width = Math.max(0, ...kept.map(([label]) => label.length));
   return kept.map(([label, value]) => `  ${style.dim(label.padEnd(width))}  ${value}`);
@@ -98,6 +98,8 @@ export function formatMeta(result: OmnillinkResult<LinkMetadata>, style: Style):
           : '');
   const date = data.date === null ? null : clean(data.date).slice(0, 10);
   const canonical = data.canonicalUrl !== null && data.canonicalUrl !== data.url ? clean(data.canonicalUrl) : null;
+  // Fields added after the first release: an older instance does not send them.
+  const twitter = [data.twitter?.card, data.twitter?.site].filter((part): part is string => typeof part === 'string').map(clean).join(' · ');
 
   return [
     style.bold(title ?? style.dim('(no title)')),
@@ -109,7 +111,10 @@ export function formatMeta(result: OmnillinkResult<LinkMetadata>, style: Style):
         ['Publisher', data.publisher === null ? null : clean(data.publisher)],
         ['Author', data.author === null ? null : clean(data.author)],
         ['Date', date],
+        ['Modified', typeof data.dateModified === 'string' ? clean(data.dateModified).slice(0, 10) : null],
+        ['Kind', typeof data.type === 'string' ? clean(data.type) : null],
         ['Language', data.lang === null ? null : clean(data.lang)],
+        ['Translations', Array.isArray(data.alternates) && data.alternates.length > 0 ? truncate(data.alternates.map((item) => clean(item.lang)).join(', '), 120) : null],
         ['Canonical', canonical],
         ['Image', image],
         ['Favicon', data.favicon === null ? null : clean(data.favicon)],
@@ -118,6 +123,11 @@ export function formatMeta(result: OmnillinkResult<LinkMetadata>, style: Style):
         ['Audio', data.audio === null ? null : clean(data.audio.url)],
         ['Feeds', data.feeds.length === 0 ? null : data.feeds.map((feed) => clean(feed.url)).join(', ')],
         ['Keywords', data.keywords.length === 0 ? null : truncate(data.keywords.map(clean).join(', '), 120)],
+        ['Twitter', twitter === '' ? null : twitter],
+        ['Theme', typeof data.themeColor === 'string' ? clean(data.themeColor) : null],
+        ['Robots', typeof data.robots === 'string' ? clean(data.robots) : null],
+        ['Paywall', data.paywalled === true ? 'yes' : data.paywalled === false ? 'no' : null],
+        ['oEmbed', typeof data.oembed === 'string' ? clean(data.oembed) : null],
         ['Type', data.contentType === null ? null : clean(data.contentType)],
       ],
       style,
@@ -128,7 +138,7 @@ export function formatMeta(result: OmnillinkResult<LinkMetadata>, style: Style):
     .join('\n');
 }
 
-function scalar(value: unknown, style: Style): string {
+export function scalar(value: unknown, style: Style): string {
   if (value === null || value === undefined) return style.dim('—');
   if (typeof value === 'number') return style.yellow(String(value));
   return truncate(clean(String(value)), 200);
@@ -169,6 +179,11 @@ const ADVICE: Readonly<Record<string, string>> = {
   EUNAUTHORIZED: 'Check OMNILLINK_API_KEY: the instance does not know this key.',
   ERATELIMIT: 'The quota of the current window is used up.',
   EFORBIDDENURL: 'The instance refuses private and internal addresses.',
+  EBLOCKED: 'The site served an anti-bot page instead of its content; retrying rarely helps.',
+  ECIRCUITOPEN: 'This host failed several times in a row and is skipped for a moment; try again shortly.',
+  EBUSY: 'The rendering pool is full; try again in a few seconds, or lower --concurrency.',
+  EEMBEDNOTFOUND: 'The page does not have what was asked for (preview image, icon, oEmbed link, table).',
+  ENOTHTML: 'The URL is not an HTML page.',
   ENETWORK: 'Check --base-url / OMNILLINK_URL and your connection.',
   ETIMEOUT: 'Raise --timeout, or try again: slow pages are cached once rendered.',
   EHTTP: 'Is --base-url the origin of an Omnillink instance?',
