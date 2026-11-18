@@ -51,7 +51,9 @@ export async function buildApp(config: AppConfig): Promise<FastifyInstance> {
     trustProxy: config.trustProxy,
     genReqId: requestIdOf,
     // Query-string booleans/integers arrive as strings: let Ajv coerce them.
-    ajv: { customOptions: { coerceTypes: true, useDefaults: true, removeAdditional: false } },
+    // Unknown query parameters are dropped rather than rejected: links to a public
+    // API routinely pick up tracking or share parameters along the way.
+    ajv: { customOptions: { coerceTypes: true, useDefaults: true, removeAdditional: true } },
   }).withTypeProvider<TypeBoxTypeProvider>();
 
   // --- Services (manual dependency injection) --------------------------------

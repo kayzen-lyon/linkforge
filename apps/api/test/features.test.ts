@@ -649,3 +649,11 @@ describe('API keys', () => {
     expect(res.headers['x-ratelimit-limit']).toBe('1000');
   });
 });
+
+describe('unknown query parameters', () => {
+  it('are ignored instead of failing the request', async () => {
+    const res = await app.inject('/api/v1/meta?url=ftp%3A%2F%2Fexample.com&utm_source=newsletter');
+    // The request is validated (and refused) on its url, not on the extra parameter.
+    expect(res.json().code).toBe('EINVALIDURL');
+  });
+});
