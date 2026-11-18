@@ -23,9 +23,8 @@ Les durées sont des ordres de grandeur pour une à deux personnes à temps plei
 
 But : savoir précisément quoi construire et pourquoi quelqu'un changerait de fournisseur.
 
-- [ ] **Inventaire fonctionnel de Microlink** à partir de sa documentation publique : paramètres de l'API, formats de réponse, limites du plan gratuit, tarifs. Consigner le résultat dans `docs/competitive-analysis.md`, avec la date du relevé.
-- [ ] **Observation du comportement réel avec REA** (`npx rea-agents setup`, puis les outils d'observation web : `inspect_web_page`, `analyze_web_bundle`, `observe_web_session`). REA s'attache via CDP à un navigateur Chrome que vous contrôlez et produit des constats sourcés. Usage visé : comprendre la structure des réponses, les en-têtes de cache, le comportement du playground. À faire sur votre poste : l'accès à `microlink.io` était bloqué depuis l'environnement où ce dépôt a été généré.
-- [ ] **Étudier leurs briques open-source** plutôt que de deviner : Microlink publie une partie de son socle sous licence libre (notamment `metascraper` et `browserless`). Lire le code publié et vérifier la licence de chaque dépôt avant de s'en inspirer.
+- [ ] **Inventaire fonctionnel des services comparables** à partir de leur documentation publique : paramètres d'API, formats de réponse, limites des offres gratuites, tarifs. Consigner le résultat avec la date du relevé.
+- [ ] **Étudier les briques open-source existantes** plutôt que de deviner : lire le code publié et vérifier la licence de chaque dépôt avant de s'en inspirer.
 - [ ] **Autres concurrents à cartographier** : services d'API de screenshot, d'API d'aperçu de liens et d'oEmbed. Relever prix, limites et angles morts.
 - [ ] **Positionnement** : choisir un ou deux angles différenciants. Pistes : auto-hébergement en une commande, transparence des coûts, sécurité documentée, réponses déterministes, contrat OpenAPI.
 - [ ] **Cadre légal** : ne copier ni la marque, ni l'identité visuelle, ni les textes de documentation. Respecter les conditions d'utilisation lors des observations. Rédiger sa propre politique d'usage acceptable (le service va chercher des pages tierces au nom de ses utilisateurs).
