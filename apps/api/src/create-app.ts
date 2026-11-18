@@ -3,6 +3,9 @@
  *
  * Builds a fully wired Fastify instance without binding a port, so tests can
  * drive it with `app.inject()` and `server.ts` stays a thin bootstrap.
+ *
+ * Keep this file's name: Vercel treats a compiled `app.js`, `index.js` or
+ * `server.js` as the function entry point, and only `server.ts` must match.
  */
 import cors from '@fastify/cors';
 import rateLimit from '@fastify/rate-limit';

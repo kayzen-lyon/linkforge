@@ -8,7 +8,7 @@ import type { AddressInfo } from 'node:net';
 import type { FastifyInstance } from 'fastify';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { buildApp } from '../src/app.js';
+import { buildApp } from '../src/create-app.js';
 import { loadConfig } from '../src/config.js';
 
 const STATIC_PAGE = `<!doctype html><html lang="en"><head>

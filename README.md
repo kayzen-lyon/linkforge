@@ -111,7 +111,7 @@ linkforge/
 │   ├── api/                       # Backend Fastify + TypeScript
 │   │   ├── src/
 │   │   │   ├── server.ts          # Point d'entrée, arrêt gracieux
-│   │   │   ├── app.ts             # Fabrique Fastify, injection des services, erreurs
+│   │   │   ├── create-app.ts      # Fabrique Fastify, injection des services, erreurs
 │   │   │   ├── config.ts          # Configuration typée (variables d'environnement)
 │   │   │   ├── lib/errors.ts      # AppError + codes d'erreur stables
 │   │   │   ├── security/

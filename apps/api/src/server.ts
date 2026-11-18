@@ -1,7 +1,7 @@
 /**
  * Process entry point: load configuration, start listening, shut down cleanly.
  */
-import { buildApp } from './app.js';
+import { buildApp } from './create-app.js';
 import { ConfigError, loadConfig } from './config.js';
 
 async function main(): Promise<void> {
