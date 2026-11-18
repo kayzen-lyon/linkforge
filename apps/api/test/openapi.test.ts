@@ -62,7 +62,10 @@ describe('GET /api/v1/openapi.json', () => {
   it('describes every API route the server actually exposes', () => {
     const api = registered.filter((path) => path.startsWith('/api/v1/'));
     expect(api.sort()).toEqual(
-      ['content', 'extract', 'meta', 'meta/batch', 'openapi.json', 'pdf', 'screenshot'].map(
+      [
+        'check', 'content', 'extract', 'html', 'image', 'links', 'meta', 'meta/batch', 'openapi.json', 'pdf',
+        'screenshot', 'sitemap', 'tech',
+      ].map(
         (p) => `/api/v1/${p}`,
       ),
     );

@@ -45,7 +45,7 @@ En-têtes communs :
 | `x-ratelimit-limit`, `x-ratelimit-remaining`, `x-ratelimit-reset`, `retry-after` | réponse | Quota de la fenêtre courante. Ces en-têtes, comme `x-request-id`, `x-cache`, `x-render-source` et `etag`, sont exposés au code navigateur (CORS `Access-Control-Expose-Headers`) |
 | `cache-control` | réponse | `public, max-age=<ttl>, s-maxage=<ttl>` sur les réponses cachables |
 
-Paramètres communs aux routes cachables (`/meta`, `/screenshot`, `/pdf`, `/extract`, `/content`) :
+Paramètres communs aux routes cachables (`/meta`, `/screenshot`, `/pdf`, `/extract`, `/content`, `/links`, `/html`, `/tech`, `/image`, `/sitemap`) :
 
 | Paramètre | Type | Défaut | Description |
 | --- | --- | --- | --- |
@@ -307,6 +307,112 @@ Le contenu principal est choisi parmi `<article>`, `<main>`, `[role="main"]` et 
 - Le Markdown n'échappe que ce que Markdown interpréterait : les URL nues et les identifiants (`snake_case`) sortent intacts.
 - `text` et `markdown` sont plafonnés à 500 000 caractères chacun (`truncated` le signale). Cible non HTML → `422 ENOTHTML`.
 
+### `GET /api/v1/links`
+
+Tous les liens `<a href>` d'une page : absolus, dédoublonnés (le fragment est ignoré), dans l'ordre du document.
+
+| Paramètre | Type | Défaut | Description |
+| --- | --- | --- | --- |
+| `render` | `auto` \| `never` \| `always` | `auto` | `auto` : HTTP brut, puis navigateur si la page exécute des scripts et que le balisage statique est quasi vide ou ne contient aucun lien |
+| `scope` | `all` \| `internal` \| `external` | `all` | Filtre sur l'hôte de la page (`www.` ignoré) |
+| `limit` | 1–2000 | `500` | Nombre maximal de liens renvoyés |
+
+```bash
+curl "http://localhost:3000/api/v1/links?url=https://example.com&scope=external"
+```
+
+`data` : `url`, `total`, `internal`, `external` (comptes avant `scope` et `limit`), `truncated`, et `links[]` : `{ url, text, rel[], internal, nofollow }`. `text` est le texte du lien, sinon son `title` ou l'`alt` de son image (200 caractères au plus) ; `nofollow` vaut `true` si `rel` contient `nofollow`, `sponsored` ou `ugc`.
+
+### `GET /api/v1/html`
+
+Le HTML d'une page une fois rendue par le navigateur, renvoyé comme texte.
+
+| Paramètre | Type | Défaut | Description |
+| --- | --- | --- | --- |
+| `render` | `auto` \| `never` \| `always` | `always` | `always` : DOM sérialisé après exécution des scripts. `never` : balisage tel que servi |
+| `waitForSelector` | sélecteur CSS | — | Attend cet élément avant de sérialiser la page |
+
+```bash
+curl "http://localhost:3000/api/v1/html?url=https://example.com"
+```
+
+Le corps est du balisage tiers, **non fiable** : il est servi en `text/plain` avec `nosniff` (et une CSP `sandbox`), pour qu'un navigateur ne l'interprète jamais sur l'origine de l'API. L'en-tête `x-final-url` donne l'URL après redirections. Taille plafonnée à `HTTP_MAX_BODY_BYTES`.
+
+### `GET /api/v1/tech`
+
+Technologies reconnues sur une page : CMS, framework, bibliothèques, analytique, CDN, hébergement, e-commerce…
+
+```bash
+curl "http://localhost:3000/api/v1/tech?url=https://example.com"
+```
+
+`data` : `url` et `technologies[]` : `{ name, category, evidence }`. `category` vaut `cms`, `ecommerce`, `framework`, `library`, `analytics`, `tag-manager`, `cdn`, `server`, `hosting`, `language`, `site-builder`, `consent`, `payment`, `font` ou `chat`. `evidence` cite ce qui a déclenché la détection (`header server: cloudflare`, `meta generator: WordPress 6.6`, `asset: …`, `cookie: …`, `markup: …`).
+
+- HTTP brut uniquement : en-têtes de réponse, balise `generator`, URL des scripts et feuilles de style, noms de cookies, marqueurs dans le balisage. Ce qu'un script ajoute à l'exécution n'est pas vu.
+- La table de signatures (environ 70 produits) est écrite à la main dans `tech-detector.ts`. Un produit qui ne laisse pas de trace n'est pas listé : l'absence d'une technologie dans la réponse ne prouve pas son absence sur le site.
+
+### `GET /api/v1/image`
+
+Format, dimensions réelles et poids d'une image, lus dans les 128 premiers Ko du fichier (requête `Range`) : l'image n'est ni téléchargée en entier ni décodée.
+
+```bash
+curl "http://localhost:3000/api/v1/image?url=https://github.com"
+```
+
+- `url` peut être une image ou une page : dans ce cas c'est l'image principale de la page (`og:image`…) qui est mesurée, et `pageUrl` indique la page. Page sans image → `404 EEMBEDNOTFOUND`.
+- `data` : `{ url, pageUrl, format, contentType, width, height, bytes }`. `format` vaut `png`, `jpeg`, `gif` ou `webp` ; pour un autre format (SVG, AVIF…), `format`, `width` et `height` valent `null`. `bytes` est la taille annoncée par le serveur, `null` s'il ne l'annonce pas.
+
+### `GET /api/v1/sitemap`
+
+Lit le `robots.txt` d'un site puis ses plans de site.
+
+| Paramètre | Type | Défaut | Description |
+| --- | --- | --- | --- |
+| `url` | string | — | N'importe quelle URL du site, ou l'URL d'un fichier sitemap à lire directement |
+| `limit` | 1–5000 | `500` | Nombre maximal d'URL renvoyées dans `urls` |
+
+```bash
+curl "http://localhost:3000/api/v1/sitemap?url=https://example.com"
+```
+
+- `data` : `robotsUrl`, `robotsFound`, `sitemaps[]` (`{ url, kind: index | urlset | unknown, urlCount, error }`), `urlCount` (total compté dans les fichiers lus), `urls[]` (`{ url, lastmod }`) et `truncated`.
+- Les sitemaps déclarés par `robots.txt` sont lus ; à défaut, `/sitemap.xml`. Les fichiers d'index sont suivis sur un niveau. Les fichiers `.gz` sont acceptés.
+- Bornes : 10 fichiers par requête, `HTTP_MAX_BODY_BYTES` par fichier (10 Mo une fois décompressé), `limit` URL. `truncated` signale qu'une borne a coupé le résultat.
+- Un fichier illisible n'échoue pas la requête : il apparaît dans `sitemaps[]` avec son `error` (`HTTP 404`, `EFORBIDDENURL`…). Chaque fichier passe par les contrôles anti-SSRF.
+
+### `GET /api/v1/check`
+
+État d'un lien à l'instant : statut final, chaîne de redirections, durées, certificat.
+
+```bash
+curl "http://localhost:3000/api/v1/check?url=http://github.com"
+```
+
+```jsonc
+{
+  "status": "success",
+  "data": {
+    "url": "http://github.com/",
+    "finalUrl": "https://github.com/",
+    "ok": true,                    // statut final < 400
+    "status": 200,
+    "redirects": [                 // chaque saut, le dernier compris
+      { "url": "http://github.com/", "status": 301, "durationMs": 41, "location": "https://github.com/" },
+      { "url": "https://github.com/", "status": 200, "durationMs": 118, "location": null }
+    ],
+    "contentType": "text/html",
+    "contentLength": null,         // Content-Length annoncé, sinon null
+    "tls": { "subject": "github.com", "issuer": "…", "validFrom": "…", "validTo": "…", "daysLeft": 80 },
+    "durationMs": 161
+  },
+  "meta": { "durationMs": 163 }
+}
+```
+
+- HTTP brut uniquement ; les corps ne sont jamais téléchargés ; chaque saut est validé par la politique anti-SSRF.
+- Une erreur HTTP de la cible est un résultat (`ok: false`), pas une erreur de l'API. `tls` vaut `null` en `http`. Un certificat invalide ou expiré donne `502 EUNREACHABLE`.
+- Jamais mis en cache (`Cache-Control: no-store`) ; pas de paramètres `force` ni `ttl`.
+
 ### `GET /api/v1/openapi.json`
 
 Description OpenAPI 3.1 de toutes les routes (paramètres, réponses, format d'erreur). Les paramètres sont dérivés des schémas de validation des routes : le document ne peut pas diverger de l'implémentation.
@@ -333,7 +439,7 @@ curl -H "x-api-key: $OMNILLINK_KEY" "http://localhost:3000/api/v1/meta?url=https
 
 - Les clés acceptées sont listées dans `API_KEYS` (séparées par des virgules, 16 à 256 caractères chacune). Si `API_KEYS` est vide, la fonctionnalité est désactivée et l'en-tête est ignoré.
 - La comparaison se fait en temps constant, et une clé erronée consomme le quota anonyme de l'appelant : on ne peut pas deviner une clé sans être limité.
-- Les compteurs vivent en mémoire, par instance (y compris avec `REDIS_URL`, qui ne sert qu'au cache).
+- Les compteurs vivent en mémoire, **par instance**, même quand `REDIS_URL` est défini : Redis ne sert aujourd'hui qu'au cache. Sur une plateforme serverless, la limite effective est donc par instance, pas globale.
 - Les réponses étant cachables (`s-maxage`), un CDN placé devant l'API peut servir une réponse déjà en cache sans passer par ce contrôle.
 
 ### Erreurs
@@ -390,11 +496,13 @@ linkforge/
 │   │   │   │   ├── content-extractor.ts / content-service.ts  # Contenu lisible
 │   │   │   │   ├── field-extractor.ts / extract-service.ts    # Extraction sur mesure
 │   │   │   │   ├── screenshot-service.ts / pdf-service.ts
+│   │   │   │   ├── site-tools-service.ts  # /links, /html, /tech, /image, /sitemap, /check
+│   │   │   │   ├── link-extractor.ts / sitemap-parser.ts / tech-detector.ts  # Purs, sans I/O
 │   │   │   │   ├── page-prep.ts   # Avant capture : défilement, images, bandeaux
 │   │   │   │   ├── renderer.ts    # Navigation Playwright + mapping des erreurs
 │   │   │   │   ├── browser-pool.ts   # Pool Chromium (concurrence, file, recyclage)
 │   │   │   │   └── cache/         # Interface Cache, LRU mémoire, Redis
-│   │   │   └── routes/            # meta (+ batch), screenshot, pdf, extract, content, openapi, health
+│   │   │   └── routes/            # meta (+ batch), screenshot, pdf, extract, content, site-tools, openapi, health
 │   │   ├── test/                  # Vitest (unitaires + bout en bout)
 │   │   ├── scripts/embed-playground.mjs  # Intègre le playground au bundle de l'API
 │   │   └── vercel.json            # Installation et build sur Vercel
@@ -424,6 +532,8 @@ linkforge/
 - WebRTC est limité au trafic passant par le proxy (`disable_non_proxied_udp`).
 - `SSRF_BLOCKED_HOSTS` ajoute des destinations refusées (`hôte` ou `hôte:port`), comparées au nom demandé et à chaque adresse résolue. Cette liste ne peut que restreindre.
 
+**Pas de code fourni par l'appelant** : l'API n'exécute aucun script, prédicat ou fonction envoyé par le client dans le navigateur. C'est un choix de conception, pas un manque : du code arbitraire dans le navigateur contredirait l'isolation et les garanties anti-SSRF décrites ici. Les seules entrées « programmables » sont des sélecteurs CSS, bornés et restreints au dialecte CSS.
+
 **Ce qui n'est pas couvert** :
 
 - Le proxy vit dans le même processus et sur la même machine que l'API : il ne remplace pas un filtrage de sortie au niveau réseau (pare-feu, VPC), qui reste recommandé en défense en profondeur, notamment contre une compromission de Chromium lui-même.
@@ -443,7 +553,7 @@ Le projet Vercel a pour dossier racine `apps/api` et le preset Fastify ; `apps/a
 
 Limites propres au serverless :
 
-- Sans `REDIS_URL`, le cache applicatif et le rate limiting vivent en mémoire, **par instance**. Pour un cache partagé, ajoutez la variable `REDIS_URL` (n'importe quel Redis accessible par URL) dans les réglages du projet.
+- Sans `REDIS_URL`, le cache applicatif et le rate limiting vivent en mémoire, **par instance**. Pour un cache partagé, ajoutez la variable `REDIS_URL` (n'importe quel Redis accessible par URL) dans les réglages du projet. Le rate limiting, lui, reste en mémoire et par instance même avec `REDIS_URL`.
 - Le premier rendu d'une instance froide est plus lent (décompression de Chromium dans `/tmp`).
 - Une fonction a une durée maximale (60 s ici) et une mémoire bornée : les pages très lourdes peuvent échouer. Le budget d'une requête (`REQUEST_DEADLINE_MS`, 55 s) est réglé juste en dessous, pour que l'API réponde `ETIMEOUT` elle-même plutôt que d'être tuée par la plateforme.
 - Le proxy validant fonctionne aussi dans ce mode (Chromium mono-processus) : il démarre avec le premier rendu de l'instance.
