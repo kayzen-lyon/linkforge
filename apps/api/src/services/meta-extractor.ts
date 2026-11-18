@@ -15,6 +15,30 @@ export interface MetaImage {
   readonly alt: string | null;
 }
 
+export interface MetaLogo {
+  readonly url: string;
+}
+
+export interface MetaVideo {
+  readonly url: string;
+  /** Media type; `text/html` when the URL is an embeddable player. */
+  readonly type: string | null;
+  readonly width: number | null;
+  readonly height: number | null;
+}
+
+export interface MetaAudio {
+  readonly url: string;
+  readonly type: string | null;
+}
+
+export interface MetaFeed {
+  readonly url: string;
+  readonly title: string | null;
+  /** Declared media type, e.g. `application/rss+xml`. */
+  readonly type: string;
+}
+
 export interface LinkMetadata {
   /** Final URL of the document (after redirects). */
   readonly url: string;
@@ -34,6 +58,16 @@ export interface LinkMetadata {
   /** Every Open Graph / Twitter / JSON-LD image, de-duplicated, in priority order. */
   readonly images: readonly MetaImage[];
   readonly favicon: string | null;
+  /** Best brand icon: JSON-LD `logo`, else the largest icon the page declares. */
+  readonly logo: MetaLogo | null;
+  /** Primary video (`og:video*`, `twitter:player`, JSON-LD `VideoObject`). */
+  readonly video: MetaVideo | null;
+  /** Primary audio stream (`og:audio*`). */
+  readonly audio: MetaAudio | null;
+  /** `<meta name="keywords">`, `article:tag` and JSON-LD keywords, de-duplicated. */
+  readonly keywords: readonly string[];
+  /** RSS / Atom / JSON feeds advertised with `<link rel="alternate">`. */
+  readonly feeds: readonly MetaFeed[];
   /** Parsed `application/ld+json` blocks, `@graph` containers flattened. */
   readonly jsonLd: readonly unknown[];
 }
@@ -201,8 +235,8 @@ function extractImages($: CheerioAPI, base: string, jsonLd: readonly unknown[]):
   return images;
 }
 
-/** Picks the best declared icon (largest size wins), defaulting to `/favicon.ico`. */
-function extractFavicon($: CheerioAPI, base: string): string | null {
+/** Picks the best icon the page declares (largest size wins), `null` when it declares none. */
+function extractDeclaredIcon($: CheerioAPI, base: string): string | null {
   let best: { url: string; score: number } | null = null;
 
   $('link[rel]').each((_, element) => {
@@ -222,7 +256,145 @@ function extractFavicon($: CheerioAPI, base: string): string | null {
   });
 
   const picked = best as { url: string; score: number } | null;
-  return picked?.url ?? resolveUrl('/favicon.ico', base);
+  return picked?.url ?? null;
+}
+
+/** Reads a URL out of a JSON-LD value that may be a string, an `ImageObject` or a list. */
+function jsonLdUrl(value: unknown): string | null {
+  if (typeof value === 'string') return clean(value);
+  if (Array.isArray(value)) return jsonLdUrl(value[0]);
+  if (isObject(value)) {
+    return jsonLdUrl(value['url']) ?? jsonLdUrl(value['contentUrl']);
+  }
+  return null;
+}
+
+/** JSON-LD `logo`, declared on a node itself or on its `publisher`. */
+function extractJsonLdLogo(nodes: readonly unknown[], base: string): string | null {
+  for (const node of nodes) {
+    if (!isObject(node)) continue;
+    const publisher = node['publisher'];
+    const url =
+      resolveUrl(jsonLdUrl(node['logo']), base) ??
+      (isObject(publisher) ? resolveUrl(jsonLdUrl(publisher['logo']), base) : null);
+    if (url !== null) return url;
+  }
+  return null;
+}
+
+const hasJsonLdType = (node: JsonObject, type: string): boolean => {
+  const declared = node['@type'];
+  return declared === type || (Array.isArray(declared) && declared.includes(type));
+};
+
+function extractVideo($: CheerioAPI, base: string, jsonLd: readonly unknown[]): MetaVideo | null {
+  const ogUrl = resolveUrl(
+    meta($, 'og:video:secure_url') ?? meta($, 'og:video:url') ?? meta($, 'og:video'),
+    base,
+  );
+  if (ogUrl !== null) {
+    return {
+      url: ogUrl,
+      type: meta($, 'og:video:type'),
+      width: toInt(meta($, 'og:video:width') ?? undefined),
+      height: toInt(meta($, 'og:video:height') ?? undefined),
+    };
+  }
+
+  const player = resolveUrl(meta($, 'twitter:player'), base);
+  if (player !== null) {
+    return {
+      url: player,
+      // A Twitter player is an iframe-able page, not a media file.
+      type: 'text/html',
+      width: toInt(meta($, 'twitter:player:width') ?? undefined),
+      height: toInt(meta($, 'twitter:player:height') ?? undefined),
+    };
+  }
+
+  for (const node of jsonLd) {
+    if (!isObject(node) || !hasJsonLdType(node, 'VideoObject')) continue;
+    const contentUrl = resolveUrl(jsonLdUrl(node['contentUrl']), base);
+    const url = contentUrl ?? resolveUrl(jsonLdUrl(node['embedUrl']), base);
+    if (url === null) continue;
+    const dimension = (value: unknown): number | null =>
+      typeof value === 'number' || typeof value === 'string' ? toInt(String(value)) : null;
+    return {
+      url,
+      type:
+        typeof node['encodingFormat'] === 'string'
+          ? clean(node['encodingFormat'])
+          : contentUrl === null
+            ? 'text/html'
+            : null,
+      width: dimension(node['width']),
+      height: dimension(node['height']),
+    };
+  }
+  return null;
+}
+
+function extractAudio($: CheerioAPI, base: string): MetaAudio | null {
+  const url = resolveUrl(
+    meta($, 'og:audio:secure_url') ?? meta($, 'og:audio:url') ?? meta($, 'og:audio'),
+    base,
+  );
+  return url === null ? null : { url, type: meta($, 'og:audio:type') };
+}
+
+/** Bounds on list-valued fields: a hostile page must not inflate the response. */
+const MAX_KEYWORDS = 50;
+const MAX_KEYWORD_LENGTH = 100;
+const MAX_FEEDS = 20;
+
+function extractKeywords($: CheerioAPI, jsonLd: readonly unknown[]): string[] {
+  const keywords: string[] = [];
+  const seen = new Set<string>();
+  const add = (value: unknown): void => {
+    if (typeof value !== 'string') return;
+    for (const part of value.split(',')) {
+      const keyword = clean(part);
+      if (keyword === null || keyword.length > MAX_KEYWORD_LENGTH) continue;
+      const identity = keyword.toLowerCase();
+      if (seen.has(identity) || keywords.length >= MAX_KEYWORDS) continue;
+      seen.add(identity);
+      keywords.push(keyword);
+    }
+  };
+
+  add(meta($, 'keywords'));
+  add(meta($, 'news_keywords'));
+  $('meta[property="article:tag"]').each((_, element) => add($(element).attr('content')));
+  for (const node of jsonLd) {
+    if (!isObject(node)) continue;
+    const declared = node['keywords'];
+    if (Array.isArray(declared)) declared.forEach(add);
+    else add(declared);
+  }
+  return keywords;
+}
+
+const FEED_TYPES = new Set([
+  'application/rss+xml',
+  'application/atom+xml',
+  'application/feed+json',
+  'application/json+feed',
+]);
+
+function extractFeeds($: CheerioAPI, base: string): MetaFeed[] {
+  const feeds: MetaFeed[] = [];
+  const seen = new Set<string>();
+  $('link[rel][type][href]').each((_, element) => {
+    const rel = ($(element).attr('rel') ?? '').toLowerCase().split(/\s+/);
+    const type = ($(element).attr('type') ?? '').trim().toLowerCase();
+    if (!rel.includes('alternate') || !FEED_TYPES.has(type)) return;
+
+    const url = resolveUrl($(element).attr('href'), base);
+    if (url === null || seen.has(url) || feeds.length >= MAX_FEEDS) return;
+    seen.add(url);
+    feeds.push({ url, title: clean($(element).attr('title')), type });
+  });
+  return feeds;
 }
 
 /**
@@ -236,6 +408,8 @@ export function extractMetadata(html: string, documentUrl: string): LinkMetadata
   const base = resolveUrl($('base[href]').first().attr('href'), documentUrl) ?? documentUrl;
   const jsonLd = extractJsonLd($);
   const images = extractImages($, base, jsonLd);
+  const declaredIcon = extractDeclaredIcon($, base);
+  const logoUrl = extractJsonLdLogo(jsonLd, base) ?? declaredIcon;
 
   const articleAuthor = meta($, 'article:author');
   const twitterCreator = meta($, 'twitter:creator');
@@ -283,7 +457,13 @@ export function extractMetadata(html: string, documentUrl: string): LinkMetadata
     ),
     image: images[0] ?? null,
     images,
-    favicon: extractFavicon($, base),
+    // Browsers probe `/favicon.ico` when nothing is declared; so do we.
+    favicon: declaredIcon ?? resolveUrl('/favicon.ico', base),
+    logo: logoUrl === null ? null : { url: logoUrl },
+    video: extractVideo($, base, jsonLd),
+    audio: extractAudio($, base),
+    keywords: extractKeywords($, jsonLd),
+    feeds: extractFeeds($, base),
     jsonLd,
   };
 }
@@ -328,6 +508,11 @@ export function mergeMetadata(primary: LinkMetadata, fallback: LinkMetadata): Li
     image: primary.image ?? fallback.image,
     images: primary.images.length > 0 ? primary.images : fallback.images,
     favicon: primary.favicon ?? fallback.favicon,
+    logo: primary.logo ?? fallback.logo,
+    video: primary.video ?? fallback.video,
+    audio: primary.audio ?? fallback.audio,
+    keywords: primary.keywords.length > 0 ? primary.keywords : fallback.keywords,
+    feeds: primary.feeds.length > 0 ? primary.feeds : fallback.feeds,
     jsonLd: primary.jsonLd.length > 0 ? primary.jsonLd : fallback.jsonLd,
   };
 }

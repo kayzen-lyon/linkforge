@@ -25,6 +25,9 @@ export interface AppConfig {
   readonly cache: {
     readonly metaTtlSeconds: number;
     readonly screenshotTtlSeconds: number;
+    readonly pdfTtlSeconds: number;
+    readonly extractTtlSeconds: number;
+    readonly contentTtlSeconds: number;
     readonly memoryMaxEntries: number;
   };
   readonly http: {
@@ -54,9 +57,21 @@ export interface AppConfig {
      */
     readonly serverlessPackUrl: string;
   };
+  readonly pdf: {
+    /** Largest PDF the API accepts to return; bigger documents fail with `ETOOLARGE`. */
+    readonly maxBytes: number;
+  };
   readonly ssrf: SsrfPolicy;
+  /**
+   * Accepted `x-api-key` values. Empty means the feature is off: the header is
+   * ignored and everybody shares the anonymous rate limit.
+   */
+  readonly apiKeys: readonly string[];
   readonly rateLimit: {
+    /** Requests per window for anonymous clients (keyed by IP). */
     readonly max: number;
+    /** Requests per window for a valid API key (keyed by the key). */
+    readonly keyMax: number;
     readonly windowMs: number;
   };
 }
@@ -104,6 +119,27 @@ function readPorts(env: Env, key: string, fallback: readonly number[]): readonly
   });
 }
 
+/** Shortest API key accepted at boot: anything shorter is guessable online. */
+const MIN_API_KEY_LENGTH = 16;
+
+function readApiKeys(env: Env, key: string): readonly string[] {
+  const raw = env[key]?.trim();
+  if (raw === undefined || raw === '') return [];
+  const keys = raw
+    .split(',')
+    .map((part) => part.trim())
+    .filter((part) => part !== '');
+  for (const apiKey of keys) {
+    // The value is never echoed: boot logs must not leak a secret.
+    if (apiKey.length < MIN_API_KEY_LENGTH || apiKey.length > 256 || /\s/.test(apiKey)) {
+      throw new ConfigError(
+        `${key} entries must be ${MIN_API_KEY_LENGTH}-256 characters without whitespace`,
+      );
+    }
+  }
+  return Object.freeze([...new Set(keys)]);
+}
+
 function readEnvName(env: Env): AppConfig['env'] {
   const raw = readString(env, 'NODE_ENV', 'development');
   if (raw === 'development' || raw === 'test' || raw === 'production') return raw;
@@ -146,6 +182,9 @@ export function loadConfig(env: Env = process.env): AppConfig {
     cache: {
       metaTtlSeconds: readInt(env, 'CACHE_META_TTL_SECONDS', 3600),
       screenshotTtlSeconds: readInt(env, 'CACHE_SCREENSHOT_TTL_SECONDS', 3600),
+      pdfTtlSeconds: readInt(env, 'CACHE_PDF_TTL_SECONDS', 3600),
+      extractTtlSeconds: readInt(env, 'CACHE_EXTRACT_TTL_SECONDS', 3600),
+      contentTtlSeconds: readInt(env, 'CACHE_CONTENT_TTL_SECONDS', 3600),
       memoryMaxEntries: readInt(env, 'CACHE_MEMORY_MAX_ENTRIES', 500, 1),
     },
     http: {
@@ -174,12 +213,18 @@ export function loadConfig(env: Env = process.env): AppConfig {
         'https://github.com/Sparticuz/chromium/releases/download/v153.0.0/chromium-v153.0.0-pack.x64.tar',
       ),
     },
+    pdf: {
+      // Serverless platforms cap the response body (4.5 MB on Vercel): stay under it.
+      maxBytes: readInt(env, 'PDF_MAX_BYTES', (serverless ? 4 : 10) * 1024 * 1024, 1024),
+    },
     ssrf: {
       allowPrivateNetworks,
       allowedPorts: readPorts(env, 'SSRF_ALLOWED_PORTS', [80, 443]),
     },
+    apiKeys: readApiKeys(env, 'API_KEYS'),
     rateLimit: {
       max: readInt(env, 'RATE_LIMIT_MAX', 60, 1),
+      keyMax: readInt(env, 'RATE_LIMIT_KEY_MAX', 600, 1),
       windowMs: readInt(env, 'RATE_LIMIT_WINDOW_MS', 60_000, 1000),
     },
   });
