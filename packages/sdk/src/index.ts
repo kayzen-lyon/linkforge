@@ -1,11 +1,11 @@
-export { createClient, DEFAULT_TIMEOUT_MS, type LinkForgeClient } from './client.js';
+export { createClient, DEFAULT_TIMEOUT_MS, type OmnillinkClient } from './client.js';
 export {
-  LinkForgeError,
-  isLinkForgeError,
+  OmnillinkError,
+  isOmnillinkError,
   type ApiErrorCode,
   type ClientErrorCode,
-  type LinkForgeErrorCode,
-  type LinkForgeErrorInit,
+  type OmnillinkErrorCode,
+  type OmnillinkErrorInit,
 } from './errors.js';
 export type { MetaEmbedPath } from './url.js';
 export type * from './types.js';

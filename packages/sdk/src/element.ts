@@ -1,5 +1,5 @@
 /**
- * Entry point `@linkforge/sdk/element`: importing it registers `<link-preview>`.
+ * Entry point `@omnillink/sdk/element`: importing it registers `<link-preview>`.
  */
 import { LinkPreviewElement } from './element/link-preview.js';
 

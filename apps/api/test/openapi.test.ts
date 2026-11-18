@@ -49,7 +49,7 @@ const params = (path: string) =>
 describe('GET /api/v1/openapi.json', () => {
   it('is an OpenAPI 3.1 document', () => {
     expect(doc.openapi).toBe('3.1.0');
-    expect(doc.info.title).toBe('LinkForge API');
+    expect(doc.info.title).toBe('Omnillink API');
     expect(doc.info.version).toMatch(/^\d+\.\d+\.\d+$/);
   });
 

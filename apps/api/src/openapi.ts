@@ -191,7 +191,7 @@ export function buildOpenApiDocument(endpoints: readonly EndpointDoc[]): Record<
   return {
     openapi: '3.1.0',
     info: {
-      title: 'LinkForge API',
+      title: 'Omnillink API',
       version: API_VERSION,
       description:
         'Link intelligence over HTTP: metadata, screenshots, PDF, custom extraction and ' +

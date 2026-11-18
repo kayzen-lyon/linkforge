@@ -1,4 +1,4 @@
-# LinkForge
+# Omnillink
 
 API open-source d'intelligence de liens : métadonnées riches, captures d'écran et aperçus de liens, via une API REST simple.
 
@@ -249,7 +249,7 @@ curl "http://localhost:3000/api/v1/openapi.json"
 | `x-api-key` inconnue | `401 EUNAUTHORIZED` | décomptée de l'adresse IP |
 
 ```bash
-curl -H "x-api-key: $LINKFORGE_KEY" "http://localhost:3000/api/v1/meta?url=https://github.com"
+curl -H "x-api-key: $OMNILLINK_KEY" "http://localhost:3000/api/v1/meta?url=https://github.com"
 ```
 
 - Les clés acceptées sont listées dans `API_KEYS` (séparées par des virgules, 16 à 256 caractères chacune). Si `API_KEYS` est vide, la fonctionnalité est désactivée et l'en-tête est ignoré.

@@ -7,7 +7,7 @@
  * `safeHttpUrl()` accepted it. There is no `innerHTML` in this file.
  */
 import { createClient } from '../client.js';
-import type { LinkForgeResult, LinkMetadata } from '../types.js';
+import type { OmnillinkResult, LinkMetadata } from '../types.js';
 import { buildCardModel, type CardModel } from './model.js';
 import { safeHttpUrl } from './safe-url.js';
 import { STYLES } from './styles.js';
@@ -16,7 +16,7 @@ export type LinkPreviewState = 'idle' | 'loading' | 'ready' | 'error';
 
 export interface LinkPreviewLoadDetail {
   readonly data: LinkMetadata;
-  readonly meta: LinkForgeResult<LinkMetadata>['meta'];
+  readonly meta: OmnillinkResult<LinkMetadata>['meta'];
 }
 
 export interface LinkPreviewErrorDetail {
@@ -123,7 +123,7 @@ export class LinkPreviewElement extends Base {
     this.setAttribute('url', value);
   }
 
-  /** Origin of the LinkForge instance. Empty means the origin of the page. */
+  /** Origin of the Omnillink instance. Empty means the origin of the page. */
   get baseUrl(): string {
     return this.getAttribute('base-url') ?? '';
   }

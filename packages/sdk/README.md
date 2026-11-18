@@ -1,35 +1,35 @@
-# @linkforge/sdk
+# @omnillink/sdk
 
-> **En bref (FR)** — Client TypeScript minuscule et sans dépendance pour l'API LinkForge (métadonnées, captures d'écran, PDF, extraction sur mesure, contenu lisible), accompagné d'un élément `<link-preview>` prêt à poser dans une page. Fonctionne dans les navigateurs et dans Node ≥ 18. Les erreurs sont toutes des `LinkForgeError` (`code`, `status`, `message`). Le reste de ce document est en anglais.
+> **En bref (FR)** — Client TypeScript minuscule et sans dépendance pour l'API Omnillink (métadonnées, captures d'écran, PDF, extraction sur mesure, contenu lisible), accompagné d'un élément `<link-preview>` prêt à poser dans une page. Fonctionne dans les navigateurs et dans Node ≥ 18. Les erreurs sont toutes des `OmnillinkError` (`code`, `status`, `message`). Le reste de ce document est en anglais.
 
-A tiny, dependency-free client for the [LinkForge](../../README.md) API, and a drop-in `<link-preview>` card.
+A tiny, dependency-free client for the [Omnillink](../../README.md) API, and a drop-in `<link-preview>` card.
 
-- **Client** (`@linkforge/sdk`): typed methods for every endpoint, pure URL builders, one error class. Browsers and Node ≥ 18.
-- **Custom element** (`@linkforge/sdk/element`): a separate entry point, so the client stays small when you do not need the card.
+- **Client** (`@omnillink/sdk`): typed methods for every endpoint, pure URL builders, one error class. Browsers and Node ≥ 18.
+- **Custom element** (`@omnillink/sdk/element`): a separate entry point, so the client stays small when you do not need the card.
 - ESM only, zero runtime dependencies, ships its own type declarations.
 
 ## Install
 
 ```bash
-npm install @linkforge/sdk
+npm install @omnillink/sdk
 ```
 
-You need a running LinkForge instance; its origin is the `baseUrl` below.
+You need a running Omnillink instance; its origin is the `baseUrl` below.
 
 ## Quick start
 
 ```ts
-import { createClient } from '@linkforge/sdk';
+import { createClient } from '@omnillink/sdk';
 
-const linkforge = createClient({ baseUrl: 'https://links.example.com' });
+const omnillink = createClient({ baseUrl: 'https://links.example.com' });
 
-const { data, meta } = await linkforge.meta('https://github.com');
+const { data, meta } = await omnillink.meta('https://github.com');
 console.log(data.title, data.image?.url, meta.cached);
 ```
 
 ```html
 <script type="module">
-  import '@linkforge/sdk/element';
+  import '@omnillink/sdk/element';
 </script>
 
 <link-preview url="https://github.com" base-url="https://links.example.com"></link-preview>
@@ -55,7 +55,7 @@ The JSON methods resolve to `{ data, meta }`, where `meta` is `{ cached: boolean
 Rich metadata of a page.
 
 ```ts
-const { data } = await linkforge.meta('https://example.com/article', {
+const { data } = await omnillink.meta('https://example.com/article', {
   render: 'auto', // 'auto' | 'never' | 'always'
   force: false,   // bypass the cache read
   ttl: 3600,      // cache lifetime of this answer, in seconds
@@ -76,7 +76,7 @@ data.feeds;        // { url, title, type }[]
 Custom scraping: one CSS rule per field. A rule is `{ selector, attr?, type?, all? }` — `attr` is `'text'` (default), `'html'` or an attribute name; `type` is `'string'` (default), `'number'` or `'url'`; `all: true` returns every match.
 
 ```ts
-const { data } = await linkforge.extract(
+const { data } = await omnillink.extract(
   'https://shop.example.com/product/42',
   {
     price: { selector: '.price', attr: 'text', type: 'number' },
@@ -98,7 +98,7 @@ The result type follows the rules you pass: `all: true` gives an array, `type: '
 The readable part of a page.
 
 ```ts
-const { data } = await linkforge.content('https://example.com/blog/post', { render: 'auto' });
+const { data } = await omnillink.content('https://example.com/blog/post', { render: 'auto' });
 
 data.title;               // string | null
 data.excerpt;             // string | null
@@ -113,7 +113,7 @@ data.readingTimeMinutes;  // number
 Resolves to a [`Blob`](https://developer.mozilla.org/docs/Web/API/Blob) whose `type` is `image/png` or `image/jpeg`.
 
 ```ts
-const blob = await linkforge.screenshot('https://example.com', {
+const blob = await omnillink.screenshot('https://example.com', {
   device: 'mobile',          // 'desktop' | 'mobile'
   fullPage: true,
   format: 'jpeg',            // 'png' | 'jpeg'
@@ -141,7 +141,7 @@ await writeFile('shot.jpg', Buffer.from(await blob.arrayBuffer()));
 Resolves to a `Blob` of type `application/pdf`.
 
 ```ts
-const blob = await linkforge.pdf('https://example.com/invoice', {
+const blob = await omnillink.pdf('https://example.com/invoice', {
   format: 'A4',          // 'A4' | 'Letter'
   landscape: false,
   printBackground: true,
@@ -156,13 +156,13 @@ await writeFile('page.pdf', Buffer.from(await blob.arrayBuffer()));
 These return a string and make no request, so the endpoints can go straight into `src` / `href` attributes. They take the same options as the matching method.
 
 ```ts
-linkforge.screenshotUrl('https://example.com', { device: 'mobile' });
+omnillink.screenshotUrl('https://example.com', { device: 'mobile' });
 // https://links.example.com/api/v1/screenshot?url=https%3A%2F%2Fexample.com&device=mobile
 
-linkforge.pdfUrl('https://example.com', { format: 'Letter' });
+omnillink.pdfUrl('https://example.com', { format: 'Letter' });
 // https://links.example.com/api/v1/pdf?url=https%3A%2F%2Fexample.com&format=Letter
 
-linkforge.metaEmbedUrl('https://example.com', 'image.url');
+omnillink.metaEmbedUrl('https://example.com', 'image.url');
 // https://links.example.com/api/v1/meta?url=https%3A%2F%2Fexample.com&embed=image.url
 ```
 
@@ -176,15 +176,15 @@ The API key is **never** put in these URLs: a browser loading an `<img>` cannot 
 
 ## Error handling
 
-Every failure is a `LinkForgeError` with `code`, `status` and `message`.
+Every failure is a `OmnillinkError` with `code`, `status` and `message`.
 
 ```ts
-import { createClient, LinkForgeError } from '@linkforge/sdk';
+import { createClient, OmnillinkError } from '@omnillink/sdk';
 
 try {
-  await linkforge.meta('https://example.com');
+  await omnillink.meta('https://example.com');
 } catch (error) {
-  if (error instanceof LinkForgeError) {
+  if (error instanceof OmnillinkError) {
     console.error(error.code, error.status, error.message);
     if (error.code === 'ERATELIMIT') await wait((error.retryAfter ?? 1) * 1000);
     if (error.retryable) { /* worth trying again later */ }
@@ -210,16 +210,16 @@ Codes added by the client:
 | `ENETWORK` | `0` | No answer at all: DNS, refused connection, CORS, offline. |
 | `ETIMEOUT` | `0` | The client's `timeoutMs` elapsed. (The server's own `ETIMEOUT` has status `504`.) |
 | `EABORTED` | `0` | Your `signal` aborted the request. |
-| `EHTTP` | HTTP status | An HTTP error whose body is not a LinkForge error, e.g. a proxy's HTML page. |
-| `EBADRESPONSE` | HTTP status | A successful status with a body that is not a LinkForge answer. |
+| `EHTTP` | HTTP status | An HTTP error whose body is not an Omnillink error, e.g. a proxy's HTML page. |
+| `EBADRESPONSE` | HTTP status | A successful status with a body that is not an Omnillink answer. |
 | `EINVALIDURL` / `EINVALIDPARAMS` | `0` | An empty target URL, or `fields` that is not an object, caught before any request. |
 
-`isLinkForgeError(value)` is a type guard that also works when two copies of the package are loaded.
+`isOmnillinkError(value)` is a type guard that also works when two copies of the package are loaded.
 
 ## `<link-preview>` element
 
 ```ts
-import '@linkforge/sdk/element'; // registers <link-preview>
+import '@omnillink/sdk/element'; // registers <link-preview>
 ```
 
 ```html
@@ -234,7 +234,7 @@ import '@linkforge/sdk/element'; // registers <link-preview>
 Without a bundler, the published files are plain ES modules that a browser can load directly:
 
 ```html
-<script type="module" src="https://your.cdn/@linkforge/sdk/dist/element.js"></script>
+<script type="module" src="https://your.cdn/@omnillink/sdk/dist/element.js"></script>
 ```
 
 ### Attributes
@@ -242,7 +242,7 @@ Without a bundler, the published files are plain ES modules that a browser can l
 | Attribute | Values | Default | Description |
 | --- | --- | --- | --- |
 | `url` | absolute `http(s)` URL | — | Page to preview. Anything else renders no card and makes no request. |
-| `base-url` | URL | origin of the page | Origin of the LinkForge instance. |
+| `base-url` | URL | origin of the page | Origin of the Omnillink instance. |
 | `size` | `compact` \| `large` | `compact` | `compact`: thumbnail beside the text. `large`: image above the text. |
 | `theme` | `auto` \| `light` \| `dark` | `auto` | `auto` follows `prefers-color-scheme`. |
 | `loading` | `lazy` \| `eager` | `lazy` | `lazy` waits until the card is within 200 px of the viewport. |
@@ -271,7 +271,7 @@ The element sets a read-only `state` attribute on itself (`idle`, `loading`, `re
 | Event | `detail` |
 | --- | --- |
 | `link-preview:load` | `{ data, meta }` — the `/meta` answer |
-| `link-preview:error` | `{ error }` — usually a `LinkForgeError` |
+| `link-preview:error` | `{ error }` — usually a `OmnillinkError` |
 
 Both bubble and cross shadow boundaries.
 
@@ -281,26 +281,26 @@ Set them on the element or any ancestor. Defaults depend on the active theme.
 
 | Property | Light default | Dark default | Purpose |
 | --- | --- | --- | --- |
-| `--lp-bg` | `#ffffff` | `#17191f` | Card background |
-| `--lp-fg` | `#15171c` | `#eceef3` | Title and publisher |
-| `--lp-muted` | `#5a6170` | `#9ba2b0` | Description, host, arrow |
-| `--lp-border` | `#dde0e7` | `#2c303a` | Border and separators |
-| `--lp-accent` | `#2d5bd7` | `#8fb0ff` | Hover, focus ring, monogram, fallback link |
-| `--lp-media-bg` | `#eceef3` | `#21242c` | Behind the image / monogram |
-| `--lp-skeleton` | `#e4e7ed` | `#282c35` | Skeleton blocks |
-| `--lp-shadow` | soft two-layer shadow | `0 1px 2px rgb(0 0 0 / 0.4)` | Card shadow (`none` to remove) |
-| `--lp-radius` | `14px` | same | Corner radius |
-| `--lp-max-width` | `560px` | same | Maximum width of the element |
-| `--lp-media-size` | `132px` (`92px` when the card is narrower than 360 px) | same | Thumbnail width in `compact` |
-| `--lp-font` | system UI stack | same | Font family |
-| `--lp-font-mono` | system monospace stack | same | Font of the host name |
-| `--lp-font-size` | `15px` | same | Base font size |
+| `--omnillink-bg` | `#ffffff` | `#17191f` | Card background |
+| `--omnillink-fg` | `#15171c` | `#eceef3` | Title and publisher |
+| `--omnillink-muted` | `#5a6170` | `#9ba2b0` | Description, host, arrow |
+| `--omnillink-border` | `#dde0e7` | `#2c303a` | Border and separators |
+| `--omnillink-accent` | `#2d5bd7` | `#8fb0ff` | Hover, focus ring, monogram, fallback link |
+| `--omnillink-media-bg` | `#eceef3` | `#21242c` | Behind the image / monogram |
+| `--omnillink-skeleton` | `#e4e7ed` | `#282c35` | Skeleton blocks |
+| `--omnillink-shadow` | soft two-layer shadow | `0 1px 2px rgb(0 0 0 / 0.4)` | Card shadow (`none` to remove) |
+| `--omnillink-radius` | `14px` | same | Corner radius |
+| `--omnillink-max-width` | `560px` | same | Maximum width of the element |
+| `--omnillink-media-size` | `132px` (`92px` when the card is narrower than 360 px) | same | Thumbnail width in `compact` |
+| `--omnillink-font` | system UI stack | same | Font family |
+| `--omnillink-font-mono` | system monospace stack | same | Font of the host name |
+| `--omnillink-font-size` | `15px` | same | Base font size |
 
 ```css
 link-preview {
-  --lp-accent: #c2410c;
-  --lp-radius: 6px;
-  --lp-max-width: 100%;
+  --omnillink-accent: #c2410c;
+  --omnillink-radius: 6px;
+  --omnillink-max-width: 100%;
 }
 ```
 
@@ -312,7 +312,7 @@ link-preview::part(title) { font-family: Georgia, serif; }
 
 ### Server-side rendering
 
-Importing `@linkforge/sdk/element` where there is no DOM does nothing and does not throw; the element is registered once the module runs in a browser.
+Importing `@omnillink/sdk/element` where there is no DOM does nothing and does not throw; the element is registered once the module runs in a browser.
 
 ## Development
 

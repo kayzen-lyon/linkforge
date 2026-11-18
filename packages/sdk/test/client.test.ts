@@ -1,6 +1,6 @@
 import { describe, expect, expectTypeOf, it, vi } from 'vitest';
 
-import { createClient, isLinkForgeError, LinkForgeError } from '../src/index.js';
+import { createClient, isOmnillinkError, OmnillinkError } from '../src/index.js';
 import type { LinkMetadata, ReadableContent } from '../src/index.js';
 
 const BASE = 'https://lf.example';
@@ -31,14 +31,14 @@ function setup(respond: () => Response | Promise<Response> = () => success({}), 
   return { client, fetchMock, lastUrl, lastInit };
 }
 
-/** Awaits a promise that must reject with a LinkForgeError and returns it. */
-async function rejection(promise: Promise<unknown>): Promise<LinkForgeError> {
+/** Awaits a promise that must reject with an OmnillinkError and returns it. */
+async function rejection(promise: Promise<unknown>): Promise<OmnillinkError> {
   try {
     await promise;
   } catch (error) {
-    expect(error).toBeInstanceOf(LinkForgeError);
-    expect(isLinkForgeError(error)).toBe(true);
-    return error as LinkForgeError;
+    expect(error).toBeInstanceOf(OmnillinkError);
+    expect(isOmnillinkError(error)).toBe(true);
+    return error as OmnillinkError;
   }
   throw new Error('expected the promise to reject');
 }
@@ -262,11 +262,11 @@ describe('URL builders', () => {
     expect(client.metaEmbedUrl('https://a.test/', 'image.url', { ttl: 86400 })).toBe(
       `${BASE}/api/v1/meta?url=https%3A%2F%2Fa.test%2F&ttl=86400&embed=image.url`,
     );
-    expect(() => client.metaEmbedUrl('https://a.test/', '')).toThrow(LinkForgeError);
+    expect(() => client.metaEmbedUrl('https://a.test/', '')).toThrow(OmnillinkError);
   });
 
   it('throws synchronously on an empty target', () => {
-    expect(() => client.screenshotUrl('  ')).toThrow(LinkForgeError);
+    expect(() => client.screenshotUrl('  ')).toThrow(OmnillinkError);
   });
 });
 
@@ -301,7 +301,7 @@ describe('error mapping', () => {
     );
     const error = await rejection(client.meta('http://127.0.0.1/'));
     expect(error).toMatchObject({
-      name: 'LinkForgeError',
+      name: 'OmnillinkError',
       code: 'EFORBIDDENURL',
       status: 403,
       message: 'Destination refused',
@@ -335,7 +335,7 @@ describe('error mapping', () => {
     expect(await rejection(client.content('https://a.test/'))).toMatchObject({ code: 'EHTTP', status: 500 });
   });
 
-  it('maps a 200 that is not a LinkForge envelope to EBADRESPONSE', async () => {
+  it('maps a 200 that is not an Omnillink envelope to EBADRESPONSE', async () => {
     const { client } = setup(() => new Response('<!doctype html>', { status: 200 }));
     expect(await rejection(client.meta('https://a.test/'))).toMatchObject({ code: 'EBADRESPONSE', status: 200 });
   });

@@ -1,5 +1,5 @@
 /**
- * Public types of the LinkForge API, as seen by a client.
+ * Public types of the Omnillink API, as seen by a client.
  * This file is types only: it adds nothing to the JavaScript output.
  */
 
@@ -17,7 +17,7 @@ export interface ResponseMeta {
 }
 
 /** What the JSON methods of the client resolve to. */
-export interface LinkForgeResult<T> {
+export interface OmnillinkResult<T> {
   readonly data: T;
   readonly meta: ResponseMeta;
 }
@@ -216,7 +216,7 @@ export interface PdfOptions extends CacheOptions {
 /** Options of the client itself. */
 export interface ClientOptions {
   /**
-   * Origin of the LinkForge instance, e.g. `https://links.example.com`.
+   * Origin of the Omnillink instance, e.g. `https://links.example.com`.
    * `/api/v1` is appended for you. An empty string means "same origin" (browsers only).
    */
   readonly baseUrl: string;

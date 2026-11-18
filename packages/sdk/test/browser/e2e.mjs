@@ -4,7 +4,7 @@
  *   npm run build && npm run test:browser
  *
  * Needs `playwright-core` (or `playwright`) to be resolvable and a Chromium
- * installed for it. Screenshots go to $LINKFORGE_SHOTS_DIR (default: OS tmp dir).
+ * installed for it. Screenshots go to $OMNILLINK_SHOTS_DIR (default: OS tmp dir).
  */
 import assert from 'node:assert/strict';
 import { readFile, mkdir } from 'node:fs/promises';
@@ -17,7 +17,7 @@ import { fileURLToPath } from 'node:url';
 const require = createRequire(import.meta.url);
 const here = fileURLToPath(new URL('.', import.meta.url));
 const distDir = resolve(here, '../../dist');
-const shotsDir = process.env.LINKFORGE_SHOTS_DIR ?? join(tmpdir(), 'linkforge-sdk-shots');
+const shotsDir = process.env.OMNILLINK_SHOTS_DIR ?? join(tmpdir(), 'omnillink-sdk-shots');
 
 function loadPlaywright() {
   for (const name of ['playwright-core', 'playwright']) {
@@ -500,7 +500,7 @@ try {
 
   await check('CSS custom properties restyle the card', async () => {
     await mount(page, [
-      { url: 'https://ok.test/themed', 'base-url': origin, style: '--lp-bg: rgb(1, 2, 3); --lp-radius: 0px; --lp-fg: rgb(250, 250, 250)' },
+      { url: 'https://ok.test/themed', 'base-url': origin, style: '--omnillink-bg: rgb(1, 2, 3); --omnillink-radius: 0px; --omnillink-fg: rgb(250, 250, 250)' },
     ]);
     await waitState(page, 0, 'ready');
     const style = await page.evaluate(() => {

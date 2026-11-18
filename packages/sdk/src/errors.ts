@@ -23,16 +23,16 @@ export type ApiErrorCode =
  * - `ENETWORK`: the request never got an answer (DNS, connection, CORS...).
  * - `ETIMEOUT`: the client's `timeoutMs` elapsed (shared with the server-side code).
  * - `EABORTED`: the caller's `signal` aborted the request.
- * - `EHTTP`: an HTTP error whose body is not a LinkForge error (a proxy page, for example).
+ * - `EHTTP`: an HTTP error whose body is not an Omnillink error (a proxy page, for example).
  * - `EBADRESPONSE`: a successful status with a body that is not what the API documents.
  */
 export type ClientErrorCode = 'ENETWORK' | 'ETIMEOUT' | 'EABORTED' | 'EHTTP' | 'EBADRESPONSE';
 
 /** Known codes, open to the ones a newer server may add. */
-export type LinkForgeErrorCode = ApiErrorCode | ClientErrorCode | (string & {});
+export type OmnillinkErrorCode = ApiErrorCode | ClientErrorCode | (string & {});
 
-export interface LinkForgeErrorInit {
-  readonly code: LinkForgeErrorCode;
+export interface OmnillinkErrorInit {
+  readonly code: OmnillinkErrorCode;
   /** HTTP status, or `0` when no response was received. */
   readonly status: number;
   readonly message: string;
@@ -50,15 +50,15 @@ const RETRYABLE: ReadonlySet<string> = new Set([
 ]);
 
 /** The one error every method of the client throws. */
-export class LinkForgeError extends Error {
-  override readonly name = 'LinkForgeError';
-  readonly code: LinkForgeErrorCode;
+export class OmnillinkError extends Error {
+  override readonly name = 'OmnillinkError';
+  readonly code: OmnillinkErrorCode;
   /** HTTP status, or `0` when no response was received. */
   readonly status: number;
   /** Seconds to wait before retrying, when the server said so. */
   readonly retryAfter: number | undefined;
 
-  constructor(init: LinkForgeErrorInit) {
+  constructor(init: OmnillinkErrorInit) {
     super(init.message, init.cause === undefined ? undefined : { cause: init.cause });
     this.code = init.code;
     this.status = init.status;
@@ -72,9 +72,9 @@ export class LinkForgeError extends Error {
 }
 
 /** Type guard that also works across realms and duplicated copies of the package. */
-export function isLinkForgeError(value: unknown): value is LinkForgeError {
+export function isOmnillinkError(value: unknown): value is OmnillinkError {
   return (
-    value instanceof LinkForgeError ||
-    (value instanceof Error && value.name === 'LinkForgeError' && 'code' in value && 'status' in value)
+    value instanceof OmnillinkError ||
+    (value instanceof Error && value.name === 'OmnillinkError' && 'code' in value && 'status' in value)
   );
 }

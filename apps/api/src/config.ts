@@ -194,7 +194,7 @@ export function loadConfig(env: Env = process.env): AppConfig {
       userAgent: readString(
         env,
         'HTTP_USER_AGENT',
-        'Mozilla/5.0 (compatible; LinkForgeBot/0.1; +https://github.com/your-org/linkforge)',
+        'Mozilla/5.0 (compatible; OmnillinkBot/0.1; +https://github.com/kayzen-lyon/linkforge)',
       ),
     },
     browser: {

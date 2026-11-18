@@ -1,8 +1,13 @@
 {
-  "name": "@linkforge/sdk",
+  "name": "@omnillink/sdk",
   "version": "0.1.0",
-  "description": "Tiny typed client and <link-preview> custom element for the LinkForge link-intelligence API.",
+  "description": "Tiny typed client and <link-preview> custom element for the Omnillink link-intelligence API.",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kayzen-lyon/linkforge.git",
+    "directory": "packages/sdk"
+  },
   "type": "module",
   "sideEffects": [
     "./dist/element.js"

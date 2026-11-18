@@ -1,7 +1,7 @@
 /**
  * Pure URL construction: no I/O, usable to fill `src` / `href` attributes.
  */
-import { LinkForgeError } from './errors.js';
+import { OmnillinkError } from './errors.js';
 import type { ExtractFields, MetaOptions, PdfOptions, ScreenshotOptions } from './types.js';
 
 export const API_PREFIX = '/api/v1';
@@ -14,7 +14,7 @@ export type Params = Readonly<Record<string, ParamValue>>;
 /** Strips trailing slashes and a redundant `/api/v1` suffix. */
 export function normalizeBaseUrl(baseUrl: string): string {
   if (typeof baseUrl !== 'string') {
-    throw new TypeError('LinkForge: `baseUrl` must be a string');
+    throw new TypeError('Omnillink: `baseUrl` must be a string');
   }
   let base = baseUrl.trim().replace(/\/+$/, '');
   if (base.endsWith(API_PREFIX)) base = base.slice(0, -API_PREFIX.length);
@@ -23,7 +23,7 @@ export function normalizeBaseUrl(baseUrl: string): string {
 
 function assertTargetUrl(url: unknown): asserts url is string {
   if (typeof url !== 'string' || url.trim() === '') {
-    throw new LinkForgeError({
+    throw new OmnillinkError({
       code: 'EINVALIDURL',
       status: 0,
       message: 'The target `url` must be a non-empty string',
@@ -80,7 +80,7 @@ export const pdfParams = (options?: PdfOptions): Params =>
 
 export const extractParams = (fields: ExtractFields, options?: { render?: string }): Params => {
   if (typeof fields !== 'object' || fields === null || Array.isArray(fields)) {
-    throw new LinkForgeError({
+    throw new OmnillinkError({
       code: 'EINVALIDPARAMS',
       status: 0,
       message: '`fields` must be an object of extraction rules',

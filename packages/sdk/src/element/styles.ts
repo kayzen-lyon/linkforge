@@ -1,44 +1,44 @@
 /**
  * Styles of `<link-preview>`. Static text, never interpolated with data.
  *
- * Public knobs are the `--lp-*` custom properties; the `--_*` ones are private
+ * Public knobs are the `--omnillink-*` custom properties; the `--_*` ones are private
  * and hold "the author's value, else the default of the active theme".
  */
 
 const LIGHT = `
-  --_bg: var(--lp-bg, #ffffff);
-  --_fg: var(--lp-fg, #15171c);
-  --_muted: var(--lp-muted, #5a6170);
-  --_border: var(--lp-border, #dde0e7);
-  --_accent: var(--lp-accent, #2d5bd7);
-  --_media-bg: var(--lp-media-bg, #eceef3);
-  --_skeleton: var(--lp-skeleton, #e4e7ed);
-  --_shadow: var(--lp-shadow, 0 1px 2px rgb(21 23 28 / 0.05), 0 4px 14px -8px rgb(21 23 28 / 0.18));
+  --_bg: var(--omnillink-bg, #ffffff);
+  --_fg: var(--omnillink-fg, #15171c);
+  --_muted: var(--omnillink-muted, #5a6170);
+  --_border: var(--omnillink-border, #dde0e7);
+  --_accent: var(--omnillink-accent, #2d5bd7);
+  --_media-bg: var(--omnillink-media-bg, #eceef3);
+  --_skeleton: var(--omnillink-skeleton, #e4e7ed);
+  --_shadow: var(--omnillink-shadow, 0 1px 2px rgb(21 23 28 / 0.05), 0 4px 14px -8px rgb(21 23 28 / 0.18));
   color-scheme: light;
 `;
 
 const DARK = `
-  --_bg: var(--lp-bg, #17191f);
-  --_fg: var(--lp-fg, #eceef3);
-  --_muted: var(--lp-muted, #9ba2b0);
-  --_border: var(--lp-border, #2c303a);
-  --_accent: var(--lp-accent, #8fb0ff);
-  --_media-bg: var(--lp-media-bg, #21242c);
-  --_skeleton: var(--lp-skeleton, #282c35);
-  --_shadow: var(--lp-shadow, 0 1px 2px rgb(0 0 0 / 0.4));
+  --_bg: var(--omnillink-bg, #17191f);
+  --_fg: var(--omnillink-fg, #eceef3);
+  --_muted: var(--omnillink-muted, #9ba2b0);
+  --_border: var(--omnillink-border, #2c303a);
+  --_accent: var(--omnillink-accent, #8fb0ff);
+  --_media-bg: var(--omnillink-media-bg, #21242c);
+  --_skeleton: var(--omnillink-skeleton, #282c35);
+  --_shadow: var(--omnillink-shadow, 0 1px 2px rgb(0 0 0 / 0.4));
   color-scheme: dark;
 `;
 
 export const STYLES = `
 :host {
   ${LIGHT}
-  --_radius: var(--lp-radius, 14px);
-  --_media: var(--lp-media-size, 132px);
+  --_radius: var(--omnillink-radius, 14px);
+  --_media: var(--omnillink-media-size, 132px);
   display: block;
-  max-width: var(--lp-max-width, 560px);
+  max-width: var(--omnillink-max-width, 560px);
   container-type: inline-size;
-  font-family: var(--lp-font, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif);
-  font-size: var(--lp-font-size, 15px);
+  font-family: var(--omnillink-font, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif);
+  font-size: var(--omnillink-font-size, 15px);
   line-height: 1.4;
   text-align: start;
 }
@@ -131,7 +131,7 @@ a.card:focus-visible, .plain:focus-visible {
   flex: 0 1 auto;
   min-width: 0;
   overflow: hidden;
-  font-family: var(--lp-font-mono, ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace);
+  font-family: var(--omnillink-font-mono, ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace);
   font-size: 0.93em;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -186,7 +186,7 @@ a.card:hover .arrow, a.card:focus-visible .arrow {
 
 /* ---- narrow containers ---------------------------------------------- */
 @container (max-width: 360px) {
-  .card { --_media: var(--lp-media-size, 92px); }
+  .card { --_media: var(--omnillink-media-size, 92px); }
   .body { padding: 11px 12px 12px; }
   .description { -webkit-line-clamp: 1; line-clamp: 1; }
   :host([size="large"]) .description { -webkit-line-clamp: 2; line-clamp: 2; }
