@@ -1,6 +1,6 @@
 # Omnillink — 150 améliorations
 
-Liste de travail. État au dernier pointage : 130 livrés, 18 partiels, 2 à faire.
+Liste de travail. État au dernier pointage : 135 livrés, 15 partiels, 0 à faire.
 
 Chaque ligne porte un statut tenu à jour à l'intégration : `[ ]` à faire, `[x]` livré et vérifié, `[~]` partiel (la note dit ce qui manque), `[-]` écarté (la note dit pourquoi).
 
@@ -88,9 +88,9 @@ Règle commune à toutes les lignes : rien d'inventé. Pas de témoignages, de l
 ## D. Documentation et expérience développeur (site)
 
 71. [x] Guide de démarrage en cinq minutes.
-72. [~] Page par point d'accès, avec paramètres, exemples et erreurs. — une section par point d'accès principal, pas une page chacun.
+72. [x] Page par point d'accès, avec paramètres, exemples et erreurs
 73. [x] Explorateur interactif branché sur la spécification OpenAPI (« essayer »)
-74. [~] Téléchargement de la spécification OpenAPI et d'une collection Postman/Bruno. — OpenAPI et collection Postman ; pas de fichier Bruno.
+74. [x] Téléchargement de la spécification OpenAPI et d'une collection Postman/Bruno
 75. [x] Guide d'auto-hébergement : Vercel, Node, variables d'environnement.
 76. [x] Guide du SDK et du composant `<link-preview>`.
 77. [x] Guide pour agents IA : contenu lisible, serveur MCP, `llms.txt`
@@ -99,7 +99,7 @@ Règle commune à toutes les lignes : rien d'inventé. Pas de témoignages, de l
 80. [x] Page sécurité : modèle de menace, protection SSRF, ce qui est couvert ou non
 81. [x] Page limites et quotas : débits, tailles, durées.
 82. [x] Journal des modifications alimenté par le dépôt
-83. [ ] Feuille de route publique. — feuille de route à réécrire pour une publication.
+83. [x] Feuille de route publique
 84. [x] Page d'état branchée sur `/health` (disponibilité mesurée en direct, sans historique inventé).
 85. [x] FAQ authentique, balisée en données structurées.
 86. [x] Glossaire (Open Graph, JSON-LD, oEmbed, SSRF…).
@@ -112,19 +112,19 @@ Règle commune à toutes les lignes : rien d'inventé. Pas de témoignages, de l
 
 91. [x] Titre et description uniques par page et par langue.
 92. [x] Balises `hreflang` et canoniques cohérentes sur toutes les pages.
-93. [~] Image de partage par langue, générée au build. — image anglaise produite par un script ponctuel, pas au build.
+93. [~] Image de partage par langue, générée au build — image anglaise reproductible par script, mais pas produite par le build.
 94. [x] Données structurées : application, organisation, fil d'Ariane, FAQ, documentation technique.
 95. [x] Plan du site avec alternatives de langue et dates de modification.
 96. [x] Préchargement des polices critiques, sous-ensembles latins.
 97. [~] Aucun décalage de mise en page (dimensions réservées, polices de repli ajustées). — dimensions réservées ; décalage non mesuré.
 98. [x] JavaScript découpé par page, rien d'inutile au premier affichage.
-99. [~] Images en AVIF/WebP avec dimensions et chargement différé. — WebP avec dimensions ; pas d'AVIF.
+99. [x] Images en AVIF/WebP avec dimensions et chargement différé
 100. [x] Mise en cache longue des fichiers empreintés, revalidation du HTML.
 101. [~] Compression Brotli vérifiée sur chaque type de fichier. — tailles Brotli calculées au build ; compression servie par la plateforme, non contrôlée.
 102. [x] En-têtes de sécurité : CSP stricte, HSTS, Referrer-Policy, Permissions-Policy, X-Content-Type-Options.
 103. [~] Application installable (manifeste, icônes, page hors ligne). — manifeste, icônes, page hors ligne et service worker ; hors-ligne non testé de bout en bout.
 104. [x] Budget de performance contrôlé au build (poids par page).
-105. [ ] Audit Lighthouse automatisé sur les pages clés, scores publiés tels que mesurés. — Lighthouse non installé.
+105. [x] Audit Lighthouse automatisé sur les pages clés, scores publiés tels que mesurés
 
 ## F. Fonctionnalités de l'API
 
