@@ -15,7 +15,8 @@ Monorepo npm workspaces, Node.js >= 22, ESM, TypeScript strict.
 - apps/web : playground Vite + Tailwind CSS v4, sans framework.
 - Déploiement : Vercel, dossier racine apps/api, preset Fastify (apps/api/vercel.json). Une seule
   fonction sert l'API et le playground, intégré au bundle au build (scripts/embed-playground.mjs).
-  et rien ne persiste entre instances : pas d'état en mémoire dont dépend la justesse d'une réponse.
+  Pas de Docker. En serverless le navigateur est @sparticuz/chromium et rien ne persiste entre
+  instances : pas d'état en mémoire dont dépend la justesse d'une réponse.
 Avant d'écrire du code, lis README.md (architecture, contrat d'API, codes d'erreur) et ROADMAP.md
 (phases, état actuel, limites connues). Ces deux fichiers font foi ; s'ils contredisent le code,
 signale-le au lieu de choisir en silence.
