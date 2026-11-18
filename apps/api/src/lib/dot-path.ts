@@ -24,8 +24,13 @@ export function resolveDotPath(data: unknown, path: string): unknown {
   return current;
 }
 
-/** True for an absolute `http:` / `https:` URL. */
-export function isHttpUrl(value: string): boolean {
-  if (!/^https?:\/\//i.test(value)) return false;
-  return URL.canParse(value);
+/**
+ * Normalises an absolute `http:` / `https:` URL.
+ *
+ * @returns The ASCII-safe form of the URL (usable in a `Location` header), or
+ *   `null` when the value is anything else.
+ */
+export function toHttpUrl(value: string): string | null {
+  if (!/^https?:\/\//i.test(value) || !URL.canParse(value)) return null;
+  return new URL(value).href;
 }

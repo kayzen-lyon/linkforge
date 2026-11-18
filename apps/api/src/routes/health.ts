@@ -1,7 +1,41 @@
 import type { FastifyPluginAsync } from 'fastify';
 
+import { COMMON_ERRORS, type EndpointDoc } from '../openapi.js';
 import type { BrowserPool } from '../services/browser-pool.js';
 import type { Cache } from '../services/cache/index.js';
+
+export const healthDoc: EndpointDoc = {
+  path: '/health',
+  operationId: 'getHealth',
+  summary: 'Service health',
+  description: 'Liveness probe, cache backend and browser-pool counters. Not rate limited.',
+  tag: 'Service',
+  responses: {
+    '200': {
+      description: 'The service is up.',
+      content: {
+        'application/json': {
+          type: 'object',
+          properties: {
+            status: { type: 'string', const: 'ok' },
+            uptimeSeconds: { type: 'integer' },
+            cache: { type: 'string', enum: ['memory', 'redis'] },
+            browserPool: {
+              type: 'object',
+              properties: {
+                active: { type: 'integer' },
+                queued: { type: 'integer' },
+                maxConcurrency: { type: 'integer' },
+                browserConnected: { type: 'boolean' },
+              },
+            },
+          },
+        },
+      },
+    },
+  },
+  errors: COMMON_ERRORS.filter((code) => code !== 'ERATELIMIT' && code !== 'EINVALIDPARAMS'),
+};
 
 export interface HealthRouteOptions {
   readonly pool: BrowserPool;

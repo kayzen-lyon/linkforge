@@ -1,11 +1,16 @@
 /**
  * The API reference content, as data.
  *
- * `render.ts` turns this into static HTML at build time. Descriptions accept a
- * tiny inline syntax: `code` and [label](href). Keep every statement in sync
- * with the API implementation (apps/api): this is the documentation users rely on.
+ * `render.ts` turns this into static HTML at build time. Nothing here is
+ * prose: every description is a key of the `docs` dictionary (src/i18n), so
+ * the reference exists in both languages. Keep names, types and defaults in
+ * sync with the API implementation (apps/api): users rely on this page.
  */
+import type { common, docs } from '../i18n/fr';
 import type { Lang } from '../lib/highlight';
+
+export type DocsKey = keyof typeof docs;
+export type CommonKey = keyof typeof common;
 
 /** Origin used in the examples; the page swaps it for the real origin at runtime. */
 export const EXAMPLE_ORIGIN = 'http://localhost:3000';
@@ -15,26 +20,34 @@ const ENCODED_TARGET = encodeURIComponent(TARGET);
 export interface Param {
   readonly name: string;
   readonly type: string;
-  /** Default value, or `required`. Omitted when there is no default. */
+  /** Default value. Omitted when there is none. */
   readonly fallback?: string;
   readonly required?: boolean;
-  readonly description: string;
+  readonly description: DocsKey;
 }
 
 export interface Sample {
-  readonly label: string;
+  readonly label: DocsKey;
   readonly lang: Lang;
   readonly code: string;
+}
+
+export interface FieldTable {
+  readonly title: DocsKey;
+  readonly nameHeader: DocsKey;
+  readonly rows: readonly Param[];
 }
 
 export interface Endpoint {
   readonly id: string;
   readonly path: string;
-  readonly title: string;
+  readonly title: DocsKey;
   readonly returns: string;
-  readonly intro: readonly string[];
+  readonly intro: readonly DocsKey[];
   readonly params: readonly Param[];
-  readonly notes?: readonly string[];
+  /** Extra reference tables shown after the parameters. */
+  readonly tables?: readonly FieldTable[];
+  readonly notes?: readonly DocsKey[];
   readonly samples: readonly Sample[];
 }
 
