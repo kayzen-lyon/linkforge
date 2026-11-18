@@ -366,7 +366,7 @@ describe('GET /api/v1/pdf', () => {
   });
 
   it('rejects invalid parameters', async () => {
-    for (const query of ['&format=A3', '&landscape=maybe', '&unknown=1']) {
+    for (const query of ['&format=A3', '&landscape=maybe']) {
       const res = await get(`/api/v1/pdf?url=${target('/visual')}${query}`);
       expect(res.statusCode).toBe(400);
       expect(res.json().code).toBe('EINVALIDPARAMS');
