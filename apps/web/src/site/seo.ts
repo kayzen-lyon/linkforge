@@ -138,7 +138,7 @@ export function headTags(page: PageId, lang: Lang, t: Lookup, faq: readonly FaqE
   const url = absolute(pagePath(page, lang));
   const title = escapeHtml(plain(t('meta.title')));
   const description = escapeHtml(plain(t('meta.description')));
-  const image = absolute(`/brand/og-${lang}.jpg`);
+  const image = absolute('/og-image.jpg');
   const alternates = LANGS.map(
     (code) => `<link rel="alternate" hreflang="${code}" href="${absolute(pagePath(page, code))}" />`,
   ).join('\n    ');
@@ -148,7 +148,8 @@ export function headTags(page: PageId, lang: Lang, t: Lookup, faq: readonly FaqE
     <link rel="alternate" hreflang="x-default" href="${absolute(pagePath(page, 'fr'))}" />
     <meta name="author" content="${PUBLISHER}" />
     <meta name="color-scheme" content="light dark" />
-    <meta name="theme-color" content="#ffffff" />
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0d1621" media="(prefers-color-scheme: dark)" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="${BRAND}" />
     <meta property="og:locale" content="${lang === 'fr' ? 'fr_FR' : 'en_GB'}" />
@@ -159,15 +160,19 @@ export function headTags(page: PageId, lang: Lang, t: Lookup, faq: readonly FaqE
     <meta property="og:image" content="${image}" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
+    <meta property="og:image:type" content="image/jpeg" />
     <meta property="og:image:alt" content="${escapeHtml(plain(t('og.alt')))}" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="${title}" />
     <meta name="twitter:description" content="${description}" />
     <meta name="twitter:image" content="${image}" />
-    <link rel="icon" type="image/png" sizes="32x32" href="/brand/favicon-32.png" />
-    <link rel="icon" type="image/png" sizes="64x64" href="/brand/favicon-64.png" />
-    <link rel="apple-touch-icon" href="/brand/apple-touch-icon.png" />
+    <link rel="icon" href="/favicon.ico" sizes="48x48" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="96x96" href="/favicon-96x96.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/site.webmanifest" />
+    <meta name="msapplication-config" content="/browserconfig.xml" />
     <link rel="preload" href="/fonts/outfit-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preload" href="/fonts/plus-jakarta-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
     <script>${bootScript(page, lang)}</script>
