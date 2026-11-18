@@ -8,7 +8,7 @@ type Like<T> = Record<keyof T, string>;
 
 export const common: Like<typeof fr.common> = {
   'skip': 'Skip to content',
-  'brand.home': 'LinkForge home',
+  'brand.home': 'Omnillink home',
   'nav.label': 'Main navigation',
   'nav.demo': 'Demo',
   'nav.features': 'Features',
@@ -82,19 +82,19 @@ export const common: Like<typeof fr.common> = {
   'footer.accessibility': 'Accessibility',
   'footer.legal': 'Legal notice and privacy',
   'footer.notrack': 'This site sets no cookies and uses no trackers.',
-  'footer.license': 'LinkForge is free software released under the MIT licence.',
+  'footer.license': 'Omnillink is free software released under the MIT licence.',
   'footer.credit': 'Site made by [KAYZEN](https://www.kayzen-lyon.com)',
-  'og.alt': 'LinkForge: one URL in, metadata, a screenshot, a PDF and content out.',
+  'og.alt': 'Omnillink: one URL in, metadata, a screenshot, a PDF and content out.',
 };
 
 export const home: Like<typeof fr.home> = {
-  'meta.title': 'LinkForge · Open-source link intelligence API',
+  'meta.title': 'Omnillink · The API for universal web transformation',
   'meta.description':
-    'LinkForge is an open-source API that turns a URL into metadata, screenshots, PDFs, extracted fields and readable content. Try it live.',
+    'Omnillink is an open-source API that turns a URL into metadata, screenshots, PDFs, extracted fields and readable content. Try it live.',
 
-  'hero.eyebrow': 'Open-source API · MIT licence',
+  'hero.eyebrow': 'The API for universal web transformation',
   'hero.lead':
-    'LinkForge is a REST API that reads a web page for you: normalised metadata, screenshots, PDF export, custom extraction and readable text for your AI agents. The code is open, so you can host it wherever you like.',
+    'Omnillink is a REST API that reads a web page for you: normalised metadata, screenshots, PDF export, custom extraction and readable text for your AI agents. The code is open, so you can host it wherever you like.',
   'hero.cta.demo': 'Try the live demo',
   'hero.cta.docs': 'Read the API reference',
   'manifest.title': 'Five endpoints, one required parameter',
@@ -166,7 +166,7 @@ export const home: Like<typeof fr.home> = {
   'demo.content.empty': 'No readable content was found on this page.',
 
   'features.title': 'What the API takes care of',
-  'features.lead': 'Reading an unknown page takes more than one request. Here is what LinkForge does on every call.',
+  'features.lead': 'Reading an unknown page takes more than one request. Here is what Omnillink does on every call.',
   'features.pipeline.title': 'HTTP first, a browser only when needed',
   'features.pipeline.body':
     'The page is first read with a plain HTTP request. Chromium only starts when the result is poor or the page is an empty app shell. The `meta.source` field tells you which path was taken.',
@@ -204,7 +204,7 @@ export const home: Like<typeof fr.home> = {
   'examples.more': 'Every parameter is described in the [API reference](/docs).',
 
   'selfHost.title': 'Host it yourself',
-  'selfHost.lead': 'LinkForge is released under the MIT licence. You need Node.js 22 or newer; Redis is optional.',
+  'selfHost.lead': 'Omnillink is released under the MIT licence. You need Node.js 22 or newer; Redis is optional.',
   'selfHost.step1': 'Get the code',
   'selfHost.step2': 'Install the dependencies and Chromium',
   'selfHost.step3': 'Create your configuration',
@@ -229,7 +229,7 @@ export const home: Like<typeof fr.home> = {
   'demo.eyebrow': 'Live demo',
   'usecases.eyebrow': 'Use cases',
   'usecases.title': 'Who it is for, and what for',
-  'usecases.lead': 'LinkForge is for teams that work with links: consumer products, internal tools, AI agents.',
+  'usecases.lead': 'Omnillink is for teams that work with links: consumer products, internal tools, AI agents.',
   'usecases.1.title': 'Link previews',
   'usecases.1.body':
     'Chat, CMS, bookmark manager: show the title, image and description as soon as a link is pasted.',
@@ -246,7 +246,7 @@ export const home: Like<typeof fr.home> = {
   'how.step': 'Step {n}',
   'how.1.title': 'You send a URL',
   'how.1.body': 'A `GET` request with the address of the page and, if needed, a few options. No key is required to get started.',
-  'how.2.title': 'LinkForge reads the page safely',
+  'how.2.title': 'Omnillink reads the page safely',
   'how.2.body':
     'The address is validated against SSRF attacks, then the page is read over HTTP. Chromium only takes over when the page needs it.',
   'how.3.title': 'You get a ready-to-use result',
@@ -256,13 +256,13 @@ export const home: Like<typeof fr.home> = {
   'selfHost.eyebrow': 'Open source',
   'faq.eyebrow': 'FAQ',
   'faq.title': 'Frequently asked questions',
-  'faq.1.q': 'Is LinkForge free?',
+  'faq.1.q': 'Is Omnillink free?',
   'faq.1.a':
     'The software is free and released under the MIT licence: you can use it, change it and host it yourself. The instance that serves this site is a demonstration, with a rate limit.',
   'faq.2.q': 'Do I need an API key?',
   'faq.2.a':
     'No. The API answers without authentication. The optional `x-api-key` header raises the rate limit; keys are defined by the operator of each instance.',
-  'faq.3.q': 'Which pages can LinkForge read?',
+  'faq.3.q': 'Which pages can Omnillink read?',
   'faq.3.a':
     'Public pages over `http` or `https`. Private, local or internal addresses are refused by the SSRF protection. Pages built with JavaScript are rendered in Chromium when needed.',
   'faq.4.q': 'Are the results up to date?',
@@ -277,14 +277,14 @@ export const home: Like<typeof fr.home> = {
   'faq.7.q': 'Does this site track me?',
   'faq.7.a':
     'No. It sets no cookies and loads no analytics tool. Your theme, language and accessibility preferences stay in your browser. The details are in the [legal notice](/legal).',
-  'cta.title': 'Try LinkForge on your own links',
+  'cta.title': 'Try Omnillink on your own links',
   'cta.lead': 'The demo runs on this instance. The code is on GitHub if you would rather host it yourself.',
 };
 
 export const docs: Like<typeof fr.docs> = {
-  'meta.title': 'API reference · LinkForge',
+  'meta.title': 'API reference · Omnillink',
   'meta.description':
-    'Complete reference of the LinkForge API: endpoints, parameters, example requests and responses, errors, authentication, rate limits and caching.',
+    'Complete reference of the Omnillink API: endpoints, parameters, example requests and responses, errors, authentication, rate limits and caching.',
 
   'title': 'API reference',
   'lead': 'Every endpoint is a `GET` request under `/api/v1`. The examples use the address of this instance.',
@@ -457,7 +457,7 @@ export const docs: Like<typeof fr.docs> = {
 
   'security.title': 'Security model',
   'security.p1':
-    'An API that visits addresses supplied by its users is a classic target for SSRF attacks. LinkForge validates every destination before connecting to it.',
+    'An API that visits addresses supplied by its users is a classic target for SSRF attacks. Omnillink validates every destination before connecting to it.',
   'security.li1':
     'Only `http` and `https` are accepted, without credentials in the address, and on a list of allowed ports (80 and 443 by default).',
   'security.li2':
@@ -472,4 +472,102 @@ export const docs: Like<typeof fr.docs> = {
     'A field is `null` when nothing matches or the value cannot be converted. Strings are cut at 10,000 characters.',
   'html.note':
     '`/meta`, `/extract` and `/content` need an HTML document: for an image, a PDF or any other file type, the API answers `ENOTHTML` (422).',
+};
+
+export const a11y: Like<typeof fr.a11y> = {
+  'meta.title': 'Accessibility · Omnillink',
+  'meta.description':
+    'What was built, checked and not checked for accessibility on the Omnillink site, its known limits and how to report a problem.',
+  'title': 'Accessibility',
+  'updated': 'Last updated: 18 November 2026',
+  'intro':
+    'KAYZEN wants Omnillink to be usable by everyone, whatever their hardware, software or disability. The site is built to the WCAG 2.2 level AA criteria.',
+  'notice':
+    'This page is not a statement of conformity. No audit by a person has been carried out yet: it says what was checked, what was not, and what is still imperfect.',
+  'built.title': 'What was built',
+  'built.1': 'A skip link, identified page regions, a single main heading per page and headings in order.',
+  'built.2': 'Every control works with the keyboard: demo tabs with the arrow keys, mobile menu and accessibility panel closed with Escape, focus always visible.',
+  'built.3': 'The colours of text, controls and the focus ring are chosen from computed contrast ratios, in the light theme and in the dark theme.',
+  'built.4': 'An options panel, at the bottom left of every page: text size, higher contrast, the Atkinson Hyperlegible font, pure black in the dark theme.',
+  'built.5': 'Animations are short, and switched off when your system asks for reduced motion.',
+  'built.6': 'The language of each page is declared, as is the language of passages written in another language.',
+  'built.7': 'Loading states, results and errors in the demo are announced with text, never with colour alone.',
+  'built.8': 'Buttons and navigation links offer a target of at least 44 pixels on each side.',
+  'checked.title': 'What was checked',
+  'checked.intro': 'Checks carried out on 18 November 2026, with automated tools and a review of the rendered pages:',
+  'checked.1': 'the contrast ratio of every text and background pair actually used, computed by a script for both themes;',
+  'checked.2': 'the keyboard path through the tabs, the mobile menu, the language switcher and the accessibility panel, in a scripted browser;',
+  'checked.3': 'no horizontal scrolling at a width of 375 pixels, and no error in the console;',
+  'checked.4': 'the rendering of each page in French and in English, in the light and dark themes, on a wide screen and on a phone.',
+  'unchecked.title': 'What was not checked',
+  'unchecked.1': 'Rendering by screen readers (NVDA, JAWS, VoiceOver, TalkBack).',
+  'unchecked.2': 'A criterion-by-criterion audit, WCAG or RGAA, by a trained person.',
+  'unchecked.3': 'Voice control, switch devices and other assistive technologies.',
+  'unchecked.4': 'Zoom at 400% and the forced-contrast mode of the system.',
+  'unchecked.5': 'The PDF documents the API produces from third-party pages.',
+  'limits.title': 'Known limits',
+  'limits.1': 'The demo shows content that comes from other sites. A screenshot is an image without a detailed description: the Content tab gives its text.',
+  'limits.2': 'The structure of extracted content depends on the source page; it may be incomplete.',
+  'limits.3': 'Error messages returned by the API are in English. The site adds an explanation in the language of the page.',
+  'limits.4': 'Long code samples scroll horizontally inside their own block.',
+  'settings.title': 'Adjusting the display',
+  'settings.p':
+    'The round button at the bottom left opens the accessibility options. Your choices are saved in your browser and apply to every page. The moon button in the header switches between the light and dark themes.',
+  'contact.title': 'Reporting a problem',
+  'contact.p': 'If some content or a function is not accessible to you, tell us: we will look for a solution with you.',
+  'contact.email': 'By email: [contact@kayzen-lyon.fr](mailto:contact@kayzen-lyon.fr)',
+  'contact.phone': 'By phone: [+33 4 87 77 68 61](tel:+33487776861)',
+  'contact.issues': 'On GitHub: [open an issue](https://github.com/kayzen-lyon/linkforge/issues)',
+  'disclaimer': 'Page written with the help of an AI tool. It replaces neither an accessibility audit nor legal advice.',
+};
+
+export const legal: Like<typeof fr.legal> = {
+  'meta.title': 'Legal notice and privacy · Omnillink',
+  'meta.description':
+    'Publisher and host of the Omnillink site, and what the site stores: no cookies, no trackers, preferences kept in your browser.',
+  'title': 'Legal notice and privacy',
+  'updated': 'Last updated: 18 November 2026',
+  'intro':
+    'This site presents Omnillink, an open-source API, and offers a demonstration of it. This page identifies its publisher and its host, then explains what the site stores.',
+  'publisher.title': 'Publisher of the site',
+  'publisher.p': 'The site is published by Tarek BELHADJ, a sole trader operating under the trade name KAYZEN.',
+  'publisher.form': 'Legal form: sole proprietorship under French law (entreprise individuelle, micro-entreprise)',
+  'publisher.seat': 'Registered office: 6 rue Pierre Termier, 69009 Lyon, France',
+  'publisher.office': 'Premises: 6 rue de Bourgogne, 69009 Lyon, France',
+  'publisher.siret': 'SIRET: 493 857 262 00098',
+  'publisher.siren': 'SIREN: 493 857 262',
+  'publisher.ape': 'APE code: 62.01Z',
+  'publisher.vat': 'VAT not applicable, article 293 B of the French General Tax Code',
+  'publisher.phone': 'Telephone: [+33 4 87 77 68 61](tel:+33487776861)',
+  'publisher.email': 'Email: [contact@kayzen-lyon.fr](mailto:contact@kayzen-lyon.fr)',
+  'director.title': 'Publication director',
+  'director.p': 'Tarek BELHADJ',
+  'host.title': 'Host',
+  'host.p': 'The site is hosted by Vercel Inc., 440 N Barranca Ave #4133, Covina, CA 91723, United States, [vercel.com](https://vercel.com).',
+  'software.title': 'Software and licence',
+  'software.p':
+    'Omnillink is free software released under the MIT licence. Its source code is available on [GitHub](https://github.com/kayzen-lyon/linkforge).',
+  'privacy.title': 'What the site stores',
+  'privacy.none':
+    'The site sets no cookies. It loads no analytics tool, no advertising and no third-party script. Fonts are served by the site itself.',
+  'storage.title': 'Preferences kept in your browser',
+  'storage.p':
+    'Three preferences are saved in the local storage of your browser, only when you change them. They are never sent to the server. You erase them by deleting the site data in your browser.',
+  'storage.th.key': 'Name',
+  'storage.th.purpose': 'Purpose',
+  'storage.theme': 'Light or dark theme chosen.',
+  'storage.lang': 'Language chosen, French or English.',
+  'storage.a11y': 'Accessibility options: text size, contrast, font, pure black.',
+  'demo.title': 'When you use the demo',
+  'demo.1': 'The address you enter is sent to the API, which reads that page. The result is kept in a cache on the server, for one hour by default. Do not submit an address that contains a secret or a personal token.',
+  'demo.2': 'The link preview shows the image and icon of the page straight from the site concerned: your browser therefore contacts that site, which sees your IP address. No referrer is sent to it.',
+  'demo.3': 'To limit the request rate, the API counts requests per IP address, in memory, over a one-minute window.',
+  'logs.title': 'Technical logs',
+  'logs.p':
+    'Like any online service, the application and its host produce technical logs: IP address, date and requested address. Their retention period has not been provided: **[period to be specified by the publisher]**.',
+  'rights.title': 'Your rights',
+  'rights.p':
+    'For any question about your data, or to exercise your rights of access, rectification and erasure, write to [contact@kayzen-lyon.fr](mailto:contact@kayzen-lyon.fr). You can also lodge a complaint with the CNIL, the French data protection authority.',
+  'disclaimer':
+    'Page written with the help of an AI tool from the information supplied by the publisher. It is not legal advice.',
 };

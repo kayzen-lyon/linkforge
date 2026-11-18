@@ -9,7 +9,7 @@
 /** Strings used on every page: header, footer, shared controls, API errors. */
 export const common = {
   'skip': 'Aller au contenu',
-  'brand.home': 'Accueil LinkForge',
+  'brand.home': 'Accueil Omnillink',
   'nav.label': 'Navigation principale',
   'nav.demo': 'Démo',
   'nav.features': 'Fonctionnalités',
@@ -84,20 +84,20 @@ export const common = {
   'footer.accessibility': 'Accessibilité',
   'footer.legal': 'Mentions légales et confidentialité',
   'footer.notrack': 'Ce site ne dépose aucun cookie et n’utilise aucun traceur.',
-  'footer.license': 'LinkForge est un logiciel libre publié sous licence MIT.',
+  'footer.license': 'Omnillink est un logiciel libre publié sous licence MIT.',
   'footer.credit': 'Site réalisé par [KAYZEN](https://www.kayzen-lyon.com)',
-  'og.alt': 'LinkForge : une URL en entrée, des métadonnées, une capture, un PDF et du contenu en sortie.',
+  'og.alt': 'Omnillink : une URL en entrée, des métadonnées, une capture, un PDF et du contenu en sortie.',
 };
 
 /** Landing page. */
 export const home = {
-  'meta.title': 'LinkForge · API open source d’intelligence de liens',
+  'meta.title': 'Omnillink · API pour la transformation web universelle',
   'meta.description':
-    'LinkForge est une API open source qui transforme une URL en métadonnées, captures d’écran, PDF, champs extraits et contenu lisible. Essayez-la en direct.',
+    'Omnillink est une API open source qui transforme une URL en métadonnées, captures d’écran, PDF, champs extraits et contenu lisible. Essayez-la en direct.',
 
-  'hero.eyebrow': 'API open source · licence MIT',
+  'hero.eyebrow': 'API pour la transformation web universelle',
   'hero.lead':
-    'LinkForge est une API REST qui lit une page web à votre place : métadonnées normalisées, captures d’écran, export PDF, extraction sur mesure et texte lisible pour vos agents IA. Le code est ouvert, hébergez-la où vous voulez.',
+    'Omnillink est une API REST qui lit une page web à votre place : métadonnées normalisées, captures d’écran, export PDF, extraction sur mesure et texte lisible pour vos agents IA. Le code est ouvert, hébergez-la où vous voulez.',
   'hero.cta.demo': 'Essayer la démo',
   'hero.cta.docs': 'Lire la référence de l’API',
   'manifest.title': 'Cinq points d’accès, un seul paramètre obligatoire',
@@ -169,7 +169,7 @@ export const home = {
   'demo.content.empty': 'Aucun contenu lisible n’a été trouvé sur cette page.',
 
   'features.title': 'Ce que l’API prend en charge',
-  'features.lead': 'Lire une page inconnue demande plus qu’une requête. Voici ce que LinkForge fait à chaque appel.',
+  'features.lead': 'Lire une page inconnue demande plus qu’une requête. Voici ce que Omnillink fait à chaque appel.',
   'features.pipeline.title': 'HTTP d’abord, navigateur seulement si nécessaire',
   'features.pipeline.body':
     'La page est d’abord lue par une simple requête HTTP. Chromium n’est lancé que si le résultat est pauvre ou si la page est une coquille d’application vide. Le champ `meta.source` vous dit quel chemin a été suivi.',
@@ -208,7 +208,7 @@ export const home = {
 
   'selfHost.title': 'Hébergez-la vous-même',
   'selfHost.lead':
-    'LinkForge est distribué sous licence MIT. Il vous faut Node.js 22 ou plus récent ; Redis est facultatif.',
+    'Omnillink est distribué sous licence MIT. Il vous faut Node.js 22 ou plus récent ; Redis est facultatif.',
   'selfHost.step1': 'Récupérez le code',
   'selfHost.step2': 'Installez les dépendances et Chromium',
   'selfHost.step3': 'Créez votre configuration',
@@ -235,7 +235,7 @@ export const home = {
   'usecases.eyebrow': 'Cas d’usage',
   'usecases.title': 'Pour qui, pour quoi faire',
   'usecases.lead':
-    'LinkForge s’adresse aux équipes qui manipulent des liens : produits grand public, outils internes, agents IA.',
+    'Omnillink s’adresse aux équipes qui manipulent des liens : produits grand public, outils internes, agents IA.',
   'usecases.1.title': 'Aperçus de liens',
   'usecases.1.body':
     'Messagerie, CMS, gestionnaire de favoris : affichez le titre, l’image et la description dès qu’un lien est collé.',
@@ -254,7 +254,7 @@ export const home = {
   'how.step': 'Étape {n}',
   'how.1.title': 'Vous envoyez une URL',
   'how.1.body': 'Une requête `GET` avec l’adresse de la page et, si besoin, quelques options. Aucune clé n’est requise pour commencer.',
-  'how.2.title': 'LinkForge lit la page en sécurité',
+  'how.2.title': 'Omnillink lit la page en sécurité',
   'how.2.body':
     'L’adresse est validée contre les attaques SSRF, puis la page est lue en HTTP. Chromium ne prend le relais que si elle l’exige.',
   'how.3.title': 'Vous recevez un résultat prêt à l’emploi',
@@ -264,13 +264,13 @@ export const home = {
   'selfHost.eyebrow': 'Open source',
   'faq.eyebrow': 'FAQ',
   'faq.title': 'Questions fréquentes',
-  'faq.1.q': 'LinkForge est-il gratuit ?',
+  'faq.1.q': 'Omnillink est-il gratuit ?',
   'faq.1.a':
     'Le logiciel est libre, publié sous licence MIT : vous pouvez l’utiliser, le modifier et l’héberger vous-même. L’instance qui sert ce site est une démonstration, avec une limite de débit.',
   'faq.2.q': 'Faut-il une clé d’API ?',
   'faq.2.a':
     'Non. L’API répond sans authentification. L’en-tête facultatif `x-api-key` relève la limite de débit ; les clés sont définies par l’exploitant de chaque instance.',
-  'faq.3.q': 'Quelles pages LinkForge peut-il lire ?',
+  'faq.3.q': 'Quelles pages Omnillink peut-il lire ?',
   'faq.3.a':
     'Les pages publiques en `http` ou `https`. Les adresses privées, locales ou internes sont refusées par la protection SSRF. Les pages construites en JavaScript sont rendues dans Chromium quand c’est nécessaire.',
   'faq.4.q': 'Les résultats sont-ils à jour ?',
@@ -285,15 +285,15 @@ export const home = {
   'faq.7.q': 'Ce site me suit-il ?',
   'faq.7.a':
     'Non. Il ne dépose aucun cookie et ne charge aucun outil de mesure d’audience. Vos préférences de thème, de langue et d’accessibilité restent dans votre navigateur. Le détail figure dans les [mentions légales](/legal).',
-  'cta.title': 'Essayez LinkForge sur vos propres liens',
+  'cta.title': 'Essayez Omnillink sur vos propres liens',
   'cta.lead': 'La démo tourne sur cette instance. Le code est sur GitHub si vous préférez l’héberger vous-même.',
 };
 
 /** API reference page. */
 export const docs = {
-  'meta.title': 'Référence de l’API · LinkForge',
+  'meta.title': 'Référence de l’API · Omnillink',
   'meta.description':
-    'Référence complète de l’API LinkForge : points d’accès, paramètres, exemples de requêtes et de réponses, erreurs, authentification, limites de débit et cache.',
+    'Référence complète de l’API Omnillink : points d’accès, paramètres, exemples de requêtes et de réponses, erreurs, authentification, limites de débit et cache.',
 
   'title': 'Référence de l’API',
   'lead':
@@ -475,7 +475,7 @@ export const docs = {
 
   'security.title': 'Modèle de sécurité',
   'security.p1':
-    'Une API qui visite des adresses fournies par ses utilisateurs est une cible classique d’attaques SSRF. LinkForge valide chaque destination avant de s’y connecter.',
+    'Une API qui visite des adresses fournies par ses utilisateurs est une cible classique d’attaques SSRF. Omnillink valide chaque destination avant de s’y connecter.',
   'security.li1':
     'Seuls `http` et `https` sont acceptés, sans identifiants dans l’adresse, et sur une liste de ports autorisés (80 et 443 par défaut).',
   'security.li2':
@@ -491,4 +491,104 @@ export const docs = {
     'Un champ vaut `null` quand rien ne correspond ou que la valeur ne peut pas être convertie. Les chaînes sont coupées à 10 000 caractères.',
   'html.note':
     '`/meta`, `/extract` et `/content` ont besoin d’un document HTML : pour une image, un PDF ou tout autre type de fichier, l’API répond `ENOTHTML` (422).',
+};
+
+/** Accessibility page. */
+export const a11y = {
+  'meta.title': 'Accessibilité · Omnillink',
+  'meta.description':
+    'Ce qui a été construit, vérifié et non vérifié en matière d’accessibilité sur le site Omnillink, ses limites connues et comment signaler un problème.',
+  'title': 'Accessibilité',
+  'updated': 'Dernière mise à jour : 18 novembre 2026',
+  'intro':
+    'KAYZEN veut qu’Omnillink soit utilisable par tout le monde, quels que soient le matériel, le logiciel ou la situation de handicap. Le site est construit en visant les critères WCAG 2.2 de niveau AA.',
+  'notice':
+    'Cette page n’est pas une déclaration de conformité. Aucun audit mené par une personne n’a encore été réalisé : elle dit ce qui a été vérifié, ce qui ne l’a pas été, et ce qui reste imparfait.',
+  'built.title': 'Ce qui a été construit',
+  'built.1': 'Un lien d’évitement, des régions de page identifiées, un seul titre principal par page et des titres dans l’ordre.',
+  'built.2': 'Tous les contrôles sont utilisables au clavier : onglets de la démo aux flèches, menu mobile et panneau d’accessibilité refermables avec Échap, focus toujours visible.',
+  'built.3': 'Les couleurs du texte, des contrôles et de l’anneau de focus sont choisies à partir de rapports de contraste calculés, en thème clair comme en thème sombre.',
+  'built.4': 'Un panneau d’options, en bas à gauche de chaque page : taille du texte, contraste renforcé, police lisible Atkinson Hyperlegible, noir pur en thème sombre.',
+  'built.5': 'Les animations sont courtes et désactivées lorsque votre système demande de réduire les mouvements.',
+  'built.6': 'La langue de chaque page est déclarée, ainsi que celle des passages dans une autre langue.',
+  'built.7': 'Les états de chargement, les résultats et les erreurs de la démo sont annoncés par du texte, jamais par la seule couleur.',
+  'built.8': 'Les boutons et les liens de navigation offrent une zone d’au moins 44 pixels de côté.',
+  'checked.title': 'Ce qui a été vérifié',
+  'checked.intro': 'Vérifications menées le 18 novembre 2026, avec des outils automatiques et une relecture des pages rendues :',
+  'checked.1': 'le rapport de contraste de chaque couple texte et fond réellement utilisé, calculé par un script pour les deux thèmes ;',
+  'checked.2': 'le parcours au clavier des onglets, du menu mobile, du sélecteur de langue et du panneau d’accessibilité, dans un navigateur piloté ;',
+  'checked.3': 'l’absence de défilement horizontal à 375 pixels de large et l’absence d’erreur dans la console ;',
+  'checked.4': 'le rendu de chaque page en français et en anglais, en thème clair et en thème sombre, sur écran large et sur téléphone.',
+  'unchecked.title': 'Ce qui n’a pas été vérifié',
+  'unchecked.1': 'La restitution par les lecteurs d’écran (NVDA, JAWS, VoiceOver, TalkBack).',
+  'unchecked.2': 'Un audit critère par critère, WCAG ou RGAA, par une personne formée.',
+  'unchecked.3': 'La commande vocale, les contacteurs et les autres aides techniques.',
+  'unchecked.4': 'Le zoom à 400 % et le mode de contraste forcé du système.',
+  'unchecked.5': 'Les documents PDF produits par l’API à partir de pages tierces.',
+  'limits.title': 'Limites connues',
+  'limits.1': 'La démo affiche du contenu venu d’autres sites. Une capture d’écran est une image sans description détaillée : l’onglet Contenu en donne le texte.',
+  'limits.2': 'La structure du contenu extrait dépend de la page d’origine ; elle peut être incomplète.',
+  'limits.3': 'Les messages d’erreur renvoyés par l’API sont en anglais. Le site les accompagne d’une explication dans la langue de la page.',
+  'limits.4': 'Les exemples de code longs défilent horizontalement à l’intérieur de leur bloc.',
+  'settings.title': 'Adapter l’affichage',
+  'settings.p':
+    'Le bouton rond en bas à gauche ouvre les options d’accessibilité. Vos choix sont enregistrés dans votre navigateur et s’appliquent à toutes les pages. Le bouton en forme de lune, dans l’en-tête, bascule entre thème clair et thème sombre.',
+  'contact.title': 'Signaler un problème',
+  'contact.p': 'Si un contenu ou une fonction vous est inaccessible, dites-le-nous : nous chercherons une solution avec vous.',
+  'contact.email': 'Par courriel : [contact@kayzen-lyon.fr](mailto:contact@kayzen-lyon.fr)',
+  'contact.phone': 'Par téléphone : [+33 4 87 77 68 61](tel:+33487776861)',
+  'contact.issues': 'Sur GitHub : [ouvrir un ticket](https://github.com/kayzen-lyon/linkforge/issues)',
+  'disclaimer': 'Page rédigée avec l’aide d’un outil d’IA. Elle ne remplace ni un audit d’accessibilité ni un conseil juridique.',
+};
+
+/** Legal notice and privacy page. The publisher's personal name appears on this page only. */
+export const legal = {
+  'meta.title': 'Mentions légales et confidentialité · Omnillink',
+  'meta.description':
+    'Éditeur et hébergeur du site Omnillink, et ce que le site enregistre : aucun cookie, aucun traceur, des préférences conservées dans votre navigateur.',
+  'title': 'Mentions légales et confidentialité',
+  'updated': 'Dernière mise à jour : 18 novembre 2026',
+  'intro':
+    'Ce site présente Omnillink, une API open source, et en propose une démonstration. Cette page identifie son éditeur et son hébergeur, puis explique ce que le site enregistre.',
+  'publisher.title': 'Éditeur du site',
+  'publisher.p': 'Le site est édité par Tarek BELHADJ, entrepreneur individuel exerçant sous le nom commercial KAYZEN.',
+  'publisher.form': 'Forme juridique : entreprise individuelle (micro-entreprise)',
+  'publisher.seat': 'Siège social : 6 rue Pierre Termier, 69009 Lyon, France',
+  'publisher.office': 'Locaux : 6 rue de Bourgogne, 69009 Lyon, France',
+  'publisher.siret': 'SIRET : 493 857 262 00098',
+  'publisher.siren': 'SIREN : 493 857 262',
+  'publisher.ape': 'Code APE : 62.01Z',
+  'publisher.vat': 'TVA non applicable, art. 293 B du CGI (franchise en base)',
+  'publisher.phone': 'Téléphone : [+33 4 87 77 68 61](tel:+33487776861)',
+  'publisher.email': 'Adresse électronique : [contact@kayzen-lyon.fr](mailto:contact@kayzen-lyon.fr)',
+  'director.title': 'Directeur de la publication',
+  'director.p': 'Tarek BELHADJ',
+  'host.title': 'Hébergeur',
+  'host.p': 'Le site est hébergé par Vercel Inc., 440 N Barranca Ave #4133, Covina, CA 91723, États-Unis, [vercel.com](https://vercel.com).',
+  'software.title': 'Logiciel et licence',
+  'software.p':
+    'Omnillink est un logiciel libre publié sous licence MIT. Son code source est disponible sur [GitHub](https://github.com/kayzen-lyon/linkforge).',
+  'privacy.title': 'Ce que le site enregistre',
+  'privacy.none':
+    'Le site ne dépose aucun cookie. Il ne charge aucun outil de mesure d’audience, aucune publicité et aucun script tiers. Les polices sont servies par le site lui-même.',
+  'storage.title': 'Préférences conservées dans votre navigateur',
+  'storage.p':
+    'Trois préférences sont enregistrées dans le stockage local de votre navigateur, uniquement quand vous les modifiez. Elles ne sont jamais envoyées au serveur. Vous les effacez en supprimant les données du site dans votre navigateur.',
+  'storage.th.key': 'Nom',
+  'storage.th.purpose': 'Rôle',
+  'storage.theme': 'Thème clair ou sombre choisi.',
+  'storage.lang': 'Langue choisie, français ou anglais.',
+  'storage.a11y': 'Options d’accessibilité : taille du texte, contraste, police, noir pur.',
+  'demo.title': 'Quand vous utilisez la démo',
+  'demo.1': 'L’adresse que vous saisissez est envoyée à l’API, qui va lire cette page. Le résultat est conservé en cache sur le serveur, une heure par défaut. N’y soumettez pas d’adresse contenant un secret ou un jeton personnel.',
+  'demo.2': 'L’aperçu de lien affiche l’image et l’icône de la page directement depuis le site concerné : votre navigateur contacte donc ce site, qui voit votre adresse IP. Aucune adresse de provenance ne lui est transmise.',
+  'demo.3': 'Pour limiter le débit, l’API compte les requêtes par adresse IP, en mémoire, sur une fenêtre d’une minute.',
+  'logs.title': 'Journaux techniques',
+  'logs.p':
+    'Comme tout service en ligne, l’application et son hébergeur produisent des journaux techniques : adresse IP, date et adresse demandée. Leur durée de conservation n’a pas été communiquée : **[durée à préciser par l’éditeur]**.',
+  'rights.title': 'Vos droits',
+  'rights.p':
+    'Pour toute question sur vos données, ou pour exercer vos droits d’accès, de rectification et d’effacement, écrivez à [contact@kayzen-lyon.fr](mailto:contact@kayzen-lyon.fr). Vous pouvez aussi adresser une réclamation à la CNIL.',
+  'disclaimer':
+    'Page rédigée avec l’aide d’un outil d’IA à partir des informations fournies par l’éditeur. Elle ne constitue pas un conseil juridique.',
 };

@@ -379,6 +379,6 @@ export const HEALTH_RESPONSE = json({
 });
 
 export const QUICK_START = `curl "${EXAMPLE_ORIGIN}/api/v1/meta?url=${ENCODED_TARGET}"`;
-export const AUTH_SAMPLE = `curl -H "x-api-key: $LINKFORGE_API_KEY" \\\n  "${EXAMPLE_ORIGIN}/api/v1/meta?url=${ENCODED_TARGET}"`;
+export const AUTH_SAMPLE = `curl -H "x-api-key: $OMNILLINK_API_KEY" \\\n  "${EXAMPLE_ORIGIN}/api/v1/meta?url=${ENCODED_TARGET}"`;
 export const HEALTH_SAMPLE = `curl "${EXAMPLE_ORIGIN}/health"`;
 export const OPENAPI_SAMPLE = `curl "${EXAMPLE_ORIGIN}/api/v1/openapi.json"`;
