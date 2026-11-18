@@ -16,6 +16,7 @@ import type { AppConfig } from './config.js';
 import { AppError, ErrorCode, type ErrorBody } from './lib/errors.js';
 import { healthRoutes } from './routes/health.js';
 import { metaRoutes } from './routes/meta.js';
+import { playgroundRoutes } from './routes/playground.js';
 import { screenshotRoutes } from './routes/screenshot.js';
 import { BrowserPool } from './services/browser-pool.js';
 import { createCache } from './services/cache/index.js';
@@ -116,6 +117,7 @@ export async function buildApp(config: AppConfig): Promise<FastifyInstance> {
 
   // --- Routes -------------------------------------------------------------------
   await app.register(healthRoutes, { pool, cache });
+  await app.register(playgroundRoutes);
   await app.register(
     async (v1) => {
       await v1.register(metaRoutes, {

@@ -1,0 +1,4 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "npm --prefix ../.. run build --workspace @linkforge/web && node scripts/embed-playground.mjs && npm run build"
+}

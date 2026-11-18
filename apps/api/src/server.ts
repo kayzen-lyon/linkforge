@@ -1,12 +1,16 @@
 /**
  * Process entry point: load configuration, start listening, shut down cleanly.
  */
+// Imported here on purpose: Vercel recognises the entry point of a Fastify
+// service by its direct `fastify` import.
+import type { FastifyInstance } from 'fastify';
+
 import { buildApp } from './create-app.js';
 import { ConfigError, loadConfig } from './config.js';
 
 async function main(): Promise<void> {
   const config = loadConfig();
-  const app = await buildApp(config);
+  const app: FastifyInstance = await buildApp(config);
 
   let shuttingDown = false;
   const shutdown = (signal: string): void => {
