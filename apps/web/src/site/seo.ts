@@ -170,7 +170,7 @@ export function headTags(page: PageId, lang: Lang, t: Lookup, faq: readonly FaqE
     <meta name="msapplication-config" content="/browserconfig.xml" />
     <link rel="preload" href="/fonts/outfit-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preload" href="/fonts/plus-jakarta-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
-    <script src="/boot.js"></script>
+    <script src="/boot.js" vite-ignore></script>
     <script type="application/ld+json">${jsonLd(page, lang, t, faq, modified)}</script>`;
 }
 

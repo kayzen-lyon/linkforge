@@ -5,6 +5,8 @@ import type { AppConfig } from '../config.js';
 import { Deadline } from '../lib/deadline.js';
 import { AppError } from '../lib/errors.js';
 import { assertCssSelector } from '../lib/selectors.js';
+import type { TargetHeaders } from '../lib/target-headers.js';
+
 import { parseTargetUrl } from '../security/ssrf.js';
 import { cacheKey, SingleFlight, type Cache } from './cache/index.js';
 import {
@@ -32,6 +34,8 @@ export interface PdfRequest {
   readonly blockAds: boolean;
   /** CSS selector that must be in the DOM before printing; `null` for none. */
   readonly waitForSelector: string | null;
+  /** Caller-chosen request headers for the target; part of the cache key. */
+  readonly headers?: TargetHeaders | null;
   readonly force: boolean;
   /** Cache lifetime for this request; `null` uses the configured default. */
   readonly ttlSeconds: number | null;
@@ -85,6 +89,7 @@ export class PdfService {
       hideBanners: request.hideBanners,
       blockAds: request.blockAds,
       waitForSelector,
+      ...(request.headers != null && { headers: request.headers }),
     });
 
     if (!request.force) {
@@ -110,6 +115,7 @@ export class PdfService {
         deadline,
         reserveMs: PRINT_RESERVE_MS + SCROLL_PASS_BUDGET_MS + IMAGE_SETTLE_BUDGET_MS,
         waitForSelector: request.waitForSelector,
+        requestHeaders: request.headers ?? null,
         guard: { blockAds: request.blockAds },
         contextOptions: { viewport: { width: 1280, height: 800 } },
       },

@@ -63,7 +63,7 @@ describe('GET /api/v1/openapi.json', () => {
     const api = registered.filter((path) => path.startsWith('/api/v1/'));
     expect(api.sort()).toEqual(
       [
-        'check', 'content', 'extract', 'html', 'image', 'links', 'meta', 'meta/batch', 'openapi.json', 'pdf',
+        'check', 'content', 'extract', 'html', 'image', 'insights', 'links', 'meta', 'meta/batch', 'openapi.json', 'pdf',
         'screenshot', 'sitemap', 'tech',
       ].map(
         (p) => `/api/v1/${p}`,
@@ -81,21 +81,21 @@ describe('GET /api/v1/openapi.json', () => {
   });
 
   it('documents the parameters with their constraints', () => {
-    expect(Object.keys(params('/api/v1/meta'))).toEqual(['url', 'render', 'embed', 'force', 'ttl']);
+    expect(Object.keys(params('/api/v1/meta'))).toEqual(['url', 'render', 'embed', 'acceptLanguage', 'userAgent', 'referer', 'force', 'ttl']);
     expect(Object.keys(params('/api/v1/screenshot'))).toEqual([
       'url', 'device', 'width', 'height', 'fullPage', 'selector', 'hide', 'hideBanners',
-      'blockAds', 'waitForSelector', 'waitFor', 'colorScheme', 'format', 'quality', 'force', 'ttl',
+      'blockAds', 'waitForSelector', 'waitFor', 'colorScheme', 'format', 'quality', 'acceptLanguage', 'userAgent', 'referer', 'force', 'ttl',
     ]);
     expect(Object.keys(params('/api/v1/pdf'))).toEqual([
-      'url', 'format', 'landscape', 'printBackground', 'hideBanners', 'blockAds', 'waitForSelector', 'force',
-      'ttl',
+      'url', 'format', 'landscape', 'printBackground', 'hideBanners', 'blockAds', 'waitForSelector',
+      'acceptLanguage', 'userAgent', 'referer', 'force', 'ttl',
     ]);
     expect(Object.keys(params('/api/v1/extract'))).toEqual([
-      'url', 'fields', 'render', 'waitForSelector', 'force', 'ttl',
+      'url', 'fields', 'render', 'waitForSelector', 'acceptLanguage', 'userAgent', 'referer', 'force', 'ttl',
     ]);
     expect(Object.keys(params('/api/v1/content'))).toEqual([
       'url', 'render', 'format', 'mainContent', 'include', 'exclude', 'citations',
-      'waitForSelector', 'force', 'ttl',
+      'waitForSelector', 'acceptLanguage', 'userAgent', 'referer', 'force', 'ttl',
     ]);
     expect(params('/api/v1/screenshot')['hideBanners']!.schema).toMatchObject({ default: true });
     expect(params('/api/v1/pdf')['hideBanners']!.schema).toMatchObject({ default: false });

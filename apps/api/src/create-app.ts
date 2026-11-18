@@ -13,11 +13,13 @@ import type { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
 import Fastify, { type FastifyError, type FastifyInstance } from 'fastify';
 
 import type { AppConfig } from './config.js';
+import { CircuitBreaker } from './lib/circuit-breaker.js';
 import { AppError, ErrorCode, type ErrorBody } from './lib/errors.js';
 import { buildOpenApiDocument } from './openapi.js';
 import { contentDoc, contentRoutes } from './routes/content.js';
 import { extractDoc, extractRoutes } from './routes/extract.js';
 import { healthDoc, healthRoutes } from './routes/health.js';
+import { insightsDoc, insightsRoutes } from './routes/insights.js';
 import { metaBatchDoc, metaDoc, metaRoutes } from './routes/meta.js';
 import { openApiDoc, openApiRoutes } from './routes/openapi.js';
 import { pdfDoc, pdfRoutes } from './routes/pdf.js';
@@ -49,14 +51,26 @@ import { PageLoader } from './services/page-loader.js';
 import { PdfService } from './services/pdf-service.js';
 import { Renderer } from './services/renderer.js';
 import { ScreenshotService } from './services/screenshot-service.js';
+import { InsightsService } from './services/insights-service.js';
 import { SiteToolsService } from './services/site-tools-service.js';
+import { TechService } from './services/tech-service.js';
+
+/** Seams for tests only. Nothing here is reachable from the environment. */
+export interface AppSeams {
+  /**
+   * Extra certificate authority (PEM) trusted by the raw HTTP fetcher, so a
+   * test can serve https from a locally generated CA. Verification itself is
+   * never relaxed.
+   */
+  readonly tlsCa?: string;
+}
 
 /**
  * Creates the HTTP application and its services.
  *
  * Resources (browser, cache connection, sockets) are released by `app.close()`.
  */
-export async function buildApp(config: AppConfig): Promise<FastifyInstance> {
+export async function buildApp(config: AppConfig, seams: AppSeams = {}): Promise<FastifyInstance> {
   const app = Fastify({
     logger: { level: config.logLevel },
     trustProxy: config.trustProxy,
@@ -73,8 +87,13 @@ export async function buildApp(config: AppConfig): Promise<FastifyInstance> {
   // The browser's only route to the network (started with the first launch).
   const egress = new EgressProxy(config.ssrf);
   const pool = new BrowserPool(config.browser, app.log, egress);
-  const fetcher = new SafeFetcher(config);
-  const renderer = new Renderer(pool, config, egress);
+  // One breaker for both paths: a host that times out over HTTP is not rendered either.
+  const breaker = new CircuitBreaker(config.circuitBreaker.threshold, config.circuitBreaker.cooldownMs);
+  const fetcher = new SafeFetcher(config, {
+    breaker,
+    ...(seams.tlsCa !== undefined && { ca: seams.tlsCa }),
+  });
+  const renderer = new Renderer(pool, config, egress, breaker);
   const metaService = new MetaService(config, cache, fetcher, renderer);
   const screenshotService = new ScreenshotService(config, cache, renderer);
   const pdfService = new PdfService(config, cache, renderer);
@@ -82,6 +101,8 @@ export async function buildApp(config: AppConfig): Promise<FastifyInstance> {
   const extractService = new ExtractService(config, cache, pageLoader);
   const contentService = new ContentService(config, cache, pageLoader);
   const siteTools = new SiteToolsService(config, cache, fetcher, pageLoader);
+  const techService = new TechService(config, cache, fetcher, renderer);
+  const insightsService = new InsightsService(config, cache, renderer);
   const apiKeys = new ApiKeyRegistry(config.apiKeys);
 
   app.addHook('onClose', async () => {
@@ -190,7 +211,8 @@ export async function buildApp(config: AppConfig): Promise<FastifyInstance> {
       await v1.register(pdfRoutes, { pdfService });
       await v1.register(extractRoutes, { extractService });
       await v1.register(contentRoutes, { contentService });
-      await v1.register(siteToolsRoutes, { siteTools });
+      await v1.register(siteToolsRoutes, { siteTools, techService });
+      await v1.register(insightsRoutes, { insightsService });
       await v1.register(openApiRoutes, {
         document: buildOpenApiDocument([
           metaDoc,
@@ -202,6 +224,7 @@ export async function buildApp(config: AppConfig): Promise<FastifyInstance> {
           linksDoc,
           htmlDoc,
           techDoc,
+          insightsDoc,
           imageDoc,
           sitemapDoc,
           checkDoc,

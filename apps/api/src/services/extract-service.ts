@@ -3,6 +3,7 @@
  */
 import type { AppConfig } from '../config.js';
 import { Deadline } from '../lib/deadline.js';
+import type { TargetHeaders } from '../lib/target-headers.js';
 import { parseTargetUrl } from '../security/ssrf.js';
 import { cacheKey, getJson, setJson, SingleFlight, type Cache } from './cache/index.js';
 import {
@@ -22,6 +23,8 @@ export interface ExtractRequest {
   readonly fields: string;
   /** CSS selector to wait for (implies a browser render); `null` for none. */
   readonly waitForSelector: string | null;
+  /** Caller-chosen request headers for the target; part of the cache key. */
+  readonly headers?: TargetHeaders | null;
   /** Bypass the cache read (the fresh result is still written back). */
   readonly force: boolean;
   /** Cache lifetime for this request; `null` uses the configured default. */
@@ -62,6 +65,7 @@ export class ExtractService {
     const target = parseTargetUrl(request.url, this.config.ssrf);
     const rules = parseFieldRules(request.fields);
     const waitForSelector = parseWaitForSelector(request.waitForSelector, request.render);
+    const headers = request.headers ?? null;
     const ttlSeconds = request.ttlSeconds ?? this.config.cache.extractTtlSeconds;
     // Keyed on the parsed rules, so formatting differences in the JSON still hit.
     const key = cacheKey('extract', {
@@ -69,6 +73,7 @@ export class ExtractService {
       render: request.render,
       rules,
       waitForSelector,
+      ...(headers !== null && { headers }),
     });
 
     if (!request.force) {
@@ -77,7 +82,7 @@ export class ExtractService {
     }
 
     const fresh = await this.flights.run(key, async () => {
-      const result = await this.compute(target, request.render, rules, waitForSelector, deadline);
+      const result = await this.compute(target, request.render, rules, waitForSelector, deadline, headers);
       await setJson(this.cache, key, result, ttlSeconds);
       return result;
     });
@@ -90,6 +95,7 @@ export class ExtractService {
     rules: FieldRules,
     waitForSelector: string | null,
     deadline: Deadline,
+    headers: TargetHeaders | null,
   ): Promise<CachedExtract> {
     let staticFields: Record<string, FieldValue> | null = null;
     // In `auto` mode a field left empty by the static markup is a hint that the
@@ -98,6 +104,7 @@ export class ExtractService {
       render,
       deadline,
       waitForSelector,
+      headers,
       isSufficient: (candidate) => {
         staticFields = extractFields(candidate.html, candidate.url, rules);
         return !hasEmptyField(staticFields);

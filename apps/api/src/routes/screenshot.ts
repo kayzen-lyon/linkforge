@@ -8,6 +8,8 @@ import {
   CACHE_HEADERS,
   cacheControl,
   ForceParam,
+  TargetHeaderParams,
+  targetHeadersOf,
   TtlParam,
   UrlParam,
   WaitForSelectorParam,
@@ -96,6 +98,7 @@ const ScreenshotQuery = Type.Object(
     quality: Type.Optional(
       Type.Integer({ minimum: 1, maximum: 100, default: 80, description: 'JPEG only.' }),
     ),
+    ...TargetHeaderParams,
     force: ForceParam,
     ttl: TtlParam,
   },
@@ -161,6 +164,7 @@ export const screenshotRoutes: FastifyPluginAsyncTypebox<ScreenshotRouteOptions>
       hideBanners: request.query.hideBanners ?? true,
       blockAds: request.query.blockAds ?? false,
       waitForSelector: request.query.waitForSelector ?? null,
+      headers: targetHeadersOf(request.query),
       force,
       ttlSeconds: request.query.ttl ?? null,
     });

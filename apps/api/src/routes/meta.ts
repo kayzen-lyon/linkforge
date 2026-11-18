@@ -14,6 +14,8 @@ import {
   NOT_MODIFIED,
   RenderParam,
   sendEnvelope,
+  TargetHeaderParams,
+  targetHeadersOf,
   TtlParam,
   UrlParam,
 } from './shared.js';
@@ -34,6 +36,7 @@ const MetaQuery = Type.Object(
           'number or boolean, raw JSON for an object or array, 404 when absent or null.',
       }),
     ),
+    ...TargetHeaderParams,
     force: ForceParam,
     ttl: TtlParam,
   },
@@ -236,6 +239,7 @@ export const metaRoutes: FastifyPluginAsyncTypebox<MetaRouteOptions> = async (ap
     const result = await options.metaService.getMetadata({
       url,
       render,
+      headers: targetHeadersOf(request.query),
       force,
       ttlSeconds: ttl ?? null,
     });

@@ -7,6 +7,8 @@ import type { AppConfig } from '../config.js';
 import { Deadline } from '../lib/deadline.js';
 import { AppError } from '../lib/errors.js';
 import { assertCssSelector, parseSelectorList } from '../lib/selectors.js';
+import type { TargetHeaders } from '../lib/target-headers.js';
+
 import { parseTargetUrl } from '../security/ssrf.js';
 import { cacheKey, SingleFlight, type Cache } from './cache/index.js';
 import {
@@ -49,6 +51,8 @@ export interface ScreenshotRequest {
   readonly blockAds: boolean;
   /** CSS selector that must be in the DOM before the capture; `null` for none. */
   readonly waitForSelector: string | null;
+  /** Caller-chosen request headers for the target; part of the cache key. */
+  readonly headers?: TargetHeaders | null;
   readonly force: boolean;
   /** Cache lifetime for this request; `null` uses the configured default. */
   readonly ttlSeconds: number | null;
@@ -130,6 +134,7 @@ export class ScreenshotService {
       hideBanners: request.hideBanners,
       blockAds: request.blockAds,
       waitForSelector,
+      ...(request.headers != null && { headers: request.headers }),
     });
 
     if (!request.force) {
@@ -168,6 +173,7 @@ export class ScreenshotService {
           request.waitForMs +
           (request.selector === null ? 0 : SELECTOR_TIMEOUT_MS),
         waitForSelector: request.waitForSelector,
+        requestHeaders: request.headers ?? null,
         guard: { blockAds: request.blockAds },
         contextOptions: {
           ...preset,

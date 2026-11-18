@@ -1,0 +1,8 @@
+const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["assets/Contact-B1x9aQ2f.js","assets/vendor-C8w1kZ2p.js"])))=>i.map(i=>d[i]);
+(function(){const e=document.createElement("link").relList;if(e&&e.supports&&e.supports("modulepreload"))return})();
+/* Shape of a minified React 19 production build: the renderer registers itself with these fields. */
+var Zc={bundleType:0,version:"19.1.0",rendererPackageName:"react-dom",currentDispatcherRef:null,reconcilerVersion:"19.1.0"};
+var ks=Math.random().toString(36).slice(2),Kt="__reactFiber$"+ks,qn="__reactProps$"+ks,Wr="__reactContainer$"+ks;
+window.__reactRouterVersion="7.5.0";
+function mount(t){t[Wr]={current:null};t.innerHTML='<header class="sticky top-0 z-50 flex items-center justify-between px-6 py-4 bg-white/80 backdrop-blur-md border-b border-slate-200"><a class="text-lg font-semibold tracking-tight text-slate-900" href="/">Atelier Lumen</a><nav class="hidden md:flex items-center gap-8 text-sm font-medium text-slate-600"><a class="hover:text-slate-900 transition-colors" href="/projets">Projets</a><a class="hover:text-slate-900 transition-colors" href="/contact">Contact</a></nav></header><main class="mx-auto max-w-5xl px-6 py-24"><h1 id="hero" class="text-4xl md:text-6xl font-bold leading-tight text-slate-900">Des sites qui chargent vite.</h1><p class="mt-6 max-w-2xl text-lg text-slate-600">Conception, développement et suivi.</p><div class="mt-10 grid grid-cols-1 md:grid-cols-3 gap-6"><div class="rounded-2xl bg-slate-50 p-6 shadow-sm">Audit</div><div class="rounded-2xl bg-slate-50 p-6 shadow-sm">Design</div><div class="rounded-2xl bg-indigo-600 p-6 text-white shadow-lg">Code</div></div></main>';t.firstChild[Kt]={};t.firstChild[qn]={}}
+mount(document.getElementById("root"));

@@ -112,6 +112,26 @@ const PAIRS = [
   ['--gold', '--code-bg', 4.5, 'GET verb in the request line'],
   [WHITE, '--code-bg', 4.5, 'Copy button, selected code tab'],
   ['hsl(213 56% 14%)', '--gold', 4.5, 'GET badge in the reference'],
+  // Second pass: status colours, overlays, console.
+  ['--ok', '--background', 4.5, 'Valid JSON message, status 200'],
+  ['--ok', '--card', 4.5, 'Success values on cards'],
+  ['--ok', '--sunken', 4.5, 'Status value in the facts bar'],
+  ['--ok', '--ok-soft', 4.5, 'Success badge'],
+  ['--destructive', '--sunken', 4.5, 'Error status in the facts bar'],
+  ['--destructive', '--card', 4.5, 'Error icon on its tile'],
+  ['--muted-foreground', '--sunken', 4.5, 'Fact labels, search footer'],
+  ['--foreground', '--sunken', 4.5, 'Fact values'],
+  ['--primary', '--card', 4.5, 'Current language, search group titles'],
+  ['--navy', '--primary-soft', 4.5, 'Selected use case title'],
+  ['--muted-foreground', '--muted', 3, 'Keyboard key border'],
+  ['--navy', '--muted', 3, 'Timing bar on its track'],
+  ['--ok', '--muted', 3, 'Server timing bar on its track'],
+  ['--primary', '--background', 3, 'Progress ring, reading bar'],
+  ['hsl(0 0% 100%)', 'hsl(213 56% 14%)', 4.5, 'Notification text'],
+  ['--gold', 'hsl(213 56% 14%)', 3, 'Notification icon'],
+  ['hsl(0 85% 78%)', 'hsl(213 56% 14%)', 3, 'Notification error icon'],
+  ['--code-fg', '--code-bg', 4.5, 'JSON viewer, hero request'],
+  [white(0.75), '--navy-deep', 4.5, 'KAYZEN block text'],
 ];
 
 let failures = 0;
