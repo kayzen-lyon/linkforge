@@ -9,6 +9,9 @@ import { isAbsolute, relative, resolve, sep } from 'node:path';
 const EXTENSIONS: Readonly<Record<string, string>> = {
   'image/png': 'png',
   'image/jpeg': 'jpg',
+  // An animated PNG is a PNG to anything that does not animate it.
+  'image/apng': 'png',
+  'image/svg+xml': 'svg',
   'application/pdf': 'pdf',
 };
 

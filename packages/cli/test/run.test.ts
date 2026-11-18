@@ -79,11 +79,14 @@ describe('help and version', () => {
   it('prints the main help on stdout with --help, on stderr without arguments', async () => {
     const help = await cli(['--help']);
     expect(help.code).toBe(EXIT.ok);
-    expect(help.stdout).toContain('Commands:');
+    expect(help.stdout).toContain('Read a page:');
+    for (const name of ['meta', 'batch', 'links', 'html', 'tech', 'image', 'sitemap', 'check', 'insights', 'tables', 'oembed', 'favicon', 'palette', 'qr', 'og', 'animation', 'shot', 'pdf', 'extract', 'content']) {
+      expect(help.stdout).toMatch(new RegExp(`^  ${name} +\\S`, 'm'));
+    }
     const bare = await cli([]);
     expect(bare.code).toBe(EXIT.usage);
     expect(bare.stdout).toBe('');
-    expect(bare.stderr).toContain('Commands:');
+    expect(bare.stderr).toContain('Make a file:');
   });
 
   it.each(['meta', 'shot', 'pdf', 'extract', 'content'])('documents every flag of `%s --help`', async (command) => {
@@ -145,7 +148,8 @@ describe('meta', () => {
     expect(code).toBe(EXIT.ok);
     expect(stderr).toBe('');
     expect(stdout).toContain('Title of ok.test\n  https://ok.test/page\n  A page used by the tests.');
-    expect(stdout).toContain('  Feeds      https://ok.test/feed.xml');
+    expect(stdout).toContain('  Feeds         https://ok.test/feed.xml');
+    expect(stdout).toContain('  Twitter       summary_large_image · @example');
     expect(stdout).not.toContain('\u001b');
   });
 

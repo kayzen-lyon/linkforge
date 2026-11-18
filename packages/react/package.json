@@ -1,7 +1,7 @@
 {
   "name": "@omnillink/react",
   "version": "0.1.0",
-  "description": "React bindings for Omnillink: an SSR-safe <LinkPreview> card and a useLinkMeta() hook.",
+  "description": "React bindings for Omnillink: <LinkPreview>, <QrCode>, <OgImage> and hooks over the API (link metadata, technologies, link check, palette…), SSR-safe.",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -36,7 +36,9 @@
     "metadata",
     "ssr",
     "nextjs",
-    "hook"
+    "hook",
+    "qr-code",
+    "og-image"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",

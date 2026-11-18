@@ -1,7 +1,7 @@
 {
   "name": "@omnillink/mcp",
   "version": "0.1.0",
-  "description": "Model Context Protocol server for Omnillink: read pages as Markdown, get link metadata, extract fields, take screenshots and save PDFs from any AI agent.",
+  "description": "Model Context Protocol server for Omnillink: read pages as Markdown, list links and tables, extract fields, check links, detect technologies, take screenshots and save PDFs, as tools for AI agents.",
   "license": "MIT",
   "repository": {
     "type": "git",

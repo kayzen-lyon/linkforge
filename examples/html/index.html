@@ -31,6 +31,10 @@
     <h2>The client, without the card</h2>
     <pre id="output">Loading…</pre>
 
+    <h2>URLs for <code>src</code> attributes</h2>
+    <p>No request from JavaScript: the client only builds the URL, the browser fetches the image.</p>
+    <p><img id="qr" alt="QR code of https://example.com" width="160" height="160"> <img id="icon" alt="Icon of github.com" width="32" height="32"></p>
+
     <script type="module">
       import { createClient, OmnillinkError } from '../../packages/sdk/dist/index.js';
 
@@ -45,11 +49,18 @@
       const output = document.querySelector('#output');
       try {
         const omnillink = createClient({ baseUrl: api });
-        const { data, meta } = await omnillink.meta('https://example.com');
+        // A QR code and the best icon of a site, straight from the URL builders.
+        document.querySelector('#qr').src = omnillink.qrUrl('https://example.com', { size: 320 });
+        document.querySelector('#icon').src = omnillink.faviconUrl('https://github.com');
+
+        const { data, meta, response } = await omnillink.meta('https://example.com');
+        // `response` is what the headers said: cache state, request id, quota left.
+        const summary = { title: data.title, description: data.description, source: meta.source, cache: response.cache, remaining: response.rateLimit?.remaining ?? null };
         // textContent, never innerHTML: the metadata comes from a third-party page.
-        output.textContent = JSON.stringify({ title: data.title, description: data.description, source: meta.source }, null, 2);
+        output.textContent = JSON.stringify(summary, null, 2);
       } catch (error) {
-        output.textContent = error instanceof OmnillinkError ? `${error.code} (${error.status}): ${error.message}` : String(error);
+        // `retryable` tells a transient failure (quota, busy pool, open circuit) from a final one.
+        output.textContent = error instanceof OmnillinkError ? `${error.code} (${error.status}): ${error.message}${error.retryable ? ' — try again later' : ''}` : String(error);
       }
     </script>
   </body>

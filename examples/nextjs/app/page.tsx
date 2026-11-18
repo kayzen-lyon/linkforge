@@ -1,6 +1,6 @@
 import { createClient, OmnillinkError } from '@omnillink/sdk';
 
-import { LinkCard, LinkTitle } from './components/link-card';
+import { LinkCard, LinkFacts, LinkQr, LinkTitle } from './components/link-card';
 
 const baseUrl = process.env.OMNILLINK_URL ?? 'https://omnillink.kayzen-lyon.com';
 const url = 'https://github.com';
@@ -33,6 +33,8 @@ export default function Page() {
       <p>
         With the hook: <LinkTitle url={url} baseUrl={baseUrl} />
       </p>
+      <LinkFacts url={url} baseUrl={baseUrl} />
+      <LinkQr url={url} baseUrl={baseUrl} />
 
       <h2>Through your own route</h2>
       <p>

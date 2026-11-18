@@ -78,7 +78,8 @@ describe('meta()', () => {
     expect(lastUrl().searchParams.get('url')).toBe(TARGET);
     expect([...lastUrl().searchParams.keys()]).toEqual(['url']);
     expect(lastInit().method).toBe('GET');
-    expect(result).toEqual({ data, meta: { cached: true, source: 'http', durationMs: 12 } });
+    expect(result).toMatchObject({ data, meta: { cached: true, source: 'http', durationMs: 12 } });
+    expect(Object.keys(result).sort()).toEqual(['data', 'meta', 'response']);
     expectTypeOf(result.data).toEqualTypeOf<LinkMetadata>();
   });
 

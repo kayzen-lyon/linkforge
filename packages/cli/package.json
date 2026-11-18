@@ -1,7 +1,7 @@
 {
   "name": "@omnillink/cli",
   "version": "0.1.0",
-  "description": "The Omnillink link-intelligence API from the command line: metadata, screenshots, PDFs, CSS extraction and readable content.",
+  "description": "The Omnillink link-intelligence API from the command line: metadata, content, extraction, links, tables, technologies, link checks, sitemaps, screenshots, PDFs, QR codes and social cards.",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -38,7 +38,11 @@
     "screenshot",
     "pdf",
     "markdown",
-    "scraping"
+    "scraping",
+    "qr-code",
+    "sitemap",
+    "link-checker",
+    "og-image"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",

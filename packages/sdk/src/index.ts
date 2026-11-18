@@ -1,4 +1,4 @@
-export { createClient, DEFAULT_TIMEOUT_MS, type OmnillinkClient } from './client.js';
+export { createClient, responseInfo, DEFAULT_TIMEOUT_MS, type OmnillinkClient } from './client.js';
 export {
   OmnillinkError,
   isOmnillinkError,

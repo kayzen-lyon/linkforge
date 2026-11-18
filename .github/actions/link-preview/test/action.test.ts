@@ -7,7 +7,7 @@ import { promisify } from 'node:util';
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
-import { escapeData, escapeText, getInput, outputRecord, renderSummary, run, safeUrl, screenshotName } from '../src/action.js';
+import { escapeData, escapeText, getInput, outputRecord, parseUrlList, renderCheckSummary, renderSummary, run, safeUrl, screenshotName } from '../src/action.js';
 import { PNG, startStub, type Stub } from './stub.js';
 
 const bundle = fileURLToPath(new URL('../dist/index.mjs', import.meta.url));
@@ -117,6 +117,15 @@ describe('helpers', () => {
         publisher: '@everyone',
         lang: 'en',
         date: null,
+        dateModified: '<img src=x>',
+        type: null,
+        themeColor: null,
+        robots: null,
+        oembed: null,
+        alternates: [],
+        twitter: { card: null, site: null },
+        paywalled: null,
+        domain: 'example.com',
         image: { url: 'javascript:alert(2)', width: null, height: null, type: null, alt: null },
         images: [],
         favicon: null,
@@ -255,7 +264,126 @@ describe('run()', () => {
   });
 });
 
+describe('check-links mode', () => {
+  const LIST = ['# pages of the release notes', 'https://site.test/old', '', 'https://broken.test/x', 'https://site.test/old'].join('\n');
+
+  it('parses a list: one URL per line, comments and duplicates dropped', () => {
+    expect(parseUrlList(LIST)).toEqual(['https://site.test/old', 'https://broken.test/x']);
+    expect(parseUrlList('https://a.test/, https://b.test/  https://c.test/\r\n')).toEqual(['https://a.test/', 'https://b.test/', 'https://c.test/']);
+    expect(parseUrlList('\n# nothing\n')).toEqual([]);
+  });
+
+  it('checks every link, fails the step on a broken one and writes a table', async () => {
+    const { code, log, outputs, summary } = await action({ mode: 'check-links', urls: LIST });
+    expect(code).toBe(1);
+    expect(stub.requests.map((request) => `${request.endpoint} ${request.query.get('url')}`)).toEqual(['check https://site.test/old', 'check https://broken.test/x']);
+    expect(outputs).toMatchObject({ ok: 'false', 'error-code': 'EBROKENLINK', 'checked-count': '2', 'broken-count': '1', title: '', metadata: '' });
+    expect(JSON.parse(outputs['results'] ?? '')).toEqual([
+      { url: 'https://site.test/old', ok: true, status: 200, finalUrl: 'https://site.test/', redirects: 2, error: null },
+      { url: 'https://broken.test/x', ok: false, status: 404, finalUrl: 'https://broken.test/x', redirects: 0, error: null },
+    ]);
+    expect(summary).toContain('<h3>🔗 Link check: 1 of 2 link(s) broken</h3>');
+    expect(summary).toContain('<tr><td>✅</td><td><a href="https://site.test/old">');
+    expect(summary).toMatch(/<td>200<\/td><td>2<\/td><td><a href="https:\/\/site\.test\/">/);
+    expect(summary).toMatch(/<tr><td>❌<\/td><td><a href="https:\/\/broken\.test\/x">.*<td>404<\/td>/);
+    expect(summary).not.toMatch(/\n\n(?!$)/);
+    expect(log).toContain('::error title=Omnillink link check::1 of 2 link(s) broken or unreachable; see the job summary');
+    // The URLs themselves never reach the log.
+    expect(log).not.toContain('broken.test');
+  });
+
+  it('succeeds when every link works', async () => {
+    const { code, outputs, summary, log } = await action({ mode: 'check-links', urls: 'https://site.test/old' });
+    expect(code).toBe(0);
+    expect(outputs).toMatchObject({ ok: 'true', 'error-code': '', 'checked-count': '1', 'broken-count': '0' });
+    expect(summary).toContain('1 link(s), all working');
+    expect(log).not.toContain('::error');
+  });
+
+  it('reports a check that could not be made with its Omnillink code, and only warns with fail-on-error: false', async () => {
+    const { code, log, outputs, summary } = await action({ mode: 'check-links', urls: 'https://forbidden.test/\nhttps://site.test/old', 'fail-on-error': 'false' });
+    expect(code).toBe(0);
+    expect(outputs).toMatchObject({ ok: 'false', 'error-code': 'EFORBIDDENURL', 'broken-count': '1' });
+    expect(JSON.parse(outputs['results'] ?? '')[0]).toEqual({ url: 'https://forbidden.test/', ok: false, status: null, finalUrl: null, redirects: null, error: 'EFORBIDDENURL' });
+    expect(summary).toContain('<td>⚠️</td>');
+    expect(summary).toContain('<code>EFORBIDDENURL</code>');
+    expect(log).toContain('::warning title=Omnillink link check::');
+    expect(log).not.toContain('::error');
+  });
+
+  it('accepts `url` as one more link, and needs at least one', async () => {
+    const one = await action({ mode: 'check-links', url: 'https://site.test/old' });
+    expect(one.outputs['checked-count']).toBe('1');
+    const none = await action({ mode: 'check-links' });
+    expect(none.code).toBe(1);
+    expect(none.outputs['error-code']).toBe('EINPUT');
+    expect(none.log).toContain('needs the input "urls"');
+  });
+
+  it('refuses a list that is too long or holds something that is not a URL, before any request', async () => {
+    const long = await action({ mode: 'check-links', urls: Array.from({ length: 101 }, (_, index) => `https://h${index}.test/`).join('\n') });
+    expect(long.outputs['error-code']).toBe('EINPUT');
+    expect(long.log).toContain('at most 100 per step');
+    const bad = await action({ mode: 'check-links', urls: 'https://site.test/\njavascript:alert(1)' });
+    expect(bad.outputs['error-code']).toBe('EINPUT');
+    expect(bad.log).toContain('must only list absolute http(s) URLs');
+    expect(stub.requests).toHaveLength(0);
+  });
+
+  it('keeps the API key out of everything', async () => {
+    const { log, outputs, summary } = await action({ mode: 'check-links', urls: 'https://echo-key.test/\nhttps://site.test/old', 'api-key': API_KEY, 'fail-on-error': 'false' });
+    expect(stub.requests.every((request) => request.headers['x-api-key'] === API_KEY)).toBe(true);
+    expect(log.split('\n').filter((line) => line.includes(API_KEY))).toEqual([`::add-mask::${API_KEY}`]);
+    expect(JSON.stringify(outputs)).not.toContain(API_KEY);
+    expect(summary).not.toContain(API_KEY);
+    expect(summary).toContain('Unknown key');
+  });
+
+  it('renders a table that a redirect target cannot script', () => {
+    const html = renderCheckSummary([
+      {
+        url: 'https://example.com/',
+        ok: true,
+        check: {
+          url: 'https://example.com/',
+          finalUrl: 'javascript:alert(1)//<script>',
+          ok: true,
+          status: 200,
+          redirects: [
+            { url: 'https://example.com/', status: 302, durationMs: 1, location: 'javascript:alert(1)' },
+            { url: 'javascript:alert(1)', status: 200, durationMs: 1, location: null },
+          ],
+          contentType: null,
+          contentLength: null,
+          tls: { subject: '<b>x</b>', issuer: null, validFrom: '', validTo: '', daysLeft: 12 },
+          durationMs: 2,
+        },
+      },
+      { url: 'https://example.com/b', ok: false, error: { code: '</td><script>', message: '**bold** @everyone' } },
+    ]);
+    expect(html).not.toContain('<script');
+    expect(html).not.toContain('href="javascript:');
+    expect(html).not.toContain('@everyone');
+    expect(html).not.toContain('**');
+    expect(html).toContain('12&#32;d');
+  });
+
+  it('refuses an unknown mode', async () => {
+    const { code, log } = await action({ mode: 'crawl', url: 'https://ok.test/' });
+    expect(code).toBe(1);
+    expect(log).toContain('Input "mode" must be one of: preview, check-links');
+  });
+});
+
 describe('dist/index.mjs, as the runner executes it', () => {
+  it('runs the check-links mode standalone', async () => {
+    const { stdout } = await promisify(execFile)(process.execPath, [bundle], {
+      env: { PATH: process.env['PATH'] ?? '', ...environment({ mode: 'check-links', urls: 'https://site.test/old' }) },
+    });
+    expect(stdout).toContain('Checking 1 link(s)');
+    expect(parseOutputs(await readFile(outputFile, 'utf8'))['broken-count']).toBe('0');
+  });
+
   it('runs standalone and exits 0', async () => {
     const { stdout } = await promisify(execFile)(process.execPath, [bundle], {
       env: { PATH: process.env['PATH'] ?? '', ...environment({ url: 'https://ok.test/bundle' }) },

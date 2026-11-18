@@ -90,6 +90,38 @@ export function shrinkJson(value: unknown, maxChars: number): Shrunk {
   };
 }
 
+export interface FittedList {
+  /** Valid JSON: an array with one item per line. */
+  readonly json: string;
+  /** How many items, from the first, are in `json`. */
+  readonly kept: number;
+  /** Set when even the first item had to be clipped to fit. */
+  readonly notice: string | undefined;
+}
+
+/**
+ * Serialises the longest prefix of `items` that fits `maxChars`, one item per
+ * line. Whole items are dropped from the end, never clipped in the middle, so
+ * the caller can say exactly where the list stops.
+ */
+export function fitList(items: readonly unknown[], maxChars: number): FittedList {
+  const lines: string[] = [];
+  let size = 3; // "[", the newline before "]", and "]"
+  for (const item of items) {
+    const line = ` ${JSON.stringify(item)}`;
+    // Each line costs itself and the newline before it, plus a comma after the previous one.
+    const cost = line.length + 1 + (lines.length === 0 ? 0 : 1);
+    if (size + cost > maxChars) break;
+    lines.push(line);
+    size += cost;
+  }
+  if (lines.length === 0 && items.length > 0) {
+    const shrunk = shrinkJson([items[0]], maxChars);
+    return { json: shrunk.json, kept: 1, notice: shrunk.notice };
+  }
+  return { json: lines.length === 0 ? '[]' : `[\n${lines.join(',\n')}\n]`, kept: lines.length, notice: undefined };
+}
+
 /**
  * Wraps text that came from a web page between two markers carrying a nonce
  * drawn for this one result. The page cannot know the nonce, so it cannot

@@ -33,6 +33,8 @@ export interface NumberSpec extends BaseSpec {
   readonly valueName: string;
   readonly min?: number;
   readonly max?: number;
+  /** Accept a decimal value (`0.8`) instead of an integer. */
+  readonly decimal?: boolean;
 }
 
 export interface EnumSpec extends BaseSpec {
@@ -139,8 +141,10 @@ function parseNumber(spec: NumberSpec, raw: string): number {
       : min !== undefined
         ? ` greater than or equal to ${min}`
         : '';
-  if (!Number.isInteger(value) || (min !== undefined && value < min) || (max !== undefined && value > max)) {
-    throw new UsageError(`--${spec.name} expects an integer${range}, got ${JSON.stringify(raw)}`);
+  const shaped = spec.decimal === true ? Number.isFinite(value) : Number.isInteger(value);
+  if (!shaped || (min !== undefined && value < min) || (max !== undefined && value > max)) {
+    const kind = spec.decimal === true ? 'a number' : 'an integer';
+    throw new UsageError(`--${spec.name} expects ${kind}${range}, got ${JSON.stringify(raw)}`);
   }
   return value;
 }

@@ -41,6 +41,10 @@
     "open-graph",
     "screenshot",
     "pdf",
+    "qr-code",
+    "og-image",
+    "oembed",
+    "sitemap",
     "web-component",
     "custom-element"
   ],
@@ -48,7 +52,8 @@
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:browser": "node test/browser/e2e.mjs"
+    "test:browser": "node test/browser/e2e.mjs",
+    "test:contract": "node test/contract/contract.mjs"
   },
   "devDependencies": {
     "typescript": "^5.9.3",

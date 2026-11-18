@@ -1,7 +1,7 @@
 import { OmnillinkError } from '@omnillink/sdk';
 import { describe, expect, it } from 'vitest';
 
-import { fence, inline, shrinkJson, sliceText } from '../src/bounds.js';
+import { fence, fitList, inline, shrinkJson, sliceText } from '../src/bounds.js';
 import { ConfigError, DEFAULT_BASE_URL, readConfig } from '../src/config.js';
 import { validate } from '../src/schema.js';
 import { describeError } from '../src/server.js';
@@ -103,6 +103,27 @@ describe('bounding', () => {
     expect(notice).toContain('only a raw preview');
   });
 
+  it('fits a list by dropping whole items from the end', () => {
+    const items = Array.from({ length: 50 }, (_, index) => ({ n: index, text: 'x'.repeat(20) }));
+    const all = fitList(items, 100_000);
+    expect(all.kept).toBe(50);
+    expect(JSON.parse(all.json)).toEqual(items);
+
+    const some = fitList(items, 500);
+    expect(some.json.length).toBeLessThanOrEqual(500);
+    expect(some.kept).toBeGreaterThan(5);
+    expect(JSON.parse(some.json)).toEqual(items.slice(0, some.kept));
+    // One more item would not have fitted.
+    expect(fitList(items, 500 + 10).kept).toBe(some.kept);
+    expect(` ${JSON.stringify(items[some.kept])}`.length + some.json.length + 2).toBeGreaterThan(500);
+
+    expect(fitList([], 10)).toEqual({ json: '[]', kept: 0, notice: undefined });
+    const huge = fitList([{ text: 'y'.repeat(5000) }], 400);
+    expect(huge.kept).toBe(1);
+    expect(huge.json.length).toBeLessThanOrEqual(400);
+    expect(huge.notice).toContain('Truncated');
+  });
+
   it('fences content with a nonce the content cannot guess', () => {
     const first = fence('page content', 'hello');
     const second = fence('page content', 'hello');
@@ -122,10 +143,10 @@ describe('describeError()', () => {
 
   it('leads with the Omnillink code and says whether to retry', () => {
     expect(describeError(new OmnillinkError({ code: 'ERATELIMIT', status: 429, message: 'Too many requests', retryAfter: 7 }), same)).toBe(
-      'Omnillink error ERATELIMIT (HTTP 429): Too many requests Quota used up. Transient: retry after 7 s.',
+      'Omnillink error ERATELIMIT (HTTP 429): Too many requests. Quota used up. Transient: retry after 7 s.',
     );
     expect(describeError(new OmnillinkError({ code: 'EFORBIDDENURL', status: 403, message: 'Refused' }), same)).toBe(
-      'Omnillink error EFORBIDDENURL (HTTP 403): Refused This address is private or internal and will always be refused. Do not retry.',
+      'Omnillink error EFORBIDDENURL (HTTP 403): Refused. This address is private or internal and will always be refused. Do not retry.',
     );
   });
 });
@@ -145,13 +166,38 @@ describe('pdfFileName()', () => {
 });
 
 describe('tool definitions', () => {
-  it('are five, each telling the model the result is untrusted', () => {
-    expect(TOOLS.map((definition) => definition.name)).toEqual(['omnillink_meta', 'omnillink_content', 'omnillink_extract', 'omnillink_screenshot', 'omnillink_pdf']);
+  it('are thirteen, each telling the model the result is untrusted', () => {
+    expect(TOOLS.map((definition) => definition.name)).toEqual(['omnillink_meta', 'omnillink_content', 'omnillink_extract', 'omnillink_extract_preset', 'omnillink_links', 'omnillink_tables', 'omnillink_tech', 'omnillink_check', 'omnillink_sitemap', 'omnillink_insights', 'omnillink_oembed', 'omnillink_screenshot', 'omnillink_pdf']);
     for (const definition of TOOLS) {
       expect(definition.description).toMatch(/third-party content/);
       expect(definition.description).toMatch(/never (as )?instructions/);
       expect(definition.inputSchema.required).toContain('url');
       expect(definition.inputSchema.additionalProperties).toBe(false);
+    }
+  });
+
+  it('describe every parameter, and bound every string, integer and array', () => {
+    for (const definition of TOOLS) {
+      for (const [name, schema] of Object.entries(definition.inputSchema.properties ?? {})) {
+        const where = `${definition.name}.${name}`;
+        expect(schema.description, where).toMatch(/\S{3}/);
+        if (schema.type === 'string' && schema.enum === undefined) expect(schema.maxLength, where).toBeGreaterThan(0);
+        if (schema.type === 'integer') {
+          expect(schema.minimum, where).toBeDefined();
+          // An offset has no natural ceiling; everything else does.
+          if (!/^start_/.test(name)) expect(schema.maximum, where).toBeDefined();
+        }
+        if (schema.type === 'array') expect(schema.maxItems, where).toBeGreaterThan(0);
+      }
+      expect(definition.name).toMatch(/^omnillink_[a-z_]+$/);
+      expect(definition.description.length, definition.name).toBeGreaterThan(150);
+    }
+  });
+
+  it('only omnillink_pdf writes anything', () => {
+    for (const definition of TOOLS) {
+      expect(definition.annotations.readOnlyHint, definition.name).toBe(definition.name !== 'omnillink_pdf');
+      expect(definition.annotations.destructiveHint).toBe(false);
     }
   });
 });
