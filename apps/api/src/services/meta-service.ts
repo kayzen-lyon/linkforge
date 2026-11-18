@@ -5,6 +5,7 @@ import type { AppConfig } from '../config.js';
 import { detectBlockPage } from '../lib/block-page.js';
 import { Deadline } from '../lib/deadline.js';
 import { AppError, ErrorCode, findAppError } from '../lib/errors.js';
+import type { TargetHeaders } from '../lib/target-headers.js';
 import { parseTargetUrl } from '../security/ssrf.js';
 import { cacheKey, getJson, setJson, SingleFlight, type Cache } from './cache/index.js';
 import type { SafeFetcher } from './fetcher.js';
@@ -28,6 +29,8 @@ export type { RenderMode } from './page-loader.js';
 export interface MetaRequest {
   readonly url: string;
   readonly render: RenderMode;
+  /** Caller-chosen request headers for the target; part of the cache key. */
+  readonly headers?: TargetHeaders | null;
   /** Bypass the cache read (the fresh result is still written back). */
   readonly force: boolean;
   /** Cache lifetime for this request; `null` uses the configured default. */
@@ -103,11 +106,13 @@ export class MetaService {
     const deadline = new Deadline(this.config.requestDeadlineMs);
     // Cheap synchronous validation first: bad input never touches the cache or the network.
     const target = parseTargetUrl(request.url, this.config.ssrf);
+    const headers = request.headers ?? null;
     const ttlSeconds = request.ttlSeconds ?? this.config.cache.metaTtlSeconds;
     const key = cacheKey('meta', {
       url: target.href,
       render: request.render,
       shape: CACHE_SHAPE,
+      ...(headers !== null && { headers }),
     });
 
     if (!request.force) {
@@ -117,21 +122,26 @@ export class MetaService {
 
     const fresh = await this.flights.run(key, async () => {
       // A block page throws, so it never reaches the cache.
-      const result = await this.compute(target, request.render, deadline);
+      const result = await this.compute(target, request.render, deadline, headers);
       await setJson(this.cache, key, result, ttlSeconds);
       return result;
     });
     return { ...fresh, cached: false, ttlSeconds };
   }
 
-  private async compute(target: URL, render: RenderMode, deadline: Deadline): Promise<CachedMeta> {
-    if (render === 'always') return this.viaBrowser(target, null, deadline);
+  private async compute(
+    target: URL,
+    render: RenderMode,
+    deadline: Deadline,
+    headers: TargetHeaders | null,
+  ): Promise<CachedMeta> {
+    if (render === 'always') return this.viaBrowser(target, null, deadline, headers);
 
-    const doc = await this.fetcher.fetchDocument(target);
+    const doc = await this.fetcher.fetchDocument(target, headers);
 
     if (doc.status >= 400) {
       if (render === 'auto' && BOT_WALL_STATUSES.has(doc.status)) {
-        return this.viaBrowser(target, null, deadline);
+        return this.viaBrowser(target, null, deadline, headers);
       }
       throw AppError.targetStatus(doc.status);
     }
@@ -158,7 +168,7 @@ export class MetaService {
     if (verdict.blocked) {
       if (render === 'never') throw AppError.blocked(verdict.reason ?? 'block page');
       // A real browser passes many challenges; if it does not, it reports EBLOCKED itself.
-      return this.viaBrowser(target, null, deadline);
+      return this.viaBrowser(target, null, deadline, headers);
     }
 
     const metadata = extractMetadata(doc.html, doc.finalUrl);
@@ -167,7 +177,7 @@ export class MetaService {
     }
 
     try {
-      return await this.viaBrowser(target, metadata, deadline);
+      return await this.viaBrowser(target, metadata, deadline, headers);
     } catch (error) {
       // A forbidden destination found while rendering is a verdict, not a glitch.
       if (findAppError(error)?.code === ErrorCode.ForbiddenUrl) throw error;
@@ -184,8 +194,9 @@ export class MetaService {
     target: URL,
     staticPass: LinkMetadata | null,
     deadline: Deadline,
+    headers: TargetHeaders | null,
   ): Promise<CachedMeta> {
-    return this.renderer.render(target, domRenderOptions(deadline), async ({ page, response }) => {
+    return this.renderer.render(target, domRenderOptions(deadline, null, headers), async ({ page, response }) => {
       const status = response?.status() ?? 200;
       // Same cap as the raw fetcher: a page must not grow the DOM without bound.
       const html = await snapshotHtml(page, this.config.http.maxBodyBytes);

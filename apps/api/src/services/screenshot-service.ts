@@ -7,8 +7,11 @@ import type { AppConfig } from '../config.js';
 import { Deadline } from '../lib/deadline.js';
 import { AppError } from '../lib/errors.js';
 import { assertCssSelector, parseSelectorList } from '../lib/selectors.js';
+import type { TargetHeaders } from '../lib/target-headers.js';
+
 import { parseTargetUrl } from '../security/ssrf.js';
 import { cacheKey, SingleFlight, type Cache } from './cache/index.js';
+import { decorateCapture, hasDecoration, type Decoration } from './capture-frame.js';
 import {
   CONSENT_BANNER_SELECTORS,
   freezeMotion,
@@ -49,6 +52,14 @@ export interface ScreenshotRequest {
   readonly blockAds: boolean;
   /** CSS selector that must be in the DOM before the capture; `null` for none. */
   readonly waitForSelector: string | null;
+  /** CSS selector of an element to click before the capture (a tab, a "show more"). */
+  readonly click?: string | null;
+  /** CSS selector of an element to scroll into view before the capture. */
+  readonly scrollTo?: string | null;
+  /** Device frame, rounded corners, padding and background composed around the capture. */
+  readonly decoration?: Decoration | null;
+  /** Caller-chosen request headers for the target; part of the cache key. */
+  readonly headers?: TargetHeaders | null;
   readonly force: boolean;
   /** Cache lifetime for this request; `null` uses the configured default. */
   readonly ttlSeconds: number | null;
@@ -78,6 +89,11 @@ const MAX_FULL_PAGE_HEIGHT = 12_000;
 const SELECTOR_TIMEOUT_MS = 3000;
 /** Time kept for the capture itself (encoding a tall PNG is not instant). */
 const CAPTURE_RESERVE_MS = 6000;
+/** How long a `click` or `scrollTo` target may take to appear, and the page to react to a click. */
+const ACTION_TIMEOUT_MS = 3000;
+const AFTER_CLICK_SETTLE_MS = 1000;
+/** Time kept to compose the decoration (a second, offline render). */
+const DECORATION_RESERVE_MS = 5000;
 
 /**
  * Splits the `hide` parameter into individual selectors.
@@ -114,8 +130,17 @@ export class ScreenshotService {
       request.waitForSelector === null
         ? null
         : assertCssSelector(request.waitForSelector, 'waitForSelector');
+    const click = request.click == null ? null : assertCssSelector(request.click, 'click');
+    const scrollTo = request.scrollTo == null ? null : assertCssSelector(request.scrollTo, 'scrollTo');
+    const decoration = request.decoration != null && hasDecoration(request.decoration) ? request.decoration : null;
+    if (decoration !== null && request.fullPage && selector === null) {
+      throw AppError.invalidParams('frame, radius and padding cannot be combined with fullPage');
+    }
     const ttlSeconds = request.ttlSeconds ?? this.config.cache.screenshotTtlSeconds;
     const key = cacheKey('screenshot', {
+      ...(click !== null && { click }),
+      ...(scrollTo !== null && { scrollTo }),
+      ...(decoration !== null && { decoration }),
       url: target.href,
       device: request.device,
       fullPage: request.fullPage,
@@ -130,6 +155,7 @@ export class ScreenshotService {
       hideBanners: request.hideBanners,
       blockAds: request.blockAds,
       waitForSelector,
+      ...(request.headers != null && { headers: request.headers }),
     });
 
     if (!request.force) {
@@ -138,7 +164,11 @@ export class ScreenshotService {
     }
 
     const image = await this.flights.run(key, async () => {
-      const fresh = await this.render(target, { ...request, selector, waitForSelector }, hide, deadline);
+      const raw = await this.render(target, { ...request, selector, waitForSelector, click, scrollTo }, hide, deadline);
+      const fresh =
+        decoration === null
+          ? raw
+          : await decorateCapture(this.renderer, raw, request.format, request.quality, decoration, deadline);
       await this.cache.set(key, fresh, ttlSeconds);
       return fresh;
     });
@@ -166,8 +196,12 @@ export class ScreenshotService {
           CAPTURE_RESERVE_MS +
           prepareMs +
           request.waitForMs +
-          (request.selector === null ? 0 : SELECTOR_TIMEOUT_MS),
+          (request.selector === null ? 0 : SELECTOR_TIMEOUT_MS) +
+          (request.click == null ? 0 : ACTION_TIMEOUT_MS + AFTER_CLICK_SETTLE_MS) +
+          (request.scrollTo == null ? 0 : ACTION_TIMEOUT_MS) +
+          (request.decoration != null && hasDecoration(request.decoration) ? DECORATION_RESERVE_MS : 0),
         waitForSelector: request.waitForSelector,
+        requestHeaders: request.headers ?? null,
         guard: { blockAds: request.blockAds },
         contextOptions: {
           ...preset,
@@ -187,6 +221,7 @@ export class ScreenshotService {
         await waitForFonts(page, 2000);
         if (request.hideBanners) await hideElements(page, CONSENT_BANNER_SELECTORS);
         await hideElements(page, hide);
+        await this.act(page, request);
         if (request.waitForMs > 0) await page.waitForTimeout(request.waitForMs);
 
         if (request.selector !== null) {
@@ -227,6 +262,39 @@ export class ScreenshotService {
         });
       },
     );
+  }
+
+  /**
+   * The declarative pre-capture steps: one click, one scroll. Selectors are
+   * pinned to the CSS dialect like `selector`; the click is a real, trusted
+   * click on a visible element, never a script.
+   *
+   * @throws {AppError} `ESELECTORNOTFOUND` when a target is not there.
+   */
+  private async act(page: Page, request: ScreenshotRequest): Promise<void> {
+    if (request.click != null) {
+      await waitForCss(page, request.click, 'visible', ACTION_TIMEOUT_MS, 'click');
+      await page
+        .locator(`css=${request.click}`)
+        .first()
+        .click({ timeout: ACTION_TIMEOUT_MS, noWaitAfter: true })
+        .catch((error: unknown) => {
+          if (error instanceof Error && error.name === 'TimeoutError') {
+            throw AppError.selectorNotFound('The element matching `click` could not be clicked (covered or disabled)');
+          }
+          throw error;
+        });
+      // Whatever the click started (a tab switch, a fetch) gets a moment to show.
+      await page.waitForLoadState('networkidle', { timeout: AFTER_CLICK_SETTLE_MS }).catch(() => undefined);
+    }
+    if (request.scrollTo != null) {
+      await waitForCss(page, request.scrollTo, 'attached', ACTION_TIMEOUT_MS, 'scrollTo');
+      await page
+        .locator(`css=${request.scrollTo}`)
+        .first()
+        .scrollIntoViewIfNeeded({ timeout: ACTION_TIMEOUT_MS })
+        .catch(() => undefined);
+    }
   }
 
   /**

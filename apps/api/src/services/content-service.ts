@@ -5,6 +5,8 @@ import type { AppConfig } from '../config.js';
 import { Deadline } from '../lib/deadline.js';
 import { AppError } from '../lib/errors.js';
 import { assertCssSelector } from '../lib/selectors.js';
+import type { TargetHeaders } from '../lib/target-headers.js';
+
 import { parseTargetUrl } from '../security/ssrf.js';
 import { cacheKey, getJson, setJson, SingleFlight, type Cache } from './cache/index.js';
 import {
@@ -28,6 +30,8 @@ export interface ContentRequest {
   readonly citations: boolean;
   /** CSS selector to wait for (implies a browser render); `null` for none. */
   readonly waitForSelector: string | null;
+  /** Caller-chosen request headers for the target; part of the cache key. */
+  readonly headers?: TargetHeaders | null;
   /** Bypass the cache read (the fresh result is still written back). */
   readonly force: boolean;
   /** Cache lifetime for this request; `null` uses the configured default. */
@@ -88,6 +92,7 @@ export class ContentService {
       exclude: parseContentSelectors(request.exclude, 'exclude'),
       citations: request.citations,
     };
+    const headers = request.headers ?? null;
     const ttlSeconds = request.ttlSeconds ?? this.config.cache.contentTtlSeconds;
     const key = cacheKey('content', {
       url: target.href,
@@ -95,6 +100,7 @@ export class ContentService {
       options,
       waitForSelector,
       shape: CACHE_SHAPE,
+      ...(headers !== null && { headers }),
     });
 
     if (!request.force) {
@@ -103,7 +109,7 @@ export class ContentService {
     }
 
     const fresh = await this.flights.run(key, async () => {
-      const result = await this.compute(target, request.render, options, waitForSelector, deadline);
+      const result = await this.compute(target, request.render, options, waitForSelector, deadline, headers);
       await setJson(this.cache, key, result, ttlSeconds);
       return result;
     });
@@ -116,12 +122,14 @@ export class ContentService {
     options: ContentOptions,
     waitForSelector: string | null,
     deadline: Deadline,
+    headers: TargetHeaders | null,
   ): Promise<CachedContent> {
     let staticContent: ReadableContent | null = null;
     const page = await this.loader.load(target, {
       render,
       deadline,
       waitForSelector,
+      headers,
       isSufficient: (candidate) => {
         staticContent = extractContent(candidate.html, candidate.url, options);
         return staticContent.wordCount >= MIN_STATIC_WORDS;

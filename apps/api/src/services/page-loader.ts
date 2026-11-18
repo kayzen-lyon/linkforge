@@ -11,6 +11,7 @@ import type { AppConfig } from '../config.js';
 import { detectBlockPage } from '../lib/block-page.js';
 import type { Deadline } from '../lib/deadline.js';
 import { AppError, ErrorCode, findAppError } from '../lib/errors.js';
+import type { TargetHeaders } from '../lib/target-headers.js';
 import type { SafeFetcher } from './fetcher.js';
 import type { Renderer, RenderOptions } from './renderer.js';
 
@@ -36,6 +37,8 @@ export interface LoadOptions {
   readonly isSufficient?: (page: LoadedPage) => boolean;
   /** CSS selector to wait for; implies a browser render. */
   readonly waitForSelector?: string | null;
+  /** Caller-chosen request headers, applied on both paths. */
+  readonly headers?: TargetHeaders | null;
 }
 
 /** Statuses typically returned by anti-bot layers to non-browser clients. */
@@ -48,6 +51,7 @@ export const HTML_TYPES: ReadonlySet<string> = new Set(['text/html', 'applicatio
 export function domRenderOptions(
   deadline: Deadline,
   waitForSelector: string | null = null,
+  requestHeaders: TargetHeaders | null = null,
 ): RenderOptions {
   return {
     waitUntil: 'domcontentloaded',
@@ -55,6 +59,7 @@ export function domRenderOptions(
     reserveMs: 3000,
     deadline,
     waitForSelector,
+    requestHeaders,
     guard: { blockResourceTypes: HEAVY_RESOURCES },
     contextOptions: { viewport: { width: 1280, height: 800 } },
   };
@@ -69,7 +74,7 @@ export async function snapshotHtml(page: Page, maxBytes: number): Promise<string
 }
 
 /** A document with scripts but almost no text: content is rendered client-side. */
-function looksLikeEmptyShell(html: string): boolean {
+export function looksLikeEmptyShell(html: string): boolean {
   const $ = load(html);
   $('script, style, noscript, template').remove();
   return $('body').text().replace(/\s+/g, ' ').trim().length < 200;
@@ -96,13 +101,14 @@ export class PageLoader {
   async load(target: URL, options: LoadOptions): Promise<LoadedPage> {
     const { deadline } = options;
     const waitForSelector = options.waitForSelector ?? null;
+    const headers = options.headers ?? null;
     const render = waitForSelector === null ? options.render : 'always';
-    if (render === 'always') return this.viaBrowser(target, deadline, waitForSelector);
+    if (render === 'always') return this.viaBrowser(target, deadline, waitForSelector, headers);
 
-    const doc = await this.fetcher.fetchDocument(target);
+    const doc = await this.fetcher.fetchDocument(target, headers);
     if (doc.status >= 400) {
       if (render === 'auto' && BOT_WALL_STATUSES.has(doc.status)) {
-        return this.viaBrowser(target, deadline, null);
+        return this.viaBrowser(target, deadline, null, headers);
       }
       throw AppError.targetStatus(doc.status);
     }
@@ -113,7 +119,7 @@ export class PageLoader {
     if (verdict.blocked) {
       if (render === 'never') throw AppError.blocked(verdict.reason ?? 'block page');
       // A real browser passes many challenges; if it does not, it reports EBLOCKED itself.
-      return this.viaBrowser(target, deadline, null);
+      return this.viaBrowser(target, deadline, null, headers);
     }
     if (render === 'never') return page;
     // Without a script, a browser would produce exactly the same DOM.
@@ -121,7 +127,7 @@ export class PageLoader {
     if (!looksLikeEmptyShell(page.html) && (options.isSufficient?.(page) ?? true)) return page;
 
     try {
-      return await this.viaBrowser(target, deadline, null);
+      return await this.viaBrowser(target, deadline, null, headers);
     } catch (error) {
       // A forbidden destination found while rendering is a verdict, not a glitch.
       if (findAppError(error)?.code === ErrorCode.ForbiddenUrl) throw error;
@@ -134,10 +140,11 @@ export class PageLoader {
     target: URL,
     deadline: Deadline,
     waitForSelector: string | null,
+    headers: TargetHeaders | null,
   ): Promise<LoadedPage> {
     return this.renderer.render(
       target,
-      domRenderOptions(deadline, waitForSelector),
+      domRenderOptions(deadline, waitForSelector, headers),
       async ({ page, response }) => {
         const status = response?.status() ?? 200;
         if (status >= 400) {

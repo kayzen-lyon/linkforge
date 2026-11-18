@@ -80,11 +80,17 @@ export interface AppConfig {
      * `@sparticuz/chromium` version.
      */
     readonly serverlessPackUrl: string;
+    /** Requests one rendered page may issue; the rest are dropped and the page is used as it is. */
+    readonly pageMaxRequests: number;
+    /** Bytes one rendered page may transfer (as received, compressed); then loading stops. */
+    readonly pageMaxBytes: number;
   };
   readonly pdf: {
     /** Largest PDF the API accepts to return; bigger documents fail with `ETOOLARGE`. */
     readonly maxBytes: number;
   };
+  /** Largest animated capture returned; frames stop being added past it. */
+  readonly animationMaxBytes: number;
   readonly ssrf: SsrfPolicy;
   /**
    * Accepted `x-api-key` values. Empty means the feature is off: the header is
@@ -98,6 +104,16 @@ export interface AppConfig {
     readonly keyMax: number;
     readonly windowMs: number;
   };
+  /** Per-target-host circuit breaker (in memory, per instance). */
+  readonly circuitBreaker: {
+    /** Consecutive network failures that open a host's circuit; `0` disables the breaker. */
+    readonly threshold: number;
+    readonly cooldownMs: number;
+  };
+  /** Bearer token protecting `/metrics`; `null` turns the endpoint off (404). */
+  readonly metricsToken: string | null;
+  /** Whether the MCP endpoint (`POST /mcp`) is served. */
+  readonly mcpEnabled: boolean;
 }
 
 type Env = Readonly<Record<string, string | undefined>>;
@@ -169,6 +185,17 @@ function readApiKeys(env: Env, key: string): readonly string[] {
     }
   }
   return Object.freeze([...new Set(keys)]);
+}
+
+/** Same floor as API keys: the token guards operational data. */
+function readSecret(env: Env, key: string): string | null {
+  const raw = env[key]?.trim();
+  if (raw === undefined || raw === '') return null;
+  // The value is never echoed: boot logs must not leak a secret.
+  if (raw.length < MIN_API_KEY_LENGTH || raw.length > 256 || /\s/.test(raw)) {
+    throw new ConfigError(`${key} must be ${MIN_API_KEY_LENGTH}-256 characters without whitespace`);
+  }
+  return raw;
 }
 
 function readEnvName(env: Env): AppConfig['env'] {
@@ -244,11 +271,15 @@ export function loadConfig(env: Env = process.env): AppConfig {
         'BROWSER_SERVERLESS_PACK_URL',
         'https://github.com/Sparticuz/chromium/releases/download/v153.0.0/chromium-v153.0.0-pack.x64.tar',
       ),
+      pageMaxRequests: readInt(env, 'BROWSER_PAGE_MAX_REQUESTS', 1500, 10),
+      // A function has little memory: a page may not pull as much as on a server.
+      pageMaxBytes: readInt(env, 'BROWSER_PAGE_MAX_BYTES', (serverless ? 30 : 60) * 1024 * 1024, 65_536),
     },
     pdf: {
       // Serverless platforms cap the response body (4.5 MB on Vercel): stay under it.
       maxBytes: readInt(env, 'PDF_MAX_BYTES', (serverless ? 4 : 10) * 1024 * 1024, 1024),
     },
+    animationMaxBytes: readInt(env, 'ANIMATION_MAX_BYTES', (serverless ? 4 : 10) * 1024 * 1024, 65_536),
     ssrf: {
       allowPrivateNetworks,
       allowedPorts: readPorts(env, 'SSRF_ALLOWED_PORTS', [80, 443]),
@@ -260,5 +291,11 @@ export function loadConfig(env: Env = process.env): AppConfig {
       keyMax: readInt(env, 'RATE_LIMIT_KEY_MAX', 600, 1),
       windowMs: readInt(env, 'RATE_LIMIT_WINDOW_MS', 60_000, 1000),
     },
+    circuitBreaker: {
+      threshold: readInt(env, 'CIRCUIT_BREAKER_THRESHOLD', 5, 0),
+      cooldownMs: readInt(env, 'CIRCUIT_BREAKER_COOLDOWN_MS', 30_000, 1000),
+    },
+    metricsToken: readSecret(env, 'METRICS_TOKEN'),
+    mcpEnabled: readBool(env, 'MCP_ENABLED', true),
   });
 }

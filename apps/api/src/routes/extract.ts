@@ -5,6 +5,7 @@ import { ErrorCode } from '../lib/errors.js';
 import { TARGET_ERRORS, type EndpointDoc } from '../openapi.js';
 import type { ExtractService } from '../services/extract-service.js';
 import { EXTRACT_LIMITS } from '../services/field-extractor.js';
+import { PRESETS, presetFieldNames } from '../services/structured-extractor.js';
 import {
   envelope,
   ForceParam,
@@ -12,6 +13,8 @@ import {
   NOT_MODIFIED,
   RenderParam,
   sendEnvelope,
+  TargetHeaderParams,
+  targetHeadersOf,
   TtlParam,
   UrlParam,
   WaitForSelectorParam,
@@ -20,20 +23,31 @@ import {
 const ExtractQuery = Type.Object(
   {
     url: UrlParam,
-    fields: Type.String({
+    fields: Type.Optional(Type.String({
       minLength: 2,
       maxLength: 8000,
       description:
-        'JSON-encoded object mapping a field name to a rule ' +
+        'Required unless `preset` is given. JSON-encoded object mapping a field name to a rule ' +
         '`{ "selector": string, "attr"?: "text" | "html" | <attribute>, ' +
         '"type"?: "string" | "number" | "url", "all"?: boolean }`. ' +
         `At most ${EXTRACT_LIMITS.maxFields} fields; selectors up to ` +
         `${EXTRACT_LIMITS.maxSelectorLength} characters. Example: ` +
         '`{"price":{"selector":".price","type":"number"},' +
         '"links":{"selector":"a","attr":"href","type":"url","all":true}}`.',
-    }),
+    })),
+    preset: Type.Optional(
+      Type.Enum([...PRESETS], {
+        type: 'string',
+        description:
+          'Built-in typed fields instead of `fields`, read from schema.org JSON-LD, then ' +
+          'microdata, Open Graph, `<meta>` tags and a few CSS fallbacks. `sources` tells where ' +
+          'each value came from. ' +
+          PRESETS.map((preset) => `\`${preset}\`: ${presetFieldNames(preset).join(', ')}.`).join(' '),
+      }),
+    ),
     render: RenderParam,
     waitForSelector: WaitForSelectorParam,
+    ...TargetHeaderParams,
     force: ForceParam,
     ttl: TtlParam,
   },
@@ -54,6 +68,19 @@ const ExtractData = Type.Object({
         `String values are cut at ${EXTRACT_LIMITS.maxValueLength} characters.`,
     },
   ),
+  preset: Type.Optional(Type.Enum([...PRESETS], { type: 'string', description: 'With `preset` only: the preset applied.' })),
+  schemaType: Type.Optional(
+    Type.Union([Type.String(), Type.Null()], {
+      description: 'With `preset` only: schema.org type of the node the fields were read from (`NewsArticle`, `Product`…), `null` when the page declares none.',
+    }),
+  ),
+  sources: Type.Optional(
+    Type.Record(
+      Type.String(),
+      Type.Union([Type.Enum(['json-ld', 'microdata', 'opengraph', 'meta', 'css'], { type: 'string' }), Type.Null()]),
+      { description: 'With `preset` only: field name → where its value came from; `null` for a field that is `null`.' },
+    ),
+  ),
 });
 
 export const extractDoc: EndpointDoc = {
@@ -61,8 +88,10 @@ export const extractDoc: EndpointDoc = {
   operationId: 'getExtract',
   summary: 'Custom extraction rules',
   description:
-    'Scrapes client-defined fields with CSS selectors. With `render=auto`, the browser is ' +
-    'used when the page runs scripts and the static markup leaves a field empty.',
+    'Scrapes client-defined fields with CSS selectors (`fields`), or a built-in set of typed ' +
+    'fields for an article, a product, a recipe or an event (`preset`). Exactly one of the ' +
+    'two is required. With `render=auto`, the browser is used when the page runs scripts ' +
+    'and the static markup leaves a field (a key field, for a preset) empty.',
   tag: 'Extraction',
   query: ExtractQuery,
   responses: {
@@ -70,6 +99,26 @@ export const extractDoc: EndpointDoc = {
       description: 'Extracted fields.',
       headers: JSON_HEADERS,
       content: { 'application/json': envelope(ExtractData) },
+      example: {
+        status: 'success',
+        data: {
+          url: 'https://shop.example/kettle',
+          preset: 'product',
+          schemaType: 'Product',
+          fields: {
+            name: 'Pour-Over Kettle 0.9 L', description: 'Gooseneck kettle with a built-in thermometer.', brand: 'Kettlewell',
+            sku: 'KW-090-BS', gtin: '4006381333931', image: 'https://shop.example/img/kettle.png', price: 64, currency: 'EUR',
+            availability: 'InStock', condition: 'NewCondition', ratingValue: 4.7, reviewCount: 212, seller: 'Northfold',
+            url: 'https://shop.example/kettle',
+          },
+          sources: {
+            name: 'json-ld', description: 'json-ld', brand: 'json-ld', sku: 'json-ld', gtin: 'json-ld', image: 'json-ld', price: 'json-ld',
+            currency: 'json-ld', availability: 'json-ld', condition: 'json-ld', ratingValue: 'json-ld', reviewCount: 'json-ld',
+            seller: 'json-ld', url: 'json-ld',
+          },
+        },
+        meta: { cached: false, source: 'http', durationMs: 87 },
+      },
     },
     '304': NOT_MODIFIED,
   },
@@ -91,9 +140,11 @@ export const extractRoutes: FastifyPluginAsyncTypebox<ExtractRouteOptions> = asy
 
     const result = await options.extractService.extract({
       url,
-      fields,
+      fields: fields ?? null,
+      preset: request.query.preset ?? null,
       render,
       waitForSelector: request.query.waitForSelector ?? null,
+      headers: targetHeadersOf(request.query),
       force,
       ttlSeconds: ttl ?? null,
     });

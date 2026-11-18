@@ -10,7 +10,7 @@
 import { ErrorCode } from './lib/errors.js';
 
 /** Version of the API contract, reported in `info.version`. */
-export const API_VERSION = '0.3.0';
+export const API_VERSION = '0.4.0';
 
 /** A JSON Schema object (TypeBox schemas are plain JSON Schema at runtime). */
 type JsonSchema = object;
@@ -64,7 +64,9 @@ export const ERROR_CATALOG: Readonly<Record<ErrorCode, { status: number; descrip
   },
   [ErrorCode.EmbedNotFound]: {
     status: 404,
-    description: 'The `embed` path is absent or null for this URL.',
+    description:
+      'The item asked for is absent for this URL: `embed` path, preview image, oEmbed ' +
+      'endpoint, icon or table.',
   },
   [ErrorCode.SelectorNotFound]: {
     status: 404,
@@ -85,6 +87,12 @@ export const ERROR_CATALOG: Readonly<Record<ErrorCode, { status: number; descrip
       'content. Nothing is cached.',
   },
   [ErrorCode.Busy]: { status: 503, description: 'Rendering pool saturated, retry shortly.' },
+  [ErrorCode.CircuitOpen]: {
+    status: 503,
+    description:
+      'The target host failed repeatedly (timeouts, refused connections) and is not ' +
+      'contacted for a short while. Retry later.',
+  },
   [ErrorCode.Timeout]: { status: 504, description: 'The target did not answer in time.' },
 };
 
@@ -105,6 +113,7 @@ export const TARGET_ERRORS: readonly ErrorCode[] = [
   ErrorCode.TargetStatus,
   ErrorCode.Blocked,
   ErrorCode.Timeout,
+  ErrorCode.CircuitOpen,
   ErrorCode.Busy,
   ErrorCode.Browser,
 ];
@@ -216,9 +225,11 @@ export function buildOpenApiDocument(endpoints: readonly EndpointDoc[]): Record<
       title: 'Omnillink API',
       version: API_VERSION,
       description:
-        'Link intelligence over HTTP: metadata, screenshots, PDF, custom extraction and ' +
-        'readable content. Every endpoint is a `GET`, except the metadata batch; errors ' +
-        'share one JSON shape. Query parameters the API does not know are ignored.',
+        'Link intelligence over HTTP: metadata, readable content, typed extraction, tables, ' +
+        'screenshots, PDF, page insights, technology detection and small generators (QR code, ' +
+        'social card). Every REST endpoint is a `GET`, except the metadata batch; `POST /mcp` ' +
+        'exposes the read-only ones to AI agents over the Model Context Protocol. Errors share ' +
+        'one JSON shape. Query parameters the API does not know are ignored.',
       license: { name: 'MIT', identifier: 'MIT' },
     },
     servers: [{ url: '/', description: 'This deployment' }],

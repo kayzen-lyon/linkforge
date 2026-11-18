@@ -190,7 +190,7 @@ describe('GET /api/v1/tech', () => {
     expect(res.statusCode).toBe(200);
     const { technologies } = res.json().data;
     const byName = Object.fromEntries(technologies.map((t: { name: string; category: string; evidence: string }) => [t.name, t]));
-    expect(byName['WordPress']).toEqual({ name: 'WordPress', category: 'cms', evidence: 'meta generator: WordPress 6.6' });
+    expect(byName['WordPress']).toEqual({ name: 'WordPress', category: 'cms', evidence: 'meta generator: WordPress 6.6', confidence: 'high', version: '6.6' });
     expect(byName['nginx']).toMatchObject({ category: 'server', evidence: 'header server: nginx/1.25' });
     expect(byName['PHP']).toMatchObject({ category: 'language', evidence: 'header x-powered-by: PHP/8.2' });
     expect(byName['jQuery']).toMatchObject({ category: 'library' });
@@ -201,7 +201,7 @@ describe('GET /api/v1/tech', () => {
 
   it('does not guess: an ordinary page yields nothing, errors stay errors', async () => {
     expect(detectTechnologies('<html><body><p>We love WordPress and Shopify.</p></body></html>', {})).toEqual([]);
-    expect(detectTechnologies('', { 'set-cookie': 'x' }, ['laravel_session'])).toEqual([{ name: 'Laravel', category: 'framework', evidence: 'cookie: laravel_session' }]);
+    expect(detectTechnologies('', { 'set-cookie': 'x' }, ['laravel_session'])).toEqual([{ name: 'Laravel', category: 'framework', evidence: 'cookie: laravel_session', confidence: 'high', version: null }]);
     expect((await get(`/api/v1/tech?url=${target('/nope')}`)).json().code).toBe('ETARGETSTATUS');
   });
 });

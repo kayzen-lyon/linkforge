@@ -9,6 +9,7 @@ import { Deadline } from '../lib/deadline.js';
 import { AppError } from '../lib/errors.js';
 import { readImageHeader } from '../lib/image-header.js';
 import { assertCssSelector } from '../lib/selectors.js';
+import type { TargetHeaders } from '../lib/target-headers.js';
 import { parseTargetUrl } from '../security/ssrf.js';
 import { cacheKey, getJson, setJson, SingleFlight, type Cache } from './cache/index.js';
 import type { ProbeResult, SafeFetcher } from './fetcher.js';
@@ -16,9 +17,10 @@ import { extractMetadata } from './meta-extractor.js';
 import { extractLinks, type LinkScope, type PageLinks } from './link-extractor.js';
 import { HTML_TYPES, type PageLoader, type RenderMode } from './page-loader.js';
 import { parseRobotsSitemaps, parseSitemap, type SitemapUrl } from './sitemap-parser.js';
-import { detectTechnologies, type TechDetection } from './tech-detector.js';
 
 interface Cacheable {
+  /** Caller-chosen request headers for the target; part of the cache key. */
+  readonly headers?: TargetHeaders | null;
   readonly force: boolean;
   readonly ttlSeconds: number | null;
 }
@@ -71,11 +73,6 @@ export interface SitemapData {
   readonly truncated: boolean;
 }
 
-export interface TechData {
-  readonly url: string;
-  readonly technologies: readonly TechDetection[];
-}
-
 export interface ImageData {
   /** URL of the image that was measured (after redirects). */
   readonly url: string;
@@ -123,7 +120,10 @@ export class SiteToolsService {
     compute: () => Promise<Pick<Answer<T>, 'data' | 'source'>>,
   ): Promise<Answer<T>> {
     const ttlSeconds = request.ttlSeconds ?? defaultTtl;
-    const key = cacheKey(namespace, parts);
+    const key = cacheKey(namespace, {
+      ...parts,
+      ...(request.headers != null && { headers: request.headers }),
+    });
     if (!request.force) {
       const hit = await getJson<Pick<Answer<T>, 'data' | 'source'>>(this.cache, key);
       if (hit !== null) return { ...hit, cached: true, ttlSeconds };
@@ -157,6 +157,7 @@ export class SiteToolsService {
         const page = await this.loader.load(target, {
           render,
           deadline,
+          headers: request.headers ?? null,
           isSufficient: (candidate) => extractLinks(candidate.html, candidate.url, 'all', 1).total > 0,
         });
         return {
@@ -390,41 +391,13 @@ export class SiteToolsService {
       request,
       this.config.cache.contentTtlSeconds,
       async () => {
-        const page = await this.loader.load(target, { render, deadline, waitForSelector });
-        return { data: { url: page.url, html: page.html }, source: page.source };
-      },
-    );
-  }
-
-  /**
-   * Technologies visible in a page's markup and response headers (raw HTTP only).
-   *
-   * @throws {AppError} `ENOTHTML`, `ETARGETSTATUS`, plus the usual URL and network errors.
-   */
-  tech(request: Cacheable & { url: string }): Promise<Answer<TechData>> {
-    const target = parseTargetUrl(request.url, this.config.ssrf);
-    return this.cached(
-      'tech',
-      { url: target.href },
-      request,
-      this.config.cache.metaTtlSeconds,
-      async () => {
-        const doc = await this.fetcher.fetchBytes(target, {
-          maxBytes: this.config.http.maxBodyBytes,
-          accept: 'text/html,application/xhtml+xml;q=0.9,*/*;q=0.5',
+        const page = await this.loader.load(target, {
+          render,
+          deadline,
+          waitForSelector,
+          headers: request.headers ?? null,
         });
-        // Headers of an error page still identify the stack, but its markup is not the site's.
-        if (doc.status >= 400) throw AppError.targetStatus(doc.status);
-        if (doc.contentType !== null && !HTML_TYPES.has(doc.contentType)) {
-          throw AppError.notHtml(doc.contentType);
-        }
-        return {
-          data: {
-            url: doc.finalUrl,
-            technologies: detectTechnologies(doc.body.toString('utf8'), doc.headers, doc.cookieNames),
-          },
-          source: 'http',
-        };
+        return { data: { url: page.url, html: page.html }, source: page.source };
       },
     );
   }

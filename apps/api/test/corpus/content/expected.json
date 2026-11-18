@@ -1,0 +1,298 @@
+{
+ "presets": {
+  "article?preset=article": {
+   "schemaType": "NewsArticle",
+   "fields": {
+    "headline": "The tide tables were wrong by eleven minutes",
+    "description": "A new sensor shows high water arriving earlier and higher than the printed tables predicted.",
+    "author": "Amara Okafor",
+    "authorUrl": "{{ORIGIN}}/authors/amara-okafor",
+    "publisher": "Estuary Gazette",
+    "datePublished": "2026-03-14T07:30:00.000Z",
+    "dateModified": "2026-03-15T09:00:00.000Z",
+    "image": "{{ORIGIN}}/img/gauge.png",
+    "section": "Science",
+    "keywords": [
+     "tides",
+     "harbour",
+     "sea level"
+    ],
+    "language": "en-GB",
+    "wordCount": 4200,
+    "url": "{{ORIGIN}}/article"
+   },
+   "sources": {
+    "headline": "json-ld",
+    "description": "json-ld",
+    "author": "json-ld",
+    "authorUrl": "json-ld",
+    "publisher": "json-ld",
+    "datePublished": "json-ld",
+    "dateModified": "json-ld",
+    "image": "json-ld",
+    "section": "json-ld",
+    "keywords": "json-ld",
+    "language": "json-ld",
+    "wordCount": "json-ld",
+    "url": "css"
+   }
+  },
+  "product?preset=product": {
+   "schemaType": "Product",
+   "fields": {
+    "name": "Kettlewell Pour-Over Kettle 0.9 L",
+    "description": "Gooseneck kettle in brushed steel with a built-in thermometer and a counterweighted handle.",
+    "brand": "Kettlewell",
+    "sku": "KW-090-BS",
+    "gtin": "4006381333931",
+    "image": "{{ORIGIN}}/img/kettle.png",
+    "price": 64,
+    "currency": "EUR",
+    "availability": "InStock",
+    "condition": "NewCondition",
+    "ratingValue": 4.7,
+    "reviewCount": 212,
+    "seller": "Northfold",
+    "url": "{{ORIGIN}}/product"
+   },
+   "sources": {
+    "name": "json-ld",
+    "description": "json-ld",
+    "brand": "json-ld",
+    "sku": "json-ld",
+    "gtin": "json-ld",
+    "image": "json-ld",
+    "price": "json-ld",
+    "currency": "json-ld",
+    "availability": "json-ld",
+    "condition": "json-ld",
+    "ratingValue": "json-ld",
+    "reviewCount": "json-ld",
+    "seller": "json-ld",
+    "url": "json-ld"
+   }
+  },
+  "product-microdata?preset=product": {
+   "schemaType": "Product",
+   "fields": {
+    "name": "Lampe Halo",
+    "description": "Lampe de table en verre soufflé, variateur intégré.",
+    "brand": "Maison Verre",
+    "sku": null,
+    "gtin": null,
+    "image": "{{ORIGIN}}/img/halo.png",
+    "price": 129.9,
+    "currency": "EUR",
+    "availability": "OutOfStock",
+    "condition": null,
+    "ratingValue": null,
+    "reviewCount": null,
+    "seller": null,
+    "url": null
+   },
+   "sources": {
+    "name": "microdata",
+    "description": "microdata",
+    "brand": "microdata",
+    "sku": null,
+    "gtin": null,
+    "image": "microdata",
+    "price": "microdata",
+    "currency": "microdata",
+    "availability": "microdata",
+    "condition": null,
+    "ratingValue": null,
+    "reviewCount": null,
+    "seller": null,
+    "url": null
+   }
+  },
+  "recipe?preset=recipe": {
+   "schemaType": "Recipe",
+   "fields": {
+    "name": "Brown butter shortbread",
+    "description": "Crisp shortbread with a nutty depth from browned butter.",
+    "author": "Inès Laurent",
+    "image": "{{ORIGIN}}/img/shortbread.png",
+    "datePublished": "2025-11-02T00:00:00.000Z",
+    "prepMinutes": 20,
+    "cookMinutes": 35,
+    "totalMinutes": 85,
+    "yield": "24",
+    "category": "Dessert",
+    "cuisine": "Scottish",
+    "calories": "112 kcal",
+    "ingredients": [
+     "225 g unsalted butter",
+     "110 g caster sugar",
+     "300 g plain flour",
+     "1/2 tsp fine salt"
+    ],
+    "instructions": [
+     "Brown the butter over a medium heat until it smells of hazelnuts, then chill until set.",
+     "Beat the butter with the sugar, fold in the flour and salt."
+    ],
+    "keywords": [
+     "shortbread",
+     "butter",
+     "biscuits"
+    ],
+    "ratingValue": 4.8,
+    "ratingCount": 96
+   },
+   "sources": {
+    "name": "json-ld",
+    "description": "json-ld",
+    "author": "json-ld",
+    "image": "json-ld",
+    "datePublished": "json-ld",
+    "prepMinutes": "json-ld",
+    "cookMinutes": "json-ld",
+    "totalMinutes": "json-ld",
+    "yield": "json-ld",
+    "category": "json-ld",
+    "cuisine": "json-ld",
+    "calories": "json-ld",
+    "ingredients": "json-ld",
+    "instructions": "json-ld",
+    "keywords": "json-ld",
+    "ratingValue": "json-ld",
+    "ratingCount": "json-ld"
+   }
+  },
+  "event?preset=event": {
+   "schemaType": "Event",
+   "fields": {
+    "name": "Lyon Web Meetup #48 — Rendering at the edge",
+    "description": "Three talks on streaming HTML, followed by drinks.",
+    "startDate": "2026-12-03T18:00:00.000Z",
+    "endDate": "2026-12-03T20:30:00.000Z",
+    "status": "EventScheduled",
+    "attendanceMode": "OfflineEventAttendanceMode",
+    "locationName": "La Cordée Opéra",
+    "address": "61 rue de la République, 69002 Lyon, FR",
+    "image": "{{ORIGIN}}/img/meetup.png",
+    "organizer": "Lyon Web",
+    "performers": [
+     "Chiara Rossi",
+     "Tomasz Zielinski"
+    ],
+    "price": 0,
+    "currency": "EUR",
+    "availability": "InStock",
+    "url": "{{ORIGIN}}/event/tickets"
+   },
+   "sources": {
+    "name": "json-ld",
+    "description": "json-ld",
+    "startDate": "json-ld",
+    "endDate": "json-ld",
+    "status": "json-ld",
+    "attendanceMode": "json-ld",
+    "locationName": "json-ld",
+    "address": "json-ld",
+    "image": "json-ld",
+    "organizer": "json-ld",
+    "performers": "json-ld",
+    "price": "json-ld",
+    "currency": "json-ld",
+    "availability": "json-ld",
+    "url": "json-ld"
+   }
+  },
+  "plain?preset=article": {
+   "schemaType": null,
+   "fields": {
+    "headline": "Opening hours",
+    "description": "When the workshop is open.",
+    "author": "R. Patel",
+    "authorUrl": null,
+    "publisher": null,
+    "datePublished": null,
+    "dateModified": null,
+    "image": null,
+    "section": null,
+    "keywords": null,
+    "language": "en",
+    "wordCount": null,
+    "url": null
+   },
+   "sources": {
+    "headline": "css",
+    "description": "meta",
+    "author": "meta",
+    "authorUrl": null,
+    "publisher": null,
+    "datePublished": null,
+    "dateModified": null,
+    "image": null,
+    "section": null,
+    "keywords": null,
+    "language": "css",
+    "wordCount": null,
+    "url": null
+   }
+  }
+ },
+ "tables": {
+  "product": {
+   "total": 2,
+   "tables": [
+    {
+     "index": 0,
+     "caption": "Specifications",
+     "headers": [
+      "Property",
+      "Value"
+     ],
+     "rows": [
+      [
+       "Capacity",
+       "0.9 L"
+      ],
+      [
+       "Material",
+       "Brushed steel, 18/8"
+      ],
+      [
+       "Weight",
+       "540 g"
+      ],
+      [
+       "Hob",
+       "Gas, electric, \"induction\""
+      ]
+     ],
+     "rowCount": 4,
+     "columnCount": 2,
+     "truncated": false
+    },
+    {
+     "index": 1,
+     "caption": null,
+     "headers": [
+      "Size",
+      "Price EU",
+      "Price UK"
+     ],
+     "rows": [
+      [
+       "0.6 L",
+       "€54.00",
+       "£46.00"
+      ],
+      [
+       "0.9 L",
+       "€64.00",
+       "£55.00"
+      ]
+     ],
+     "rowCount": 2,
+     "columnCount": 3,
+     "truncated": false
+    }
+   ],
+   "truncated": false
+  }
+ }
+}

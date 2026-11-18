@@ -7,6 +7,7 @@ import type { FastifyReply, FastifyRequest } from 'fastify';
 import { Type, type TSchema } from 'typebox';
 
 import { MAX_SELECTOR_LENGTH } from '../lib/selectors.js';
+import { parseTargetHeaders, TARGET_HEADER_LIMITS, type TargetHeaders } from '../lib/target-headers.js';
 
 /** Bounds of the `ttl` parameter, in seconds. */
 export const TTL_MIN_SECONDS = 60;
@@ -16,6 +17,7 @@ export const UrlParam = Type.String({
   minLength: 1,
   maxLength: 2048,
   description: 'Absolute http(s) URL of the target page.',
+  examples: ['https://example.com'],
 });
 
 export const RenderParam = Type.Optional(
@@ -52,6 +54,52 @@ export const WaitForSelectorParam = Type.Optional(
       '`404 ESELECTORNOTFOUND`.',
   }),
 );
+
+/**
+ * The only request headers a caller may set on the request to the target.
+ * No `Cookie`, no `Authorization`: answers are cached by URL (server cache and
+ * CDN), so credentials would leak from one caller to the next.
+ */
+export const TargetHeaderParams = {
+  acceptLanguage: Type.Optional(
+    Type.String({
+      minLength: 1,
+      maxLength: TARGET_HEADER_LIMITS.acceptLanguage,
+      description:
+        '`Accept-Language` sent to the target, e.g. `fr-FR,fr;q=0.9`. Applied on the raw HTTP ' +
+        'path and in the browser; part of the cache key.',
+    }),
+  ),
+  userAgent: Type.Optional(
+    Type.String({
+      minLength: 1,
+      maxLength: TARGET_HEADER_LIMITS.userAgent,
+      description:
+        '`User-Agent` sent to the target (printable ASCII). Part of the cache key. Cookies ' +
+        'and `Authorization` cannot be set: answers are cached by URL and shared between callers.',
+    }),
+  ),
+  referer: Type.Optional(
+    Type.String({
+      minLength: 1,
+      maxLength: TARGET_HEADER_LIMITS.referer,
+      description: '`Referer` sent with the document request: an absolute http(s) URL. Part of the cache key.',
+    }),
+  ),
+} as const;
+
+/**
+ * Reads the three header parameters of a query.
+ *
+ * @throws {AppError} `EINVALIDPARAMS`.
+ */
+export function targetHeadersOf(query: {
+  readonly acceptLanguage?: string | undefined;
+  readonly userAgent?: string | undefined;
+  readonly referer?: string | undefined;
+}): TargetHeaders | null {
+  return parseTargetHeaders(query);
+}
 
 /** Strong validator of a body: quoted base64url SHA-1. */
 export function etagOf(body: string | Buffer): string {

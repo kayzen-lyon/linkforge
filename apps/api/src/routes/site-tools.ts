@@ -4,6 +4,8 @@ import { Type, type TSchema } from 'typebox';
 import { ErrorCode } from '../lib/errors.js';
 import { COMMON_ERRORS, TARGET_ERRORS, type EndpointDoc } from '../openapi.js';
 import { SITEMAP_MAX_FILES, type SiteToolsService } from '../services/site-tools-service.js';
+import { TECH_CATEGORIES } from '../services/tech-detector.js';
+import { TECH_MAX_BUNDLES, type TechService } from '../services/tech-service.js';
 import {
   envelope,
   ForceParam,
@@ -12,6 +14,8 @@ import {
   RenderParam,
   revalidate,
   sendEnvelope,
+  TargetHeaderParams,
+  targetHeadersOf,
   WaitForSelectorParam,
   TtlParam,
   UrlParam,
@@ -26,6 +30,7 @@ const HTTP_ONLY_ERRORS: readonly ErrorCode[] = [
   ErrorCode.ForbiddenUrl,
   ErrorCode.Unreachable,
   ErrorCode.Timeout,
+  ErrorCode.CircuitOpen,
 ];
 
 // --- /links -------------------------------------------------------------------
@@ -49,6 +54,7 @@ const LinksQuery = Type.Object(
         description: 'Most links returned. `truncated` tells when more matched.',
       }),
     ),
+    ...TargetHeaderParams,
     force: ForceParam,
     ttl: TtlParam,
   },
@@ -288,24 +294,56 @@ export const sitemapDoc: EndpointDoc = {
 // --- /tech --------------------------------------------------------------------
 
 const TechQuery = Type.Object(
-  { url: UrlParam, force: ForceParam, ttl: TtlParam },
+  {
+    url: UrlParam,
+    render: Type.Optional(
+      Type.Enum(['auto', 'never', 'always'], {
+        type: 'string',
+        default: 'auto',
+        description:
+          '`never`: response headers, markup and first-party bundles only. `always`: also the ' +
+          'rendered DOM and a fixed, built-in probe of well-known globals and runtime markers ' +
+          '(never caller-supplied code). `auto`: the browser only when the static markup is an ' +
+          'empty shell in which no framework or library was recognised.',
+      }),
+    ),
+    ...TargetHeaderParams,
+    force: ForceParam,
+    ttl: TtlParam,
+  },
   { additionalProperties: false },
 );
 
+/** One detected technology (shared with `/insights`). */
+export const TechItem = Type.Object({
+  name: Type.String(),
+  category: Type.Enum([...TECH_CATEGORIES], { type: 'string' }),
+  evidence: Type.String({
+    description:
+      'What triggered the detection: `header …`, `meta generator: …`, `asset: …`, ' +
+      '`cookie: …`, `markup: …`, `bundle <path>: …`, `probe: <key>` or `implied by <name>`.',
+  }),
+  confidence: Type.Enum(['high', 'medium', 'low'], {
+    type: 'string',
+    description:
+      '`high`: a trait only this product has. `medium`: a strong habit of it. `low`: a hint.',
+  }),
+  version: Nullable(
+    Type.String({ description: 'Version stated by that very evidence; `null` when it states none.' }),
+  ),
+});
+
 const TechData = Type.Object({
   url: Type.String({ description: 'Final URL after redirects.' }),
-  technologies: Type.Array(
-    Type.Object({
-      name: Type.String(),
-      category: Type.String({
-        description:
-          '`cms`, `ecommerce`, `framework`, `library`, `analytics`, `tag-manager`, `cdn`, ' +
-          '`server`, `hosting`, `language`, `site-builder`, `consent`, `payment`, `font` or `chat`.',
+  technologies: Type.Array(TechItem),
+  inspected: Type.Object(
+    {
+      bundles: Type.Integer({
+        description: `First-party scripts and stylesheets read for runtime markers (at most ${TECH_MAX_BUNDLES}).`,
       }),
-      evidence: Type.String({
-        description: 'What triggered the detection: `header …`, `meta generator: …`, `asset: …`, `cookie: …` or `markup: …`.',
-      }),
-    }),
+      rendered: Type.Boolean({ description: 'Whether the rendered DOM and the built-in probe were used.' }),
+    },
+    { description: 'What the detection looked at: an absence is only as strong as this.' },
   ),
 });
 
@@ -314,10 +352,12 @@ export const techDoc: EndpointDoc = {
   operationId: 'getTech',
   summary: 'Technologies of a page',
   description:
-    'CMS, framework, libraries, analytics, CDN, hosting, e-commerce platform… recognised ' +
-    'from the response headers, the generator tag, asset URLs, cookie names and markers in ' +
-    'the markup. Raw HTTP only: what a script adds at run time is not seen. Every detection ' +
-    'comes with its evidence; a product that leaves no trace is not listed.',
+    'CMS, framework, libraries, UI kit, build tool, analytics, CDN, hosting, e-commerce ' +
+    'platform… recognised from the response headers, the generator tag, asset URLs, cookie ' +
+    'names, markers in the markup, runtime markers in the first-party bundles and, when ' +
+    'rendered, a fixed built-in probe of the running page. Every detection comes with its ' +
+    'evidence, a confidence level and a version when the evidence states one. A product ' +
+    'that leaves no trace is not listed: the answer never guesses.',
   tag: 'Site tools',
   query: TechQuery,
   responses: {
@@ -330,16 +370,19 @@ export const techDoc: EndpointDoc = {
         data: {
           url: 'https://example.com/',
           technologies: [
-            { name: 'WordPress', category: 'cms', evidence: 'meta generator: WordPress 6.6' },
-            { name: 'Cloudflare', category: 'cdn', evidence: 'header server: cloudflare' },
+            { name: 'React', category: 'library', evidence: 'bundle /assets/index-BqK3xT9a.js: version:"19.1.0",rendererPackageName:"react-dom"', confidence: 'high', version: '19.1.0' },
+            { name: 'Tailwind CSS', category: 'ui', evidence: 'bundle /assets/index-DiwrgTda.css: tailwindcss v4.1.4', confidence: 'high', version: '4.1.4' },
+            { name: 'Vite', category: 'build-tool', evidence: 'bundle /assets/index-BqK3xT9a.js: __vite__mapDeps', confidence: 'high', version: null },
+            { name: 'Vercel', category: 'hosting', evidence: 'header x-vercel-id: cdg1::iad1::abcde-1700000000000-0123456789ab', confidence: 'high', version: null },
           ],
+          inspected: { bundles: 2, rendered: false },
         },
         meta: { cached: false, source: 'http', durationMs: 131 },
       },
     },
     '304': NOT_MODIFIED,
   },
-  errors: [...HTTP_ONLY_ERRORS, ErrorCode.TargetStatus, ErrorCode.NotHtml],
+  errors: [...TARGET_ERRORS, ErrorCode.NotHtml],
 };
 
 // --- /image -------------------------------------------------------------------
@@ -418,6 +461,7 @@ const HtmlQuery = Type.Object(
       }),
     ),
     waitForSelector: WaitForSelectorParam,
+    ...TargetHeaderParams,
     force: ForceParam,
     ttl: TtlParam,
   },
@@ -448,6 +492,7 @@ export const htmlDoc: EndpointDoc = {
 
 export interface SiteToolsRouteOptions {
   readonly siteTools: SiteToolsService;
+  readonly techService: TechService;
 }
 
 /** `/links`, `/check`, `/sitemap` and `/tech`. */
@@ -460,7 +505,15 @@ export const siteToolsRoutes: FastifyPluginAsyncTypebox<SiteToolsRouteOptions> =
   app.get('/links', { schema: { querystring: LinksQuery } }, async (request, reply) => {
     const startedAt = performance.now();
     const { url, render = 'auto', scope = 'all', limit = 500, force = false, ttl } = request.query;
-    const result = await tools.links({ url, render, scope, limit, force, ttlSeconds: ttl ?? null });
+    const result = await tools.links({
+      url,
+      render,
+      scope,
+      limit,
+      headers: targetHeadersOf(request.query),
+      force,
+      ttlSeconds: ttl ?? null,
+    });
     return sendEnvelope(request, reply, result, startedAt);
   });
 
@@ -494,6 +547,7 @@ export const siteToolsRoutes: FastifyPluginAsyncTypebox<SiteToolsRouteOptions> =
       url,
       render,
       waitForSelector: request.query.waitForSelector ?? null,
+      headers: targetHeadersOf(request.query),
       force,
       ttlSeconds: ttl ?? null,
     });
@@ -509,8 +563,14 @@ export const siteToolsRoutes: FastifyPluginAsyncTypebox<SiteToolsRouteOptions> =
 
   app.get('/tech', { schema: { querystring: TechQuery } }, async (request, reply) => {
     const startedAt = performance.now();
-    const { url, force = false, ttl } = request.query;
-    const result = await tools.tech({ url, force, ttlSeconds: ttl ?? null });
+    const { url, render = 'auto', force = false, ttl } = request.query;
+    const result = await options.techService.detect({
+      url,
+      render,
+      headers: targetHeadersOf(request.query),
+      force,
+      ttlSeconds: ttl ?? null,
+    });
     return sendEnvelope(request, reply, result, startedAt);
   });
 };

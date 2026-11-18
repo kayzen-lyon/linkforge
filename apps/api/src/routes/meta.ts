@@ -14,6 +14,8 @@ import {
   NOT_MODIFIED,
   RenderParam,
   sendEnvelope,
+  TargetHeaderParams,
+  targetHeadersOf,
   TtlParam,
   UrlParam,
 } from './shared.js';
@@ -34,6 +36,7 @@ const MetaQuery = Type.Object(
           'number or boolean, raw JSON for an object or array, 404 when absent or null.',
       }),
     ),
+    ...TargetHeaderParams,
     force: ForceParam,
     ttl: TtlParam,
   },
@@ -138,6 +141,39 @@ export const metaDoc: EndpointDoc = {
         'application/json': envelope(MetaData),
         'text/plain': Type.String(),
       },
+      example: {
+        status: 'success',
+        data: {
+          url: 'https://example.com/blog/tide-tables',
+          canonicalUrl: 'https://example.com/blog/tide-tables',
+          title: 'The tide tables were wrong by eleven minutes',
+          description: 'A new sensor shows high water arriving earlier than the printed tables predicted.',
+          author: 'Amara Okafor',
+          publisher: 'Estuary Gazette',
+          lang: 'en-GB',
+          date: '2026-03-14T07:30:00.000Z',
+          dateModified: '2026-03-15T09:00:00.000Z',
+          type: 'article',
+          themeColor: '#0d1117',
+          robots: 'index, follow',
+          oembed: null,
+          alternates: [{ lang: 'fr-FR', url: 'https://example.com/fr/blog/tables-des-marees' }],
+          twitter: { card: 'summary_large_image', site: '@estuarygazette' },
+          paywalled: false,
+          domain: 'example.com',
+          image: { url: 'https://example.com/img/gauge.jpg', width: 1200, height: 630, type: 'image/jpeg', alt: 'The tide gauge' },
+          images: [{ url: 'https://example.com/img/gauge.jpg', width: 1200, height: 630, type: 'image/jpeg', alt: 'The tide gauge' }],
+          favicon: 'https://example.com/favicon.ico',
+          logo: { url: 'https://example.com/img/logo.png' },
+          video: null,
+          audio: null,
+          keywords: ['tides', 'harbour'],
+          feeds: [{ url: 'https://example.com/feed.xml', title: 'Estuary Gazette', type: 'application/rss+xml' }],
+          jsonLd: [{ '@type': 'NewsArticle', headline: 'The tide tables were wrong by eleven minutes' }],
+          contentType: 'text/html',
+        },
+        meta: { cached: false, source: 'http', durationMs: 132 },
+      },
     },
     '304': NOT_MODIFIED,
     '302': {
@@ -199,6 +235,19 @@ export const metaBatchDoc: EndpointDoc = {
   responses: {
     '200': {
       description: 'One item per submitted URL, in the same order.',
+      example: {
+        status: 'success',
+        data: [
+          {
+            url: 'https://example.com',
+            status: 'success',
+            data: { url: 'https://example.com/', title: 'Example Domain', description: null, domain: 'example.com', image: null, favicon: 'https://example.com/favicon.ico', contentType: 'text/html' },
+            cached: false,
+          },
+          { url: 'https://example.com/404', status: 'error', code: 'ETARGETSTATUS', message: 'The target responded with HTTP 404' },
+        ],
+        meta: { succeeded: 1, failed: 1, durationMs: 412 },
+      },
       content: {
         'application/json': Type.Object({
           status: Type.Literal('success'),
@@ -236,6 +285,7 @@ export const metaRoutes: FastifyPluginAsyncTypebox<MetaRouteOptions> = async (ap
     const result = await options.metaService.getMetadata({
       url,
       render,
+      headers: targetHeadersOf(request.query),
       force,
       ttlSeconds: ttl ?? null,
     });

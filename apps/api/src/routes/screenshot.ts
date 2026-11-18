@@ -1,6 +1,7 @@
 import type { FastifyPluginAsyncTypebox } from '@fastify/type-provider-typebox';
 import { Type } from 'typebox';
 
+import { HEX_COLOR_PATTERN, parseHexColor } from '../lib/colors.js';
 import { ErrorCode } from '../lib/errors.js';
 import { TARGET_ERRORS, type EndpointDoc } from '../openapi.js';
 import type { ScreenshotService } from '../services/screenshot-service.js';
@@ -8,6 +9,8 @@ import {
   CACHE_HEADERS,
   cacheControl,
   ForceParam,
+  TargetHeaderParams,
+  targetHeadersOf,
   TtlParam,
   UrlParam,
   WaitForSelectorParam,
@@ -78,6 +81,23 @@ const ScreenshotQuery = Type.Object(
       }),
     ),
     waitForSelector: WaitForSelectorParam,
+    click: Type.Optional(
+      Type.String({
+        minLength: 1,
+        maxLength: 300,
+        description:
+          'CSS selector of one element to click before the capture (open a tab, expand a ' +
+          'section). A real click on the first visible match; not found within 3 s: ' +
+          '`404 ESELECTORNOTFOUND`. CSS only, no script.',
+      }),
+    ),
+    scrollTo: Type.Optional(
+      Type.String({
+        minLength: 1,
+        maxLength: 300,
+        description: 'CSS selector of an element to scroll into view before the capture. Not found within 3 s: `404 ESELECTORNOTFOUND`.',
+      }),
+    ),
     waitFor: Type.Optional(
       Type.Integer({
         minimum: 0,
@@ -92,10 +112,35 @@ const ScreenshotQuery = Type.Object(
         description: 'Emulated `prefers-color-scheme`.',
       }),
     ),
+    frame: Type.Optional(
+      Type.Enum(['none', 'browser', 'phone'], {
+        type: 'string',
+        default: 'none',
+        description:
+          'Device frame drawn around the capture: a browser window or a phone bezel. Composed ' +
+          'offline from the finished capture. Not available with `fullPage`.',
+      }),
+    ),
+    radius: Type.Optional(
+      Type.Integer({ minimum: 0, maximum: 64, default: 0, description: 'Corner radius of the capture, in pixels.' }),
+    ),
+    padding: Type.Optional(
+      Type.Integer({ minimum: 0, maximum: 200, default: 0, description: 'Space around the capture, in pixels, filled with `background`.' }),
+    ),
+    background: Type.Optional(
+      Type.String({
+        pattern: HEX_COLOR_PATTERN,
+        default: 'ffffff',
+        description:
+          'Colour behind the capture when `frame`, `radius` or `padding` is used: hexadecimal ' +
+          '`RGB`, `RRGGBB` or `RRGGBBAA`, with or without `#`. `00000000` is transparent (PNG).',
+      }),
+    ),
     format: Type.Optional(Type.Enum(['png', 'jpeg'], { type: 'string', default: 'png' })),
     quality: Type.Optional(
       Type.Integer({ minimum: 1, maximum: 100, default: 80, description: 'JPEG only.' }),
     ),
+    ...TargetHeaderParams,
     force: ForceParam,
     ttl: TtlParam,
   },
@@ -108,7 +153,11 @@ export const screenshotDoc: EndpointDoc = {
   path: '/api/v1/screenshot',
   operationId: 'getScreenshot',
   summary: 'Page or element screenshot',
-  description: 'Responds with the raw image, so the URL can be used directly as an `<img src>`.',
+  description:
+    'Responds with the raw image, so the URL can be used directly as an `<img src>`. Before ' +
+    'the capture the page can be prepared declaratively: hide elements, click one element, ' +
+    'scroll to one, wait for a selector. The finished capture can be given a device frame, ' +
+    'rounded corners and padding. No script supplied by the caller is ever run.',
   tag: 'Rendering',
   query: ScreenshotQuery,
   responses: {
@@ -118,7 +167,7 @@ export const screenshotDoc: EndpointDoc = {
       content: { 'image/png': Binary, 'image/jpeg': Binary },
     },
   },
-  errors: [...TARGET_ERRORS, ErrorCode.SelectorNotFound],
+  errors: [...TARGET_ERRORS, ErrorCode.SelectorNotFound, ErrorCode.NotHtml],
 };
 
 export interface ScreenshotRouteOptions {
@@ -161,6 +210,15 @@ export const screenshotRoutes: FastifyPluginAsyncTypebox<ScreenshotRouteOptions>
       hideBanners: request.query.hideBanners ?? true,
       blockAds: request.query.blockAds ?? false,
       waitForSelector: request.query.waitForSelector ?? null,
+      click: request.query.click ?? null,
+      scrollTo: request.query.scrollTo ?? null,
+      decoration: {
+        frame: request.query.frame ?? 'none',
+        radius: request.query.radius ?? 0,
+        padding: request.query.padding ?? 0,
+        background: parseHexColor(request.query.background ?? 'ffffff', 'background').css,
+      },
+      headers: targetHeadersOf(request.query),
       force,
       ttlSeconds: request.query.ttl ?? null,
     });
