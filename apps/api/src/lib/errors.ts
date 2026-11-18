@@ -24,6 +24,16 @@ export const ErrorCode = {
   Busy: 'EBUSY',
   /** Rate limit exceeded. */
   RateLimited: 'ERATELIMIT',
+  /** An `x-api-key` header was sent but matches no configured key. */
+  Unauthorized: 'EUNAUTHORIZED',
+  /** `/meta?embed=`: the requested path is absent or null in the metadata. */
+  EmbedNotFound: 'EEMBEDNOTFOUND',
+  /** `/screenshot?selector=`: no visible element matches the selector. */
+  SelectorNotFound: 'ESELECTORNOTFOUND',
+  /** The target is not an HTML document, which this endpoint requires. */
+  NotHtml: 'ENOTHTML',
+  /** The generated output exceeds the configured size limit. */
+  TooLarge: 'ETOOLARGE',
   /** The headless browser crashed or could not be started. */
   Browser: 'EBROWSER',
   /** Unexpected server-side failure. */
@@ -50,6 +60,34 @@ export class AppError extends Error {
 
   static forbiddenUrl(message: string): AppError {
     return new AppError(ErrorCode.ForbiddenUrl, 403, message);
+  }
+
+  static invalidParams(message: string): AppError {
+    return new AppError(ErrorCode.InvalidParams, 400, message);
+  }
+
+  static unauthorized(message: string): AppError {
+    return new AppError(ErrorCode.Unauthorized, 401, message);
+  }
+
+  static embedNotFound(message: string): AppError {
+    return new AppError(ErrorCode.EmbedNotFound, 404, message);
+  }
+
+  static selectorNotFound(message: string): AppError {
+    return new AppError(ErrorCode.SelectorNotFound, 404, message);
+  }
+
+  static notHtml(contentType: string | null): AppError {
+    return new AppError(
+      ErrorCode.NotHtml,
+      422,
+      `The target is not an HTML document (${contentType ?? 'unknown content type'})`,
+    );
+  }
+
+  static tooLarge(message: string): AppError {
+    return new AppError(ErrorCode.TooLarge, 422, message);
   }
 
   static timeout(message: string, cause?: unknown): AppError {

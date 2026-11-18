@@ -93,3 +93,106 @@ describe('fallbacks', () => {
     expect(needsBrowserRender(extractMetadata(html, 'https://example.org/'), html)).toBe(true);
   });
 });
+
+describe('extractMetadata — logo, media, keywords and feeds', () => {
+  const page = (head: string) => `<html><head><title>T</title>${head}</head><body></body></html>`;
+  const extract = (head: string) => extractMetadata(page(head), 'https://example.com/a/b');
+
+  it('prefers the JSON-LD logo, including the publisher one', () => {
+    const direct = extract(`
+      <link rel="icon" href="/icon.svg">
+      <script type="application/ld+json">{"@type":"Organization","logo":"/brand.png"}</script>`);
+    expect(direct.logo).toEqual({ url: 'https://example.com/brand.png' });
+    expect(direct.favicon).toBe('https://example.com/icon.svg');
+
+    const nested = extract(`<script type="application/ld+json">
+      {"@type":"Article","publisher":{"@type":"Organization","logo":{"@type":"ImageObject","url":"https://cdn.example.com/l.png"}}}
+    </script>`);
+    expect(nested.logo).toEqual({ url: 'https://cdn.example.com/l.png' });
+  });
+
+  it('falls back to the largest declared icon, and to null when none is declared', () => {
+    const icons = extract(`
+      <link rel="icon" sizes="32x32" href="/32.png">
+      <link rel="apple-touch-icon" href="/touch.png">
+      <link rel="icon" sizes="16x16" href="/16.png">`);
+    expect(icons.logo).toEqual({ url: 'https://example.com/touch.png' });
+
+    const none = extract('');
+    expect(none.logo).toBeNull();
+    // The favicon keeps its conventional default.
+    expect(none.favicon).toBe('https://example.com/favicon.ico');
+  });
+
+  it('reads Open Graph video and audio', () => {
+    const media = extract(`
+      <meta property="og:video" content="/v.mp4">
+      <meta property="og:video:type" content="video/mp4">
+      <meta property="og:video:width" content="1280">
+      <meta property="og:video:height" content="720">
+      <meta property="og:audio" content="https://cdn.example.com/a.mp3">
+      <meta property="og:audio:type" content="audio/mpeg">`);
+    expect(media.video).toEqual({
+      url: 'https://example.com/v.mp4',
+      type: 'video/mp4',
+      width: 1280,
+      height: 720,
+    });
+    expect(media.audio).toEqual({ url: 'https://cdn.example.com/a.mp3', type: 'audio/mpeg' });
+  });
+
+  it('falls back to twitter:player, then to a JSON-LD VideoObject', () => {
+    const player = extract(`
+      <meta name="twitter:player" content="https://player.example.com/1">
+      <meta name="twitter:player:width" content="640">
+      <meta name="twitter:player:height" content="360">`);
+    expect(player.video).toEqual({
+      url: 'https://player.example.com/1',
+      type: 'text/html',
+      width: 640,
+      height: 360,
+    });
+
+    const jsonLd = extract(`<script type="application/ld+json">
+      {"@type":"VideoObject","contentUrl":"https://cdn.example.com/v.webm","encodingFormat":"video/webm","width":"1920","height":1080}
+    </script>`);
+    expect(jsonLd.video).toEqual({
+      url: 'https://cdn.example.com/v.webm',
+      type: 'video/webm',
+      width: 1920,
+      height: 1080,
+    });
+
+    const none = extract('<meta property="og:video" content="javascript:alert(1)">');
+    expect(none.video).toBeNull();
+    expect(none.audio).toBeNull();
+  });
+
+  it('collects de-duplicated keywords from meta tags, article tags and JSON-LD', () => {
+    const { keywords } = extract(`
+      <meta name="keywords" content="Alpha, beta ,, ALPHA">
+      <meta property="article:tag" content="Gamma">
+      <script type="application/ld+json">{"@type":"Article","keywords":["delta","beta"]}</script>`);
+    expect(keywords).toEqual(['Alpha', 'beta', 'Gamma', 'delta']);
+    expect(extract('').keywords).toEqual([]);
+  });
+
+  it('bounds the number of keywords', () => {
+    const many = Array.from({ length: 200 }, (_, i) => `k${i}`).join(',');
+    expect(extract(`<meta name="keywords" content="${many}">`).keywords).toHaveLength(50);
+  });
+
+  it('lists RSS and Atom feeds only', () => {
+    const { feeds } = extract(`
+      <link rel="alternate" type="application/rss+xml" title="Posts" href="/feed.xml">
+      <link rel="alternate" type="application/atom+xml" href="https://example.com/atom">
+      <link rel="alternate" type="application/rss+xml" href="/feed.xml">
+      <link rel="alternate" hreflang="fr" href="/fr">
+      <link rel="stylesheet" type="application/rss+xml" href="/not-a-feed">
+      <link rel="alternate" type="application/rss+xml" href="javascript:void(0)">`);
+    expect(feeds).toEqual([
+      { url: 'https://example.com/feed.xml', title: 'Posts', type: 'application/rss+xml' },
+      { url: 'https://example.com/atom', title: null, type: 'application/atom+xml' },
+    ]);
+  });
+});

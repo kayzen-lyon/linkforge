@@ -1,7 +1,11 @@
 /**
- * Embeds the built playground (apps/web/dist) into the API source so that a
+ * Embeds the built website (apps/web/dist) into the API source so that a
  * single serverless function can serve it, without relying on the platform to
  * ship extra files next to the bundle.
+ *
+ * Every servable file of the build is embedded with its content type. HTML
+ * pages are later exposed at their clean URL as well (`/docs.html` → `/docs`,
+ * `/en/index.html` → `/en/`): see `src/routes/playground.ts`.
  *
  * Usage: node scripts/embed-playground.mjs   (run from apps/api, after the web build)
  */
@@ -16,21 +20,30 @@ const CONTENT_TYPES = {
   '.html': 'text/html; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.webmanifest': 'application/manifest+json; charset=utf-8',
+  '.xml': 'application/xml; charset=utf-8',
+  '.txt': 'text/plain; charset=utf-8',
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.webp': 'image/webp',
   '.ico': 'image/x-icon',
-  '.json': 'application/json; charset=utf-8',
-  '.txt': 'text/plain; charset=utf-8',
+  '.woff2': 'font/woff2',
 };
 
 const assets = [];
+let bytes = 0;
 for (const entry of (await readdir(webDist, { recursive: true })).sort()) {
   const contentType = CONTENT_TYPES[extname(entry).toLowerCase()];
   if (contentType === undefined) continue;
+  const content = await readFile(join(webDist, entry));
+  bytes += content.length;
   assets.push({
     path: `/${entry.split(sep).join('/')}`,
     contentType,
-    base64: (await readFile(join(webDist, entry))).toString('base64'),
+    base64: content.toString('base64'),
   });
 }
 
@@ -49,4 +62,5 @@ export const PLAYGROUND_ASSETS: readonly EmbeddedAsset[] = ${JSON.stringify(asse
 `;
 
 await writeFile(target, source);
-console.log(`Embedded ${assets.length} playground file(s)`);
+const pages = assets.filter((asset) => asset.path.endsWith('.html')).length;
+console.log(`Embedded ${assets.length} file(s), ${pages} page(s), ${Math.round(bytes / 1024)} KiB`);

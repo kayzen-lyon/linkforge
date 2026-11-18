@@ -1,11 +1,11 @@
-# Prompt maître — construire et améliorer LinkForge
+# Prompt maître — construire et améliorer Omnillink
 
 À coller au début d'une session avec un agent de code (Claude Code ou équivalent), à la racine du dépôt. Remplacez le bloc `<tache>` à chaque session ; le reste ne change pas.
 
 ---
 
 ```text
-Tu travailles sur LinkForge, un service open-source d'extraction de métadonnées, de captures
+Tu travailles sur Omnillink, un service open-source d'extraction de métadonnées, de captures
 d'écran et d'aperçus de liens, exposé par une API REST. Le projet vise les usages couverts par
 des services comme Microlink, avec une identité, un code et une documentation qui lui sont propres.
 
@@ -105,7 +105,7 @@ Termine par un résumé court :
 ```text
 Rédige docs/competitive-analysis.md. Sources autorisées : la documentation publique des services
 concurrents et les observations que je te fournis (captures REA, réponses d'API que j'ai collectées).
-Pour chaque fonctionnalité : ce qu'elle fait, ses paramètres, si LinkForge l'a déjà, l'effort estimé.
+Pour chaque fonctionnalité : ce qu'elle fait, ses paramètres, si Omnillink l'a déjà, l'effort estimé.
 Distingue ce que tu as lu dans une source de ce que tu supposes, et cite la source de chaque constat.
 Ne reprends aucun texte, nom de marque ou élément visuel des concurrents.
 ```

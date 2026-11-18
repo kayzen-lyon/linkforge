@@ -15,6 +15,8 @@ export interface RenderOptions {
   readonly waitUntil: 'domcontentloaded' | 'load';
   /** Extra time granted for the network to go quiet (best effort, never fails). */
   readonly settleMs: number;
+  /** Time the job itself needs beyond the default margin (e.g. a requested wait). */
+  readonly extraBudgetMs?: number;
 }
 
 export interface RenderedPage {
@@ -64,7 +66,8 @@ export class Renderer {
   ): Promise<T> {
     const navigationTimeout = this.config.browser.navigationTimeoutMs;
     // Navigation + settle + a margin for the job itself (extraction or capture).
-    const deadline = navigationTimeout + options.settleMs + 10_000;
+    const deadline =
+      navigationTimeout + options.settleMs + 10_000 + (options.extraBudgetMs ?? 0);
 
     return this.pool.withPage(
       {
