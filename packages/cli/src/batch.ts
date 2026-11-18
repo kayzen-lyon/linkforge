@@ -22,8 +22,9 @@ export async function* readUrlLines(input: Readable): AsyncGenerator<string> {
  * Runs `worker` over `source` with at most `limit` calls in flight, and hands
  * each result to `emit` in the order of the input, one at a time.
  *
- * The source is pulled lazily, so a long list on standard input is never held
- * in memory beyond the items in flight and the results waiting for their turn.
+ * The source is pulled lazily and no more than `limit * 4` items are ever
+ * outstanding (in flight, or done and waiting for an earlier one), so a long
+ * list on standard input is never held in memory, even behind one slow URL.
  * `worker` is expected to turn its own failures into results; if it throws
  * anyway, no new item is started and the error is rethrown once the calls in
  * flight have settled.
@@ -36,7 +37,10 @@ export async function mapOrdered<T, R>(
 ): Promise<number> {
   const iterator =
     Symbol.asyncIterator in source ? source[Symbol.asyncIterator]() : source[Symbol.iterator]();
+  const lanes = Math.max(1, Math.floor(limit));
+  const window = lanes * 4;
   const ready = new Map<number, R>();
+  let progress: (() => void) | undefined;
   let pulled = 0;
   let emitted = 0;
   let done = false;
@@ -47,6 +51,12 @@ export async function mapOrdered<T, R>(
 
   const next = (): Promise<{ item: T; index: number } | undefined> => {
     const turn = pulling.then(async () => {
+      // Back-pressure: wait for the output to catch up with the input.
+      while (pulled - emitted >= window && failure === undefined) {
+        await new Promise<void>((resume) => {
+          progress = resume;
+        });
+      }
       if (done || failure !== undefined) return undefined;
       const step = await iterator.next();
       if (step.done === true) {
@@ -69,6 +79,7 @@ export async function mapOrdered<T, R>(
         const index = emitted;
         emitted += 1;
         await emit(result, index);
+        progress?.();
       }
     });
     return emitting;
@@ -82,10 +93,11 @@ export async function mapOrdered<T, R>(
       }
     } catch (error) {
       failure ??= { error };
+      progress?.();
     }
   };
 
-  await Promise.all(Array.from({ length: Math.max(1, Math.floor(limit)) }, lane));
+  await Promise.all(Array.from({ length: lanes }, lane));
   if (failure !== undefined) throw failure.error;
   return emitted;
 }

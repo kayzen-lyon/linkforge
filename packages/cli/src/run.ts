@@ -46,7 +46,6 @@ import {
   formatSaved,
   formatUsageError,
   shouldUseColor,
-  type Style,
 } from './format.js';
 
 export interface Io {

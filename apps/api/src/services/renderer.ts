@@ -7,7 +7,7 @@ import type { AppConfig } from '../config.js';
 import type { Deadline } from '../lib/deadline.js';
 import { AppError, findAppError } from '../lib/errors.js';
 import { installBrowserGuard, type BrowserGuardOptions } from '../security/browser-guard.js';
-import type { EgressProxy } from '../security/egress-proxy.js';
+import { REFUSAL_HEADER, type EgressProxy } from '../security/egress-proxy.js';
 import type { BrowserPool } from './browser-pool.js';
 
 export interface RenderOptions {
@@ -174,8 +174,13 @@ export class Renderer {
           } catch (error) {
             throw normalizeNavigationError(error, url, blocked());
           }
-          // A refused plain-http hop is answered by the proxy itself, with a 403.
-          if (blocked()) throw normalizeNavigationError(null, url, true);
+          // A refused plain-http hop is answered by the proxy itself, with a 403
+          // that carries its token: recognised whatever URL tracking says.
+          const refusedByProxy =
+            response !== null &&
+            (await response.headerValue(REFUSAL_HEADER).catch(() => null)) ===
+              this.egress.refusalToken;
+          if (refusedByProxy || blocked()) throw normalizeNavigationError(null, url, true);
 
           const loaded = await page
             .waitForLoadState(options.waitUntil, {

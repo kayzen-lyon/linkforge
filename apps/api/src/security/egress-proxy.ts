@@ -43,6 +43,9 @@ export interface EgressEndpoint {
   readonly password: string;
 }
 
+/** Header carrying the proxy's refusal token on the 403 it answers to plain-http requests. */
+export const REFUSAL_HEADER = 'x-egress-refused';
+
 /** Receives `host:port` of every destination the proxy refused. */
 export type BlockedListener = (destination: string) => void;
 
@@ -78,6 +81,12 @@ const dialHost = (address: ResolvedAddress): string => address.address;
 export class EgressProxy {
   private readonly username = 'omnillink';
   private readonly password = randomBytes(24).toString('hex');
+  /**
+   * Value of the {@link REFUSAL_HEADER} set on refusals of plain-http requests.
+   * Random per instance, so a page cannot forge a refusal, and the renderer can
+   * recognise one without having to track which URL was being loaded.
+   */
+  readonly refusalToken = randomBytes(16).toString('hex');
   private readonly expectedAuth: Buffer;
   private readonly listeners = new Set<BlockedListener>();
   private readonly sockets = new Set<Duplex>();
@@ -257,7 +266,8 @@ export class EgressProxy {
     const [host, port] = destination;
     const addresses = await this.validate(host, port);
     if (addresses === null || addresses === 'unreachable') {
-      refuse(addresses === null ? 403 : 502);
+      if (addresses === null) refuse(403, { [REFUSAL_HEADER]: this.refusalToken });
+      else refuse(502);
       return;
     }
 

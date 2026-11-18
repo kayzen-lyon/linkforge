@@ -21,5 +21,3 @@ process.exitCode = await run({
   stderr: process.stderr,
   signal: controller.signal,
 });
-// Standard input is left open when the URLs came from the command line.
-process.stdin.unref?.();
