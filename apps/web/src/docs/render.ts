@@ -10,7 +10,8 @@ import { readFileSync } from 'node:fs';
 import { codeFigure, resetCodeCounter } from '../content/render.ts';
 import type { Lang } from '../lib/highlight.ts';
 import { escapeHtml, inlineToHtml } from '../lib/inline.ts';
-import { SITE_ORIGIN } from '../site/config.ts';
+import { SITE_ORIGIN, type Lang as SiteLang } from '../site/config.ts';
+import { OPERATIONS_FR, PARAMS_FR } from './spec-fr.ts';
 import {
   AUTH_SAMPLE,
   ENDPOINTS,
@@ -76,13 +77,13 @@ function endpointHead(id: string, path: string, title: DocsKey, returns: string)
   </header>`;
 }
 
-function endpointSection(endpoint: Endpoint): string {
+function endpointSection(endpoint: Endpoint, lang: SiteLang): string {
   return `<section class="endpoint" aria-labelledby="${endpoint.id}">
   ${endpointHead(endpoint.id, endpoint.path, endpoint.title, endpoint.returns)}
   ${endpoint.intro.map(p).join('\n  ')}
   <h4 ${t('params')}></h4>
   ${rowsTable('th.param', endpoint.params, true)}
-  ${extraParams(endpoint)}
+  ${extraParams(endpoint, lang)}
   ${(endpoint.tables ?? []).map(extraTable).join('\n')}
   ${(endpoint.notes ?? []).map((key) => `<p class="note" ${t(key)}></p>`).join('\n')}
   ${endpoint.samples.map((sample) => codeBlock(sample.label, sample.code, sample.lang)).join('\n')}
@@ -197,18 +198,33 @@ const SPEC = specOperations();
 /** Endpoints documented from the OpenAPI document only. */
 export const SPEC_ENDPOINTS: readonly SpecOperation[] = SPEC.filter((operation) => !HAND_WRITTEN.has(operation.path) && !SKIPPED.has(operation.path));
 
-function specTable(params: readonly SpecParam[]): string {
+/** French text of a parameter; a described parameter without one fails the build. */
+function paramText(operation: string, row: SpecParam, lang: SiteLang): string {
+  if (lang !== 'fr' || row.description === '') return row.description;
+  const text_ = PARAMS_FR[`${operation}.${row.name}`] ?? PARAMS_FR[`*.${row.name}`];
+  if (text_ === undefined) throw new Error(`No French text for parameter "${operation}.${row.name}" (src/docs/spec-fr.ts)`);
+  return text_;
+}
+
+function operationText(operation: SpecOperation, lang: SiteLang): { summary: string; description: string } {
+  if (lang !== 'fr') return { summary: operation.summary, description: operation.description };
+  const entry = OPERATIONS_FR[operation.id];
+  if (entry === undefined) throw new Error(`No French text for operation "${operation.id}" (src/docs/spec-fr.ts)`);
+  return entry;
+}
+
+function specTable(operation: string, params: readonly SpecParam[], lang: SiteLang): string {
   if (params.length === 0) return '';
-  return `<div class="ref-table-wrap"><table class="ref-table" lang="en">
+  return `<div class="ref-table-wrap"><table class="ref-table">
   <thead><tr><th scope="col" ${t('th.param')}></th><th scope="col" ${t('th.type')}></th><th scope="col" ${t('th.default')}></th><th scope="col" ${t('th.description')}></th></tr></thead>
   <tbody>
 ${params
   .map(
     (row) => `    <tr>
-      <th scope="row"><code class="param-name">${escapeHtml(row.name)}</code>${row.required ? ` <span class="req" lang="" ${t('required')}></span>` : ''}</th>
+      <th scope="row"><code class="param-name">${escapeHtml(row.name)}</code>${row.required ? ` <span class="req" ${t('required')}></span>` : ''}</th>
       <td class="cell-type">${inlineToHtml(row.type)}</td>
       <td class="cell-default">${row.fallback === '' ? '<span aria-hidden="true">–</span>' : `<code>${escapeHtml(row.fallback)}</code>`}</td>
-      <td>${inlineToHtml(row.description)}</td>
+      <td>${inlineToHtml(paramText(operation, row, lang))}</td>
     </tr>`,
   )
   .join('\n')}
@@ -227,24 +243,25 @@ function specSample(operation: SpecOperation): string {
   return `curl${binary ? ` -o ${operation.id}.${operation.produces[0]?.includes('svg') ? 'svg' : operation.produces[0]?.includes('apng') ? 'png' : (operation.produces[0]?.split('/')[1] ?? 'bin')}` : ''} "${url}${required.length === 0 ? '' : `?${required.join('&')}`}"`;
 }
 
-function specSection(operation: SpecOperation): string {
+function specSection(operation: SpecOperation, lang: SiteLang): string {
+  const copy = operationText(operation, lang);
   return `<section class="endpoint" aria-labelledby="${operation.id}">
   <header class="endpoint-head">
-    <h3 id="${operation.id}" lang="en">${escapeHtml(operation.summary)}</h3>
+    <h3 id="${operation.id}">${escapeHtml(copy.summary)}</h3>
     <p class="endpoint-line"><span class="method">${operation.method}</span><code>${escapeHtml(operation.path)}</code></p>
     <p class="endpoint-returns"><span ${t('returns')}></span> ${operation.produces.map((type) => `<code>${escapeHtml(type)}</code>`).join(' | ')}</p>
   </header>
-  ${operation.description === '' ? '' : `<p lang="en">${inlineToHtml(operation.description)}</p>`}
-  ${operation.params.length === 0 ? '' : `<h4 ${t('params')}></h4>\n  ${specTable(operation.params)}`}
+  ${copy.description === '' ? '' : `<p>${inlineToHtml(copy.description)}</p>`}
+  ${operation.params.length === 0 ? '' : `<h4 ${t('params')}></h4>\n  ${specTable(operation.id, operation.params, lang)}`}
   ${codeBlock('sample.request', specSample(operation), 'bash')}
 </section>`;
 }
 
 /** Parameters the API accepts on a hand-written endpoint that its table does not list yet. */
-function extraParams(endpoint: Endpoint): string {
+function extraParams(endpoint: Endpoint, lang: SiteLang): string {
   const listed = new Set(endpoint.params.map((row) => row.name));
   const extra = SPEC.find((operation) => operation.path === endpoint.path)?.params.filter((row) => !listed.has(row.name)) ?? [];
-  return extra.length === 0 ? '' : `<h4 ${t('params.more')}></h4>\n  ${specTable(extra)}`;
+  return extra.length === 0 ? '' : `<h4 ${t('params.more')}></h4>\n  ${specTable(endpoint.id, extra, lang)}`;
 }
 
 interface TocGroup {
@@ -306,7 +323,7 @@ const section = (id: string, title: DocsKey, body: string): string =>
   ${body}
 </section>`;
 
-export function renderDocsBody(): string {
+export function renderDocsBody(lang: SiteLang): string {
   resetCodeCounter();
   return [
     section(
@@ -353,9 +370,9 @@ export function renderDocsBody(): string {
     section('rendering', 'render.title', [p('render.p1'), p('render.p2'), p('render.p3')].join('\n')),
     `<section class="doc-section" aria-labelledby="endpoints">
   <h2 id="endpoints" ${t('toc.endpoints')}></h2>
-  ${ENDPOINTS.map(endpointSection).join('\n')}
+  ${ENDPOINTS.map((endpoint) => endpointSection(endpoint, lang)).join('\n')}
   <p class="note" ${t('spec.note')}></p>
-  ${SPEC_ENDPOINTS.map(specSection).join('\n')}
+  ${SPEC_ENDPOINTS.map((operation) => specSection(operation, lang)).join('\n')}
   <section class="endpoint" aria-labelledby="openapi">
     ${endpointHead('openapi', '/api/v1/openapi.json', 'openapi.h', '`application/json`')}
     ${p('openapi.p1')}

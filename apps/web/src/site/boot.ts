@@ -4,7 +4,8 @@
  *
  *  - A visitor who chose another language is sent to that language's URL,
  *    unless they are navigating inside the site (then the URL decides).
- *  - The theme (stored choice, else the system setting), the accessibility
+ *  - The theme (light unless the visitor chose dark, or chose to follow the
+ *    system), the accessibility
  *    options and the dismissed banner are applied to <html>.
  *
  * It is served as a file rather than inlined so the site can run under a
@@ -20,14 +21,14 @@ for(var c in P){var x=P[c];if(x&&(p===x||p.indexOf(x+'/')===0)){cur=c;bare=p.sli
 var l=s.getItem('${STORAGE.lang}');
 if(l&&l!==cur&&Object.prototype.hasOwnProperty.call(P,l)&&document.referrer.indexOf(location.origin)!==0){location.replace(P[l]+bare+location.search+location.hash);return}
 var t=s.getItem('${STORAGE.theme}');
-if(t!=='light'&&t!=='dark')t=m('(prefers-color-scheme: dark)').matches?'dark':'light';
+if(t==='system')t=m('(prefers-color-scheme: dark)').matches?'dark':'light';else if(t!=='dark')t='light';
 d.setAttribute('data-theme',t);
 if(s.getItem('${STORAGE.banner}')==='closed')d.classList.add('no-banner');
 var a=JSON.parse(s.getItem('${STORAGE.a11y}')||'null');
 if(a){if(a.fontSize)d.style.fontSize=['','112%','125%'][a.fontSize]||'';
 var C={highContrast:'high-contrast',legibleFont:'legible-font',oled:'oled',spacing:'wide-spacing',underline:'underline-links',motion:'reduce-motion'};
 for(var k in C)if(a[k]===true)d.classList.add(C[k])}
-}catch(e){if(m('(prefers-color-scheme: dark)').matches)d.setAttribute('data-theme','dark')}
+}catch(e){d.setAttribute('data-theme','light')}
 })();
 `;
 }

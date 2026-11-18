@@ -57,14 +57,15 @@ export function toast(message: string, kind: 'info' | 'error' = 'info'): void {
   }, 3600);
 }
 
-// ---- Theme: light, dark or follow the system ------------------------------------
+// ---- Theme: light by default; dark or "follow the system" on request ------------------------------------
 
 const THEME_COLOR: Readonly<Record<Theme, string>> = { light: '#ffffff', dark: '#0d1621' };
 const themeListeners: Array<(theme: Theme) => void> = [];
 const currentTheme = (): Theme => (root.getAttribute('data-theme') === 'dark' ? 'dark' : 'light');
+/** Light is the brand theme and the default. Dark and "follow the system" are explicit choices. */
 const themeChoice = (): ThemeChoice => {
   const stored = read(STORAGE.theme);
-  return stored === 'light' || stored === 'dark' ? stored : 'system';
+  return stored === 'dark' || stored === 'system' ? stored : 'light';
 };
 
 function showTheme(theme: Theme): void {
@@ -80,7 +81,7 @@ function chooseTheme(choice: ThemeChoice): void {
   // Colours glide for the time of the switch only, so other transitions stay fast.
   root.classList.add('theme-transition');
   window.setTimeout(() => root.classList.remove('theme-transition'), 400);
-  store(STORAGE.theme, choice === 'system' ? null : choice);
+  store(STORAGE.theme, choice);
   showTheme(choice === 'system' ? (systemDark.matches ? 'dark' : 'light') : choice);
 }
 

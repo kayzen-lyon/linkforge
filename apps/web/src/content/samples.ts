@@ -81,9 +81,9 @@ export const SAMPLES = {
   ],
   "insights": {
     "timings": {
-      "ttfbMs": 7,
-      "domContentLoadedMs": 23,
-      "loadMs": 23
+      "ttfbMs": 9,
+      "domContentLoadedMs": 26,
+      "loadMs": 26
     },
     "vitals": {
       "fcpMs": 32,
@@ -139,7 +139,7 @@ export const SAMPLES = {
     "status": 200,
     "ok": true,
     "hops": 1,
-    "durationMs": 1,
+    "durationMs": 2,
     "contentType": "text/html",
     "tls": null
   },
@@ -231,7 +231,7 @@ export const SAMPLES = {
     "bytes": 80255
   },
   "cli": {
-    "meta": "Launching the new editor\n  https://example.com/blog/launch\n  What changed in the editor, and how to migrate your documents.\n\n  Publisher  Example Blog\n  Author     Ada Example\n  Date       2025-03-04\n  Language   en\n  Image      https://example.com/img/launch.png\n  Favicon    https://example.com/img/launch.png\n  Logo       https://example.com/img/launch.png\n  Type       text/html\n  http · 0 ms · cached"
+    "meta": "Launching the new editor\n  https://example.com/blog/launch\n  What changed in the editor, and how to migrate your documents.\n\n  Publisher  Example Blog\n  Author     Ada Example\n  Date       2025-03-04\n  Language   en\n  Image      https://example.com/img/launch.png\n  Favicon    https://example.com/img/launch.png\n  Logo       https://example.com/img/launch.png\n  oEmbed     https://example.com/blog/launchoembed.json\n  Type       text/html\n  http · 0 ms · cached"
   },
   "batch": [
     {

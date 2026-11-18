@@ -163,6 +163,7 @@ function capabilityGroups(): string {
       capCard('meta', 'GET', '/api/v1/meta', 'link', metaMini, play('meta'), ref('meta')),
       capCard('content', 'GET', '/api/v1/content', 'doc', `<pre class="mini-code mini-code-wrap" lang="en"><code>${escapeHtml(S.content.markdown.split('\n').slice(0, 9).join('\n'))}</code></pre>`, play('content'), ref('content')),
       capCard('extract', 'GET', '/api/v1/extract', 'cursor', code(JSON.stringify(S.extract.fields, null, 2)), play('extract', { fields: JSON.stringify(S.extract.rules) }), ref('extract')),
+      capCard('batch', 'POST', '/api/v1/meta/batch', 'stack', batchMini, `${PAGES.playground}?r=${encodeURIComponent('POST /api/v1/meta/batch')}&b=${encodeURIComponent(JSON.stringify({ urls: [DEFAULT_URL] }))}`, ref('meta-batch')),
       capCard('preset', 'GET', '/api/v1/extract', 'stack', articleMini, play('extract', { preset: 'article' }), ref('extract')),
       capCard('tables', 'GET', '/api/v1/tables', 'rows', tableMini, play('tables'), ref('tables')),
       capCard('links', 'GET', '/api/v1/links', 'link', linksMini, play('links'), ref('links')),
@@ -173,7 +174,6 @@ function capabilityGroups(): string {
       capCard('screenshot', 'GET', '/api/v1/screenshot', 'camera', shotMini, play('screenshot', { device: 'mobile' }), ref('screenshot')),
       capCard('animation', 'GET', '/api/v1/animation', 'play', image('animation.webp', 320, 200), play('animation'), ref('animation')),
       capCard('pdf', 'GET', '/api/v1/pdf', 'download', pdfMini, play('pdf'), ref('pdf')),
-      capCard('batch', 'POST', '/api/v1/meta/batch', 'stack', batchMini, `${PAGES.playground}?r=${encodeURIComponent('POST /api/v1/meta/batch')}&b=${encodeURIComponent(JSON.stringify({ urls: [DEFAULT_URL] }))}`, ref('meta-batch')),
     ]),
     group('grp.inspect', [
       capCard('tech', 'GET', '/api/v1/tech', 'braces', techMini, play('tech'), ref('tech')),
@@ -525,7 +525,7 @@ function reference(lang: Lang): string {
             <p class="lead" ${t('lead')}></p>
             <p class="flex flex-wrap gap-3"><a class="btn btn-primary btn-compact" href="${PAGES.playground}"><span ${t('nav.playground')}></span>${icon('arrowRight', 'size-4')}</a><a class="btn btn-secondary btn-compact" href="/api/v1/openapi.json">${icon('download', 'size-4')}<span>openapi.json</span></a></p>
           </header>
-          ${renderDocsBody()}`,
+          ${renderDocsBody(lang)}`,
     'doc',
   );
 }

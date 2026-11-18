@@ -193,5 +193,5 @@ export const docs: Record<keyof typeof source, string> = {
   'html.note':
     '`/meta`, `/extract` and `/content` need an HTML document: for an image, a PDF or any other file type, the API answers `ENOTHTML` (422).',
   'spec.note': 'The sections that follow, and the “More parameters” tables, are generated from the OpenAPI document of the API, in its own wording.',
-  'params.more': 'More parameters (OpenAPI document)',
+  'params.more': 'More parameters',
 };

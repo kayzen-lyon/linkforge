@@ -200,6 +200,6 @@ export const docs = {
     'Un champ vaut `null` quand rien ne correspond ou que la valeur ne peut pas être convertie. Les chaînes sont coupées à 10 000 caractères.',
   'html.note':
     '`/meta`, `/extract` et `/content` ont besoin d’un document HTML : pour une image, un PDF ou tout autre type de fichier, l’API répond `ENOTHTML` (422).',
-  'spec.note': 'Les sections qui suivent, et les tableaux « Autres paramètres », sont générés à partir de la spécification OpenAPI de l’API : leurs descriptions sont en anglais, telles qu’elle les publie.',
-  'params.more': 'Autres paramètres (spécification OpenAPI)',
+  'spec.note': 'Les sections qui suivent, et les tableaux « Autres paramètres », suivent la spécification OpenAPI de l’API : noms, types et valeurs par défaut en sont tirés tels quels.',
+  'params.more': 'Autres paramètres',
 };
