@@ -89,15 +89,19 @@ const CHROMIUM_ARGS = [
  * compressed build that unpacks itself into `/tmp` on first use. The import is
  * dynamic so local development never loads it.
  */
-async function resolveLaunchOptions(serverless: boolean): Promise<LaunchOptions> {
-  if (!serverless) return { headless: true, args: CHROMIUM_ARGS };
+async function resolveLaunchOptions(config: AppConfig['browser']): Promise<LaunchOptions> {
+  if (!config.serverless) return { headless: true, args: CHROMIUM_ARGS };
 
   const { default: serverlessChromium } = await import('@sparticuz/chromium');
-  return {
-    headless: true,
-    args: serverlessChromium.args,
-    executablePath: await serverlessChromium.executablePath(),
-  };
+  let executablePath: string;
+  try {
+    executablePath = await serverlessChromium.executablePath();
+  } catch {
+    // The compressed binary was not shipped with the function (the platform's
+    // file tracing skipped it): download the matching pack into /tmp instead.
+    executablePath = await serverlessChromium.executablePath(config.serverlessPackUrl);
+  }
+  return { headless: true, args: serverlessChromium.args, executablePath };
 }
 
 export class BrowserPool {
@@ -268,7 +272,7 @@ export class BrowserPool {
   private async launch(): Promise<Slot> {
     let browser: Browser;
     try {
-      browser = await chromium.launch(await resolveLaunchOptions(this.config.serverless));
+      browser = await chromium.launch(await resolveLaunchOptions(this.config));
     } catch (error) {
       throw AppError.browser('Could not start the headless browser', error);
     }

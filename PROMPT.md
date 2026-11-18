@@ -13,8 +13,8 @@ des services comme Microlink, avec une identité, un code et une documentation q
 Monorepo npm workspaces, Node.js >= 22, ESM, TypeScript strict.
 - apps/api : Fastify 5, schémas TypeBox, Playwright (Chromium), cheerio, undici, ioredis, Vitest.
 - apps/web : playground Vite + Tailwind CSS v4, sans framework.
-- Déploiement : Vercel. api/index.js est l'unique fonction (elle délègue à Fastify), vercel.json décrit
-  le build et les réécritures. Pas de Docker. En serverless le navigateur est @sparticuz/chromium
+- Déploiement : Vercel en mode « services » (vercel.json) : service api (Fastify, apps/api/src/server.ts)
+  et service web (Vite), reliés par des réécritures. Pas de Docker. En serverless le navigateur est @sparticuz/chromium
   et rien ne persiste entre instances : pas d'état en mémoire dont dépend la justesse d'une réponse.
 Avant d'écrire du code, lis README.md (architecture, contrat d'API, codes d'erreur) et ROADMAP.md
 (phases, état actuel, limites connues). Ces deux fichiers font foi ; s'ils contredisent le code,

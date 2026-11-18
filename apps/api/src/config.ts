@@ -47,6 +47,12 @@ export interface AppConfig {
      * serverless functions) instead of the locally installed Playwright browser.
      */
     readonly serverless: boolean;
+    /**
+     * Where to download the serverless Chromium pack from when the binary was
+     * not bundled with the function. Must match the installed
+     * `@sparticuz/chromium` version.
+     */
+    readonly serverlessPackUrl: string;
   };
   readonly ssrf: SsrfPolicy;
   readonly rateLimit: {
@@ -113,6 +119,12 @@ function readEnvName(env: Env): AppConfig['env'] {
  */
 export function loadConfig(env: Env = process.env): AppConfig {
   const envName = readEnvName(env);
+  // Vercel and AWS Lambda are detected automatically.
+  const serverless = readBool(
+    env,
+    'BROWSER_SERVERLESS',
+    env['VERCEL'] === '1' || (env['AWS_LAMBDA_FUNCTION_NAME'] ?? '') !== '',
+  );
   const allowPrivateNetworks = readBool(env, 'SSRF_ALLOW_PRIVATE_NETWORKS', false);
 
   if (envName === 'production' && allowPrivateNetworks) {
@@ -127,7 +139,8 @@ export function loadConfig(env: Env = process.env): AppConfig {
     host: readString(env, 'HOST', '0.0.0.0'),
     port: readInt(env, 'PORT', 3000, 0),
     logLevel: readString(env, 'LOG_LEVEL', envName === 'test' ? 'silent' : 'info'),
-    trustProxy: readBool(env, 'TRUST_PROXY', false),
+    // A serverless platform always sits behind the provider's proxy.
+    trustProxy: readBool(env, 'TRUST_PROXY', serverless),
     corsOrigin: cors === '*' ? '*' : cors.split(',').map((origin) => origin.trim()),
     redisUrl: redisUrl === '' ? null : redisUrl,
     cache: {
@@ -146,16 +159,19 @@ export function loadConfig(env: Env = process.env): AppConfig {
       ),
     },
     browser: {
-      maxConcurrency: readInt(env, 'BROWSER_MAX_CONCURRENCY', 4, 1),
-      maxQueue: readInt(env, 'BROWSER_MAX_QUEUE', 50),
+      // A function instance has little CPU and memory: keep few pages in parallel.
+      maxConcurrency: readInt(env, 'BROWSER_MAX_CONCURRENCY', serverless ? 2 : 4, 1),
+      maxQueue: readInt(env, 'BROWSER_MAX_QUEUE', serverless ? 10 : 50),
       acquireTimeoutMs: readInt(env, 'BROWSER_ACQUIRE_TIMEOUT_MS', 15_000, 1),
-      maxUsesPerBrowser: readInt(env, 'BROWSER_MAX_USES', 200, 1),
+      // The serverless Chromium build runs in single-process mode and exits when
+      // its last page closes, so there every job gets its own short-lived browser.
+      maxUsesPerBrowser: readInt(env, 'BROWSER_MAX_USES', serverless ? 1 : 200, 1),
       navigationTimeoutMs: readInt(env, 'BROWSER_NAVIGATION_TIMEOUT_MS', 20_000, 1),
-      // Vercel and AWS Lambda are detected automatically.
-      serverless: readBool(
+      serverless,
+      serverlessPackUrl: readString(
         env,
-        'BROWSER_SERVERLESS',
-        env['VERCEL'] === '1' || (env['AWS_LAMBDA_FUNCTION_NAME'] ?? '') !== '',
+        'BROWSER_SERVERLESS_PACK_URL',
+        'https://github.com/Sparticuz/chromium/releases/download/v153.0.0/chromium-v153.0.0-pack.x64.tar',
       ),
     },
     ssrf: {

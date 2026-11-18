@@ -128,8 +128,7 @@ linkforge/
 │   │   │   └── routes/            # meta, screenshot, health
 │   │   ├── test/                  # Vitest (unitaires + bout en bout)
 │   └── web/                       # Playground Vite + Tailwind CSS v4
-├── api/index.js                   # Point d'entrée Vercel (une fonction → app Fastify)
-├── vercel.json                    # Build, fonction, réécritures /api/* et /health
+├── vercel.json                    # Deux services Vercel (api, web) + réécritures
 ├── ROADMAP.md                     # Feuille de route détaillée
 └── PROMPT.md                      # Prompt maître pour faire évoluer le projet avec un agent IA
 ```
@@ -157,8 +156,8 @@ linkforge/
 Le dépôt se déploie tel quel : importez-le dans Vercel, sans réglage à modifier (`vercel.json` fait foi).
 
 - Le playground (`apps/web`) est servi en statique par le CDN.
-- `/api/*` et `/health` sont réécrits vers une seule fonction (`api/index.js`) qui transmet la requête à l'application Fastify. L'application est construite une fois par instance et réutilisée entre les requêtes.
-- Le Chromium de Playwright ne tourne pas dans une fonction serverless. Sur Vercel (détecté par la variable `VERCEL`), le pool lance `@sparticuz/chromium`, un binaire prévu pour cet environnement. Ce binaire s'arrête quand sa dernière page se ferme : chaque rendu y reçoit donc son propre navigateur (`BROWSER_MAX_USES=1`).
+- Le projet est déclaré en deux « services » Vercel : `web` (Vite) et `api` (Fastify, point d'entrée `apps/api/src/server.ts`). `/api/*` et `/health` sont réécrits vers `api`, tout le reste vers `web`.
+- Le Chromium de Playwright ne tourne pas dans une fonction serverless. Sur Vercel (détecté par la variable `VERCEL`), le pool lance `@sparticuz/chromium`, un binaire prévu pour cet environnement. Ce binaire s'arrête quand sa dernière page se ferme : chaque rendu y reçoit donc son propre navigateur. Si le binaire n'a pas été embarqué dans la fonction, il est téléchargé au premier rendu (`BROWSER_SERVERLESS_PACK_URL`).
 - Les réponses portent `s-maxage` : le CDN de Vercel les met en cache, ce qui évite de relancer une fonction pour une URL déjà demandée.
 
 Limites propres au serverless :
