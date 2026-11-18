@@ -7,7 +7,7 @@
 ```text
 Tu travailles sur Omnillink, un service open-source d'extraction de métadonnées, de captures
 d'écran et d'aperçus de liens, exposé par une API REST. Le projet vise les usages couverts par
-des services comme Microlink, avec une identité, un code et une documentation qui lui sont propres.
+des services hébergés existants, avec une identité, un code et une documentation qui lui sont propres.
 
 <contexte>
 Monorepo npm workspaces, Node.js >= 22, ESM, TypeScript strict.
