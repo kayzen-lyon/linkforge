@@ -14,14 +14,29 @@ import Fastify, { type FastifyError, type FastifyInstance } from 'fastify';
 
 import type { AppConfig } from './config.js';
 import { AppError, ErrorCode, type ErrorBody } from './lib/errors.js';
-import { healthRoutes } from './routes/health.js';
-import { metaRoutes } from './routes/meta.js';
+import { buildOpenApiDocument } from './openapi.js';
+import { contentDoc, contentRoutes } from './routes/content.js';
+import { extractDoc, extractRoutes } from './routes/extract.js';
+import { healthDoc, healthRoutes } from './routes/health.js';
+import { metaDoc, metaRoutes } from './routes/meta.js';
+import { openApiDoc, openApiRoutes } from './routes/openapi.js';
+import { pdfDoc, pdfRoutes } from './routes/pdf.js';
 import { playgroundRoutes } from './routes/playground.js';
-import { screenshotRoutes } from './routes/screenshot.js';
+import { screenshotDoc, screenshotRoutes } from './routes/screenshot.js';
+import { ApiKeyRegistry } from './security/api-keys.js';
+import {
+  installRequestIdentity,
+  rateLimitBucket,
+  requestIdOf,
+} from './security/request-identity.js';
 import { BrowserPool } from './services/browser-pool.js';
 import { createCache } from './services/cache/index.js';
+import { ContentService } from './services/content-service.js';
+import { ExtractService } from './services/extract-service.js';
 import { SafeFetcher } from './services/fetcher.js';
 import { MetaService } from './services/meta-service.js';
+import { PageLoader } from './services/page-loader.js';
+import { PdfService } from './services/pdf-service.js';
 import { Renderer } from './services/renderer.js';
 import { ScreenshotService } from './services/screenshot-service.js';
 
@@ -34,6 +49,7 @@ export async function buildApp(config: AppConfig): Promise<FastifyInstance> {
   const app = Fastify({
     logger: { level: config.logLevel },
     trustProxy: config.trustProxy,
+    genReqId: requestIdOf,
     // Query-string booleans/integers arrive as strings: let Ajv coerce them.
     ajv: { customOptions: { coerceTypes: true, useDefaults: true, removeAdditional: false } },
   }).withTypeProvider<TypeBoxTypeProvider>();
@@ -45,15 +61,27 @@ export async function buildApp(config: AppConfig): Promise<FastifyInstance> {
   const renderer = new Renderer(pool, config);
   const metaService = new MetaService(config, cache, fetcher, renderer);
   const screenshotService = new ScreenshotService(config, cache, renderer);
+  const pdfService = new PdfService(config, cache, renderer);
+  const pageLoader = new PageLoader(config, fetcher, renderer);
+  const extractService = new ExtractService(config, cache, pageLoader);
+  const contentService = new ContentService(config, cache, pageLoader);
+  const apiKeys = new ApiKeyRegistry(config.apiKeys);
 
   app.addHook('onClose', async () => {
     await Promise.allSettled([pool.close(), fetcher.close(), cache.close()]);
   });
 
   // --- Cross-cutting plugins --------------------------------------------------
-  await app.register(cors, { origin: config.corsOrigin === '*' ? true : config.corsOrigin });
+  // Before the rate limiter: its bucket depends on the resolved API key.
+  installRequestIdentity(app, apiKeys);
+  await app.register(cors, {
+    origin: config.corsOrigin === '*' ? true : config.corsOrigin,
+    // Without this, browser code cannot read our custom response headers.
+    exposedHeaders: ['x-request-id', 'x-cache', 'retry-after'],
+  });
   await app.register(rateLimit, {
-    max: config.rateLimit.max,
+    max: (request) => (request.apiKeyId === null ? config.rateLimit.max : config.rateLimit.keyMax),
+    keyGenerator: rateLimitBucket,
     timeWindow: config.rateLimit.windowMs,
     errorResponseBuilder: (_request, context) => {
       // Thrown by the plugin and funnelled through the error handler below.
@@ -120,13 +148,21 @@ export async function buildApp(config: AppConfig): Promise<FastifyInstance> {
   await app.register(playgroundRoutes);
   await app.register(
     async (v1) => {
-      await v1.register(metaRoutes, {
-        metaService,
-        cacheTtlSeconds: config.cache.metaTtlSeconds,
-      });
-      await v1.register(screenshotRoutes, {
-        screenshotService,
-        cacheTtlSeconds: config.cache.screenshotTtlSeconds,
+      await v1.register(metaRoutes, { metaService });
+      await v1.register(screenshotRoutes, { screenshotService });
+      await v1.register(pdfRoutes, { pdfService });
+      await v1.register(extractRoutes, { extractService });
+      await v1.register(contentRoutes, { contentService });
+      await v1.register(openApiRoutes, {
+        document: buildOpenApiDocument([
+          metaDoc,
+          screenshotDoc,
+          pdfDoc,
+          extractDoc,
+          contentDoc,
+          openApiDoc,
+          healthDoc,
+        ]),
       });
     },
     { prefix: '/api/v1' },
