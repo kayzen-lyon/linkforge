@@ -16,17 +16,11 @@ export const common = {
   'nav.examples': 'Exemples',
   'nav.selfHost': 'Auto-hébergement',
   'nav.docs': 'Référence API',
-  'nav.menu': 'Menu',
+  'nav.menu': 'Menu de navigation',
   'lang.label': 'Langue',
-  'lang.fr': 'Français',
-  'lang.en': 'Anglais',
-  'theme.toLight': 'Passer au thème clair',
-  'theme.toDark': 'Passer au thème sombre',
   'copy': 'Copier',
   'copied': 'Copié',
   'copyFailed': 'Copie impossible',
-  'footer.tagline':
-    'Une API open source qui transforme une URL en métadonnées, captures d’écran, PDF, champs sur mesure et contenu lisible. Publiée sous licence MIT.',
   'footer.label': 'Pied de page',
   'footer.product': 'Produit',
   'footer.developers': 'Développeurs',
@@ -57,6 +51,42 @@ export const common = {
   'err.ETIMEOUT': 'La cible n’a pas répondu à temps.',
   'err.EBROWSER': 'Le navigateur sans interface a planté ou n’a pas pu démarrer.',
   'err.EINTERNAL': 'Erreur inattendue du serveur. Aucun détail interne n’est divulgué.',
+  'banner.label': 'Projet open source',
+  'banner.text': 'Open source, sous licence MIT. Hébergez votre propre instance.',
+  'banner.short': 'Open source, licence MIT',
+  'banner.link': 'Voir sur GitHub',
+  'nav.cta': 'Essayer la démo',
+  'menu.label': 'Menu mobile',
+  'menu.eyebrow': 'Navigation',
+  'theme.dark': 'Thème sombre',
+  'newTab': '(nouvel onglet)',
+  'top': 'Revenir en haut de la page',
+  'crumb.label': 'Fil d’Ariane',
+  'crumb.home': 'Accueil',
+  'a11y.toggle': 'Options d’accessibilité',
+  'a11y.title': 'Accessibilité',
+  'a11y.size': 'Taille du texte',
+  'a11y.size.down': 'Réduire la taille du texte',
+  'a11y.size.up': 'Augmenter la taille du texte',
+  'a11y.size.0': 'Normale',
+  'a11y.size.1': 'Grande',
+  'a11y.size.2': 'Très grande',
+  'a11y.contrast': 'Contraste renforcé',
+  'a11y.font': 'Police lisible',
+  'a11y.oled': 'Noir pur (OLED)',
+  'a11y.oled.hint': 'Disponible en thème sombre',
+  'a11y.reset': 'Réinitialiser les options',
+  'footer.tagline':
+    'Une API open source qui transforme une URL en métadonnées, captures d’écran, PDF, champs sur mesure et contenu lisible.',
+  'footer.chip': 'Logiciel libre, licence MIT',
+  'footer.info': 'Informations',
+  'footer.faq': 'Questions fréquentes',
+  'footer.accessibility': 'Accessibilité',
+  'footer.legal': 'Mentions légales et confidentialité',
+  'footer.notrack': 'Ce site ne dépose aucun cookie et n’utilise aucun traceur.',
+  'footer.license': 'LinkForge est un logiciel libre publié sous licence MIT.',
+  'footer.credit': 'Site réalisé par [KAYZEN](https://www.kayzen-lyon.com)',
+  'og.alt': 'LinkForge : une URL en entrée, des métadonnées, une capture, un PDF et du contenu en sortie.',
 };
 
 /** Landing page. */
@@ -66,7 +96,6 @@ export const home = {
     'LinkForge est une API open source qui transforme une URL en métadonnées, captures d’écran, PDF, champs extraits et contenu lisible. Essayez-la en direct.',
 
   'hero.eyebrow': 'API open source · licence MIT',
-  'hero.title': 'Une URL en entrée. Métadonnées, capture, PDF et contenu en sortie.',
   'hero.lead':
     'LinkForge est une API REST qui lit une page web à votre place : métadonnées normalisées, captures d’écran, export PDF, extraction sur mesure et texte lisible pour vos agents IA. Le code est ouvert, hébergez-la où vous voulez.',
   'hero.cta.demo': 'Essayer la démo',
@@ -195,6 +224,69 @@ export const home = {
   'selfHost.fact3.body':
     'Durées de cache, délais, concurrence du navigateur, limite de débit, ports autorisés : chaque réglage est une variable d’environnement.',
   'selfHost.cta': 'Voir le dépôt sur GitHub',
+  'hero.title.a': 'Une URL en entrée.',
+  'hero.title.b': 'Métadonnées, capture, PDF et contenu en sortie.',
+  'hero.chip.mit': 'Licence MIT',
+  'hero.chip.selfHost': 'Auto-hébergeable',
+  'hero.chip.ssrf': 'Protection SSRF',
+  'hero.chip.openapi': 'OpenAPI 3.1',
+  'hero.cta.github': 'Voir le code sur GitHub',
+  'demo.eyebrow': 'Démo en direct',
+  'usecases.eyebrow': 'Cas d’usage',
+  'usecases.title': 'Pour qui, pour quoi faire',
+  'usecases.lead':
+    'LinkForge s’adresse aux équipes qui manipulent des liens : produits grand public, outils internes, agents IA.',
+  'usecases.1.title': 'Aperçus de liens',
+  'usecases.1.body':
+    'Messagerie, CMS, gestionnaire de favoris : affichez le titre, l’image et la description dès qu’un lien est collé.',
+  'usecases.2.title': 'Agents IA et RAG',
+  'usecases.2.body':
+    'Donnez à un modèle le texte d’une page en Markdown, sans menus ni publicités, plutôt que du HTML brut.',
+  'usecases.3.title': 'Captures et archivage',
+  'usecases.3.body':
+    'Générez des vignettes, des images de partage ou une copie PDF d’une page telle qu’elle s’affiche aujourd’hui.',
+  'usecases.4.title': 'Veille et collecte',
+  'usecases.4.body':
+    'Suivez un prix, un stock ou une liste de liens avec quelques sélecteurs CSS, sans écrire ni maintenir de scraper.',
+  'how.eyebrow': 'Fonctionnement',
+  'how.title': 'Comment ça marche',
+  'how.lead': 'Trois étapes, une seule requête de votre côté.',
+  'how.step': 'Étape {n}',
+  'how.1.title': 'Vous envoyez une URL',
+  'how.1.body': 'Une requête `GET` avec l’adresse de la page et, si besoin, quelques options. Aucune clé n’est requise pour commencer.',
+  'how.2.title': 'LinkForge lit la page en sécurité',
+  'how.2.body':
+    'L’adresse est validée contre les attaques SSRF, puis la page est lue en HTTP. Chromium ne prend le relais que si elle l’exige.',
+  'how.3.title': 'Vous recevez un résultat prêt à l’emploi',
+  'how.3.body': 'Du JSON normalisé, une image ou un PDF. Le résultat est mis en cache pour les appels suivants.',
+  'features.eyebrow': 'Fonctionnalités',
+  'examples.eyebrow': 'Intégration',
+  'selfHost.eyebrow': 'Open source',
+  'faq.eyebrow': 'FAQ',
+  'faq.title': 'Questions fréquentes',
+  'faq.1.q': 'LinkForge est-il gratuit ?',
+  'faq.1.a':
+    'Le logiciel est libre, publié sous licence MIT : vous pouvez l’utiliser, le modifier et l’héberger vous-même. L’instance qui sert ce site est une démonstration, avec une limite de débit.',
+  'faq.2.q': 'Faut-il une clé d’API ?',
+  'faq.2.a':
+    'Non. L’API répond sans authentification. L’en-tête facultatif `x-api-key` relève la limite de débit ; les clés sont définies par l’exploitant de chaque instance.',
+  'faq.3.q': 'Quelles pages LinkForge peut-il lire ?',
+  'faq.3.a':
+    'Les pages publiques en `http` ou `https`. Les adresses privées, locales ou internes sont refusées par la protection SSRF. Les pages construites en JavaScript sont rendues dans Chromium quand c’est nécessaire.',
+  'faq.4.q': 'Les résultats sont-ils à jour ?',
+  'faq.4.a':
+    'Chaque résultat est mis en cache, une heure par défaut. Le paramètre `ttl` change cette durée pour une requête, et `force=true` relit la page immédiatement.',
+  'faq.5.q': 'Puis-je utiliser une capture directement dans une balise image ?',
+  'faq.5.a':
+    'Oui. `/screenshot` renvoie l’image elle-même, donc son adresse fonctionne dans un attribut `src`. Avec `embed`, `/meta` redirige de la même façon vers l’image ou l’icône d’une page.',
+  'faq.6.q': 'Que faut-il pour l’héberger ?',
+  'faq.6.a':
+    'Node.js 22 ou plus récent, et Chromium, installé par Playwright. Redis est facultatif. La configuration pour un déploiement en fonction serverless sur Vercel est incluse dans le dépôt.',
+  'faq.7.q': 'Ce site me suit-il ?',
+  'faq.7.a':
+    'Non. Il ne dépose aucun cookie et ne charge aucun outil de mesure d’audience. Vos préférences de thème, de langue et d’accessibilité restent dans votre navigateur. Le détail figure dans les [mentions légales](/legal).',
+  'cta.title': 'Essayez LinkForge sur vos propres liens',
+  'cta.lead': 'La démo tourne sur cette instance. Le code est sur GitHub si vous préférez l’héberger vous-même.',
 };
 
 /** API reference page. */
@@ -240,11 +332,11 @@ export const docs = {
   'auth.p1':
     'L’API s’utilise sans authentification. L’en-tête facultatif `x-api-key` identifie votre application et relève sa limite de débit.',
   'auth.p2':
-    'Les clés sont définies par l’exploitant de l’instance. Une clé inconnue est refusée avec le code `EUNAUTHORIZED` (HTTP 401) : la requête n’est pas traitée comme une requête anonyme.',
+    'Les clés sont définies par l’exploitant de l’instance, avec la variable `API_KEYS`. Quand l’instance en déclare, une clé inconnue est refusée avec le code `EUNAUTHORIZED` (HTTP 401) : la requête n’est pas traitée comme anonyme. Quand elle n’en déclare aucune, l’en-tête est ignoré.',
 
   'limits.title': 'Limites de débit',
   'limits.p1':
-    'Sans clé, les requêtes sont comptées par adresse IP. Par défaut, une instance accepte 60 requêtes par minute ; l’exploitant peut changer cette valeur. Avec une clé valide, la limite est plus élevée et se compte par clé.',
+    'Sans clé, les requêtes sont comptées par adresse IP : 60 par minute par défaut. Avec une clé valide, elles sont comptées par clé : 600 par minute par défaut. L’exploitant règle ces valeurs avec `RATE_LIMIT_MAX`, `RATE_LIMIT_KEY_MAX` et `RATE_LIMIT_WINDOW_MS`.',
   'limits.p2':
     'Au-delà de la limite, l’API répond avec le statut 429 et le code `ERATELIMIT`. Les en-têtes suivants vous permettent de l’anticiper :',
   'limits.h.limit': 'Nombre de requêtes autorisées dans la fenêtre.',
@@ -285,9 +377,9 @@ export const docs = {
     'Adresse absolue de la page, en `http` ou `https`, encodée pour une URL. 2 048 caractères au plus, sans identifiants.',
   'p.render':
     '`auto` lit la page en HTTP et n’ouvre un navigateur que si le résultat est pauvre. `never` reste en HTTP. `always` rend toujours la page dans le navigateur. Voir [Rendu](#rendering).',
-  'p.force': 'Ignore la lecture du cache et traite de nouveau la page.',
+  'p.force': 'Ignore la lecture du cache et traite de nouveau la page. Le nouveau résultat est tout de même enregistré.',
   'p.ttl':
-    'Durée de conservation du résultat dans le cache. Sans ce paramètre, la durée par défaut du serveur s’applique. Voir [Cache](#caching).',
+    'Durée de conservation du résultat dans le cache, en secondes, de 60 à 86 400. Elle fixe aussi la durée annoncée dans `cache-control`. Sans ce paramètre, la durée par défaut du serveur s’applique. Voir [Cache](#caching).',
 
   'meta.h': 'Métadonnées',
   'meta.intro1':
@@ -295,7 +387,7 @@ export const docs = {
   'meta.intro2':
     'Un champ que la page ne fournit pas vaut `null`, ou un tableau vide pour les listes.',
   'meta.p.embed':
-    'Chemin à points vers une URL de `data`, par exemple `image.url`, `logo.url` ou `favicon`. Au lieu du JSON, l’API répond par une redirection vers cette URL : la requête s’utilise alors directement dans un attribut `src`. Si le chemin est absent ou vaut `null`, l’API répond `EEMBEDNOTFOUND` (404).',
+    'Chemin à points vers une URL de `data`, par exemple `image.url`, `logo.url`, `favicon` ou `images.0.url`. Au lieu du JSON, l’API répond par une redirection vers cette URL : la requête s’utilise alors directement dans un attribut `src`. Si le chemin est absent ou vaut `null`, l’API répond `EEMBEDNOTFOUND` (404).',
   'meta.fields.title': 'Champs de `data`',
   'meta.f.url': 'Adresse finale, après redirections.',
   'meta.f.canonicalUrl': 'Adresse canonique déclarée par la page.',
@@ -308,11 +400,11 @@ export const docs = {
   'meta.f.image': 'Image principale : `url`, `width`, `height`, `type`, `alt`.',
   'meta.f.images': 'Toutes les images trouvées, au même format que `image`.',
   'meta.f.favicon': 'Adresse de l’icône du site.',
-  'meta.f.logo': 'Logo de l’éditeur : `url`.',
+  'meta.f.logo': 'Meilleure icône de marque, sous la forme `url` : logo déclaré en JSON-LD, sinon la plus grande icône de la page.',
   'meta.f.video': 'Vidéo principale : `url`, `type`, `width`, `height`.',
   'meta.f.audio': 'Piste audio principale : `url`, `type`.',
   'meta.f.keywords': 'Mots-clés déclarés.',
-  'meta.f.feeds': 'Flux RSS ou Atom annoncés par la page.',
+  'meta.f.feeds': 'Flux RSS ou Atom annoncés par la page : `url`, `title`, `type`.',
   'meta.f.jsonLd': 'Blocs JSON-LD de la page, `@graph` aplati.',
   'meta.f.contentType': 'Type de contenu renvoyé par la cible.',
 
@@ -323,22 +415,22 @@ export const docs = {
     'Les erreurs restent renvoyées en JSON, avec le statut HTTP correspondant. Vérifiez le statut, ou l’en-tête `content-type`, avant de traiter le corps comme une image.',
   'screenshot.p.device':
     '`desktop` utilise une fenêtre de 1280 × 800. `mobile` émule un téléphone (profil Pixel 7 : écran tactile, agent utilisateur mobile, haute densité de pixels).',
-  'screenshot.p.width': 'Largeur de la fenêtre en pixels. Remplace celle du profil `device`.',
-  'screenshot.p.height': 'Hauteur de la fenêtre en pixels. Remplace celle du profil `device`.',
+  'screenshot.p.width': 'Largeur de la fenêtre en pixels CSS, de 320 à 2560. Remplace celle du profil `device`.',
+  'screenshot.p.height': 'Hauteur de la fenêtre en pixels CSS, de 240 à 2160. Remplace celle du profil `device`.',
   'screenshot.p.fullPage':
-    'Capture toute la page défilable plutôt que la fenêtre. Les pages très hautes sont limitées à 12 000 px.',
+    'Capture toute la page défilable plutôt que la fenêtre, dans la limite de 12 000 px de haut. Ignoré avec `selector`.',
   'screenshot.p.selector':
-    'Sélecteur CSS d’un élément à capturer à la place de la page. S’il ne correspond à aucun élément visible, l’API répond `ESELECTORNOTFOUND` (404).',
+    'Sélecteur CSS : seul le premier élément correspondant est capturé. S’il ne correspond à aucun élément visible, l’API répond `ESELECTORNOTFOUND` (404).',
   'screenshot.p.format': 'Format de l’image renvoyée.',
   'screenshot.p.quality': 'Qualité JPEG, de 1 à 100. Sans effet en PNG.',
-  'screenshot.p.colorScheme': 'Valeur de `prefers-color-scheme` annoncée à la page.',
+  'screenshot.p.colorScheme': 'Valeur de `prefers-color-scheme` annoncée à la page. Sans ce paramètre, rien n’est imposé.',
   'screenshot.p.hide':
-    'Sélecteurs CSS à masquer avant la capture, séparés par des virgules. Pratique pour les bandeaux de cookies : `hide=.cookie-banner,#newsletter`.',
+    'Sélecteurs CSS à masquer avant la capture, séparés par des virgules, 20 au plus. Pratique pour les bandeaux de cookies : `hide=.cookie-banner,#newsletter`.',
   'screenshot.p.waitFor':
-    'Attente supplémentaire après le chargement, en millisecondes, pour les animations ou le contenu tardif.',
+    'Attente supplémentaire avant la capture, en millisecondes, de 0 à 10 000.',
 
   'pdf.h': 'PDF',
-  'pdf.intro1': 'Rend la page dans un navigateur sans interface et la renvoie sous forme de document PDF.',
+  'pdf.intro1': 'Rend la page dans un navigateur sans interface, avec sa feuille de style d’impression, et la renvoie sous forme de document PDF. Le document compte 100 pages au plus ; au-delà de la taille maximale, l’API répond `ETOOLARGE` (422).',
   'pdf.note': 'Comme pour les captures, les erreurs sont renvoyées en JSON avec le statut HTTP correspondant.',
   'pdf.p.format': 'Format du papier.',
   'pdf.p.landscape': 'Orientation paysage plutôt que portrait.',
@@ -347,14 +439,14 @@ export const docs = {
   'extract.h': 'Extraction',
   'extract.intro1':
     'Extrait les champs que vous décrivez. `fields` est un objet JSON, encodé pour une URL, qui associe chaque nom de champ à une règle. La réponse reprend les mêmes noms avec les valeurs extraites.',
-  'extract.p.fields': 'Règles d’extraction, une par champ de sortie. Les propriétés d’une règle sont décrites ci-dessous.',
+  'extract.p.fields': 'Objet JSON encodé pour une URL : une règle par champ de sortie, 20 champs au plus. Les propriétés d’une règle sont décrites ci-dessous.',
   'extract.rule.title': 'Propriétés d’une règle',
-  'extract.r.selector': 'Sélecteur CSS de l’élément à lire.',
+  'extract.r.selector': 'Sélecteur CSS de l’élément à lire, 300 caractères au plus.',
   'extract.r.attr':
-    '`text` pour le texte de l’élément, ou le nom d’un attribut comme `href`, `src` ou `content`.',
+    '`text` pour le texte de l’élément, `html` pour son contenu HTML, ou le nom d’un attribut comme `href`, `src` ou `content`.',
   'extract.r.type':
-    'Conversion appliquée à la valeur brute. `number` en extrait une valeur numérique ; `url` la résout en adresse absolue à partir de celle de la page.',
-  'extract.r.all': 'Renvoie un tableau de toutes les correspondances plutôt que la première seulement.',
+    'Conversion appliquée à la valeur brute : `string`, `number` (valeur numérique) ou `url` (adresse absolue, résolue à partir de celle de la page).',
+  'extract.r.all': 'Renvoie un tableau de toutes les correspondances, 100 au plus, plutôt que la première seulement.',
 
   'content.h': 'Contenu',
   'content.intro1':
@@ -367,7 +459,7 @@ export const docs = {
   'content.f.text': 'Contenu en texte brut.',
   'content.f.markdown': 'Le même contenu en Markdown : titres, listes, liens, code.',
   'content.f.wordCount': 'Nombre de mots du contenu.',
-  'content.f.readingTimeMinutes': 'Temps de lecture estimé, en minutes.',
+  'content.f.readingTimeMinutes': 'Temps de lecture estimé, en minutes, à 200 mots par minute et arrondi au supérieur.',
 
   'openapi.h': 'OpenAPI',
   'openapi.p1':
@@ -395,4 +487,8 @@ export const docs = {
     'Dans le navigateur, chaque requête est interceptée et validée, sous-ressources, redirections et iframes comprises. WebSockets et service workers sont coupés.',
   'security.p2':
     'Limite connue : dans le navigateur, Chromium refait sa propre résolution DNS après ce contrôle. Le [README du dépôt](https://github.com/kayzen-lyon/linkforge#readme) décrit l’état de ce point.',
+  'extract.note':
+    'Un champ vaut `null` quand rien ne correspond ou que la valeur ne peut pas être convertie. Les chaînes sont coupées à 10 000 caractères.',
+  'html.note':
+    '`/meta`, `/extract` et `/content` ont besoin d’un document HTML : pour une image, un PDF ou tout autre type de fichier, l’API répond `ENOTHTML` (422).',
 };

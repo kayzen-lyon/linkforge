@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
 
-import { COMMON_ERRORS, type EndpointDoc } from '../openapi.js';
+import { ErrorCode } from '../lib/errors.js';
+import type { EndpointDoc } from '../openapi.js';
 import type { BrowserPool } from '../services/browser-pool.js';
 import type { Cache } from '../services/cache/index.js';
 
@@ -34,7 +35,8 @@ export const healthDoc: EndpointDoc = {
       },
     },
   },
-  errors: COMMON_ERRORS.filter((code) => code !== 'ERATELIMIT' && code !== 'EINVALIDPARAMS'),
+  // No parameters and no rate limit on this route.
+  errors: [ErrorCode.Unauthorized, ErrorCode.Internal],
 };
 
 export interface HealthRouteOptions {

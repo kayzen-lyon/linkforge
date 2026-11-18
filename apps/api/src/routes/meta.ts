@@ -1,5 +1,5 @@
 import type { FastifyPluginAsyncTypebox } from '@fastify/type-provider-typebox';
-import { Type } from 'typebox';
+import { Type, type TSchema } from 'typebox';
 
 import { DOT_PATH_PATTERN, resolveDotPath, toHttpUrl } from '../lib/dot-path.js';
 import { AppError, ErrorCode } from '../lib/errors.js';
@@ -37,7 +37,7 @@ const MetaQuery = Type.Object(
   { additionalProperties: false },
 );
 
-const Nullable = <T extends Parameters<typeof Type.Union>[0][number]>(schema: T) =>
+const Nullable = <T extends TSchema>(schema: T) =>
   Type.Union([schema, Type.Null()]);
 
 const Image = Type.Object({

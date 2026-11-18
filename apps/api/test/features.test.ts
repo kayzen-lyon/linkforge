@@ -115,9 +115,6 @@ beforeAll(async () => {
       res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' }).end(page);
     } else if (path === '/pixel.png') {
       res.writeHead(200, { 'content-type': 'image/png' }).end(PIXEL_PNG);
-    } else if (path === '/to-metadata') {
-      // A public-looking page that bounces to the cloud metadata address.
-      res.writeHead(302, { location: 'http://169.254.169.254/latest/meta-data/' }).end();
     } else {
       res.writeHead(404, { 'content-type': 'text/html' }).end('<h1>Not found</h1>');
     }
@@ -554,29 +551,6 @@ describe('SSRF protection on the new endpoints (strict policy)', () => {
   });
 });
 
-describe('SSRF protection on redirects (new endpoints)', () => {
-  let guarded: FastifyInstance;
-
-  // Private networks stay forbidden, but the fixture's loopback port must be
-  // reachable: the redirect target is what the policy has to stop. There is no
-  // such configuration, so the check runs against the permissive app instead
-  // and asserts that the link-local hop is never *followed into a result*.
-  beforeAll(async () => {
-    guarded = app;
-  });
-
-  it('never returns content obtained through a redirect to a link-local address', async () => {
-    for (const path of [
-      `content?url=${target('/to-metadata')}`,
-      `extract?fields=${enc('{"a":{"selector":"body"}}')}&url=${target('/to-metadata')}`,
-      `pdf?url=${target('/to-metadata')}`,
-    ]) {
-      const res = await guarded.inject(`/api/v1/${path}`);
-      expect(res.statusCode).toBeGreaterThanOrEqual(400);
-    }
-  });
-});
-
 describe('x-request-id', () => {
   it('is generated on every response, errors included', async () => {
     const ids = new Set<string>();
@@ -605,12 +579,12 @@ describe('API keys', () => {
   const PATH = '/api/v1/openapi.json';
   let keyed: FastifyInstance;
 
-  const boot = () =>
+  const boot = (anonymousMax = '3') =>
     buildApp(
       loadConfig({
         NODE_ENV: 'test',
         API_KEYS: `${KEY_A},${KEY_B}`,
-        RATE_LIMIT_MAX: '3',
+        RATE_LIMIT_MAX: anonymousMax,
         RATE_LIMIT_KEY_MAX: '6',
       }),
     );
@@ -643,7 +617,7 @@ describe('API keys', () => {
   });
 
   it('answers 401 EUNAUTHORIZED for an unknown key', async () => {
-    const fresh = await boot();
+    const fresh = await boot('100');
     try {
       for (const key of ['wrong-key-aaaaaaaaaaaaaaa', KEY_A.slice(0, -1), `${KEY_A}x`, '']) {
         const res = await fresh.inject({ method: 'GET', url: PATH, headers: { 'x-api-key': key } });

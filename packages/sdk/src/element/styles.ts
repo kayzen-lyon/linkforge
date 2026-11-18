@@ -120,6 +120,7 @@ a.card:focus-visible, .plain:focus-visible {
 .publisher {
   flex: 0 1 auto;
   min-width: 0;
+  max-width: 62%;
   overflow: hidden;
   font-weight: 600;
   white-space: nowrap;
@@ -127,7 +128,7 @@ a.card:focus-visible, .plain:focus-visible {
   color: var(--_fg);
 }
 .host {
-  flex: 0 100 auto;
+  flex: 0 1 auto;
   min-width: 0;
   overflow: hidden;
   font-family: var(--lp-font-mono, ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace);
