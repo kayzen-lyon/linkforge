@@ -357,7 +357,9 @@ export const ERRORS: readonly ErrorRow[] = [
   { code: 'EINTERNAL', http: '500', meaning: 'err.EINTERNAL' },
   { code: 'EUNREACHABLE', http: '502', meaning: 'err.EUNREACHABLE' },
   { code: 'ETARGETSTATUS', http: '502', meaning: 'err.ETARGETSTATUS' },
+  { code: 'EBLOCKED', http: '502', meaning: 'err.EBLOCKED' },
   { code: 'EBUSY', http: '503', meaning: 'err.EBUSY' },
+  { code: 'ECIRCUITOPEN', http: '503', meaning: 'err.ECIRCUITOPEN' },
   { code: 'ETIMEOUT', http: '504', meaning: 'err.ETIMEOUT' },
 ];
 

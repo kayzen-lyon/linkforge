@@ -185,11 +185,13 @@ export const docs: Record<keyof typeof source, string> = {
   'security.li3': 'A single private DNS record is enough to refuse a host name.',
   'security.li4': 'Over HTTP, the validated DNS resolution is pinned to the connection, and every redirect is validated again.',
   'security.li5':
-    'In the browser, every request is intercepted and validated, including sub-resources, redirects and iframes. WebSockets and service workers are cut off.',
+    'In the browser, two layers. Every request the page makes is intercepted and validated; WebSockets and service workers are cut off. And the only network exit Chromium has is a proxy inside the API: on every connection, redirects included, that proxy applies the policy, resolves the name itself and connects to the address it has just validated.',
   'security.p2':
-    'Known limit: in the browser, Chromium performs its own DNS resolution after this check. The [repository README](https://github.com/kayzen-lyon/linkforge#readme) describes the status of this point.',
+    'What is not covered: this proxy lives in the same process as the API. It does not replace egress filtering at network level (firewall, VPC), which remains recommended as defence in depth. The protection is about which destinations the browser can reach, not about what a page does once it is loaded. The [repository README](https://github.com/kayzen-lyon/linkforge#readme) has the details.',
   'extract.note':
     'A field is `null` when nothing matches or the value cannot be converted. Strings are cut at 10,000 characters.',
   'html.note':
     '`/meta`, `/extract` and `/content` need an HTML document: for an image, a PDF or any other file type, the API answers `ENOTHTML` (422).',
+  'spec.note': 'The sections that follow, and the “More parameters” tables, are generated from the OpenAPI document of the API, in its own wording.',
+  'params.more': 'More parameters (OpenAPI document)',
 };

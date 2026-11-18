@@ -134,4 +134,6 @@ export const common = {
   'guide.next': 'Guide suivant',
   'guide.all': 'Tous les guides',
   'built': 'Page générée le',
+  'err.EBLOCKED': 'La cible a répondu par une page de blocage anti-robot au lieu de son contenu. Cette réponse n’est jamais mise en cache.',
+  'err.ECIRCUITOPEN': 'La cible a échoué plusieurs fois de suite : elle n’est plus contactée pendant un court délai.',
 };

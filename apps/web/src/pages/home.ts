@@ -1,7 +1,7 @@
 /** Landing page: the demo console, use-case tabs and the live list of extra endpoints. */
 import { initConsole } from '../console/index';
 import { DEFAULT_URL } from '../console/markup';
-import { CORE_OPERATIONS, loadSpec, shortName } from '../console/spec';
+import { loadSpec, shortName } from '../console/spec';
 import type { common } from '../i18n/fr/common';
 import type { consoleText } from '../i18n/fr/console';
 import type { home } from '../i18n/fr/home';
@@ -27,22 +27,31 @@ function initUseCases(): void {
 }
 
 /**
- * Endpoints the instance offers beyond the six documented cards, read from
- * its OpenAPI document when the section comes into view. A capability that
- * the document does not list is never shown.
+ * Keeps the capability section true to the instance: when it comes into view
+ * the live OpenAPI document is read, cards whose endpoint it does not list are
+ * hidden, and endpoints that have no card yet are listed below.
  */
-function initMoreCapabilities(i18n: I18n<Key>): void {
+function initCapabilities(i18n: I18n<Key>): void {
   const section = document.getElementById('features');
   const box = document.getElementById('cap-more');
   if (section === null || box === null || !('IntersectionObserver' in window)) return;
-  const known = new Set([...CORE_OPERATIONS.map((item) => item.path), '/api/v1/meta/batch', '/api/v1/openapi.json', '/health']);
 
   const observer = new IntersectionObserver((entries) => {
     if (!entries.some((entry) => entry.isIntersecting)) return;
     observer.disconnect();
     void loadSpec()
       .then((spec) => {
-        const extra = spec.operations.filter((item) => !known.has(item.path));
+        const offered = new Set(spec.operations.map((item) => item.path));
+        const shown = new Set<string>(['/api/v1/openapi.json', '/health']);
+        for (const card of section.querySelectorAll<HTMLElement>('[data-requires]')) {
+          const path = card.dataset['requires'] ?? '';
+          shown.add(path);
+          card.hidden = !offered.has(path);
+        }
+        for (const group of section.querySelectorAll<HTMLElement>('.cap-group')) {
+          group.hidden = group.querySelector('[data-requires]:not([hidden])') === null;
+        }
+        const extra = spec.operations.filter((item) => !shown.has(item.path));
         if (extra.length === 0) return;
         byId('cap-more-list').replaceChildren(
           ...extra.map((item) => {
@@ -51,13 +60,7 @@ function initMoreCapabilities(i18n: I18n<Key>): void {
             return h(
               'li',
               {},
-              h(
-                'a',
-                { class: 'more-card', href },
-                h('span', { class: 'tag' }, `${item.method} ${shortName(item)}`),
-                h('span', { class: 'more-title', lang: 'en' }, item.summary === '' ? shortName(item) : item.summary),
-                iconNode('arrowRight', 'size-4 shrink-0'),
-              ),
+              h('a', { class: 'more-card', href }, h('span', { class: 'tag' }, `${item.method} ${shortName(item)}`), h('span', { class: 'more-title', lang: 'en' }, item.summary === '' ? shortName(item) : item.summary), iconNode('arrowRight', 'size-4 shrink-0')),
             );
           }),
         );
@@ -84,6 +87,6 @@ export function startHome(i18n: I18n<Key>): void {
   initShared(i18n);
   initConsole(i18n);
   initUseCases();
-  initMoreCapabilities(i18n);
+  initCapabilities(i18n);
   initDates(i18n);
 }

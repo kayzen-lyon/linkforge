@@ -39,6 +39,7 @@ export const GUIDES = [
   'limits',
   'security',
   'glossary',
+  'changelog',
 ] as const;
 export type GuideId = (typeof GUIDES)[number];
 

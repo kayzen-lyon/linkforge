@@ -7,7 +7,8 @@
  * that the code does not do.
  */
 import { SITE_ORIGIN } from '../site/config.ts';
-import { code, h2, l, note, p, same, table, terms, ul, type Guide } from './types.ts';
+import { changelogGuide } from './changelog.ts';
+import { code, h2, h3, l, note, p, same, table, terms, ul, type Guide } from './types.ts';
 
 const O = SITE_ORIGIN;
 const TARGET = 'https://example.com/blog/launch';
@@ -132,6 +133,14 @@ npm run dev`,
         [same('`BROWSER_MAX_CONCURRENCY`'), same('`4`'), l('Pages rendues en parallèle (2 en serverless).', 'Pages rendered in parallel (2 on serverless).')],
         [same('`REQUEST_DEADLINE_MS`'), same('`55000`'), l('Délai global d’une requête.', 'Overall deadline of a request.')],
         [same('`SSRF_ALLOWED_PORTS`'), same('`80,443`'), l('Ports de destination autorisés.', 'Allowed destination ports.')],
+        [same('`SSRF_BLOCKED_HOSTS`'), l('vide', 'empty'), l('Destinations refusées en plus, `hôte` ou `hôte:port`. Cette liste ne peut que restreindre.', 'Extra refused destinations, `host` or `host:port`. This list can only restrict.')],
+        [same('`BROWSER_PAGE_MAX_REQUESTS`'), same('`1500`'), l('Requêtes au plus par page rendue.', 'Requests at most per rendered page.')],
+        [same('`BROWSER_PAGE_MAX_BYTES`'), l('60 Mo (30 en serverless)', '60 MB (30 on serverless)'), l('Octets reçus au plus par page rendue.', 'Bytes received at most per rendered page.')],
+        [same('`CIRCUIT_BREAKER_THRESHOLD`'), same('`5`'), l('Échecs réseau consécutifs avant de mettre un hôte à l’écart.', 'Consecutive network failures before a host is set aside.')],
+        [same('`CIRCUIT_BREAKER_COOLDOWN_MS`'), same('`30000`'), l('Durée de cette mise à l’écart.', 'How long it is set aside.')],
+        [same('`ANIMATION_MAX_BYTES`'), l('10 Mo (4 en serverless)', '10 MB (4 on serverless)'), l('Poids maximal d’une capture animée.', 'Maximum size of an animated capture.')],
+        [same('`METRICS_TOKEN`'), l('vide', 'empty'), l('Jeton qui protège `/metrics` (format Prometheus). Vide : la route n’existe pas.', 'Token that protects `/metrics` (Prometheus format). Empty: the route does not exist.')],
+        [same('`MCP_ENABLED`'), same('`true`'), l('Active le point d’accès MCP `POST /mcp`.', 'Turns on the MCP endpoint `POST /mcp`.')],
         [same('`CORS_ORIGIN`'), same('`*`'), l('Origines autorisées à appeler l’API depuis un navigateur.', 'Origins allowed to call the API from a browser.')],
       ],
     ),
@@ -153,8 +162,8 @@ const sdk: Guide = {
   title: l('SDK TypeScript et composant link-preview', 'TypeScript SDK and the link-preview element'),
   nav: l('SDK et composant', 'SDK and element'),
   description: l(
-    'Le client TypeScript d’Omnillink et l’élément `<link-preview>` : installation, création du client, appels typés, carte d’aperçu prête à poser.',
-    'The Omnillink TypeScript client and the `<link-preview>` element: installation, creating the client, typed calls, a drop-in preview card.',
+    'Le client TypeScript d’Omnillink, l’élément `<link-preview>`, le composant React et l’action GitHub : installation, appels typés, carte d’aperçu prête à poser.',
+    'The Omnillink TypeScript client, the `<link-preview>` element, the React component and the GitHub Action: installation, typed calls, a drop-in preview card.',
   ),
   lead: l(
     'Le dépôt contient un client TypeScript sans dépendance et un élément personnalisé `<link-preview>`. Tous deux se trouvent dans `packages/sdk`.',
@@ -205,6 +214,18 @@ console.log(data.title, data.image?.url, meta.cached);`,
 
 <link-preview url="${TARGET}" base-url="${O}"></link-preview>`,
     ),
+    h2('react', 'React', 'React'),
+    p(
+      'Le paquet `@omnillink/react`, dans `packages/react`, fournit le composant `<LinkPreview>` et le hook `useLinkMeta()`. Le composant enveloppe l’élément `<link-preview>` avec des props typées. Sur le serveur, il rend un simple lien ; dans le navigateur, il devient la carte.',
+      'The `@omnillink/react` package, in `packages/react`, provides the `<LinkPreview>` component and the `useLinkMeta()` hook. The component wraps the `<link-preview>` element with typed props. On the server it renders a plain link; in the browser it becomes the card.',
+    ),
+    code('js', 'React', 'React', `import { LinkPreview } from '@omnillink/react';\n\n<LinkPreview url="${TARGET}" baseUrl="${O}" />;`),
+    h2('action', 'Action GitHub', 'GitHub Action'),
+    p(
+      'L’action `.github/actions/link-preview` récupère les métadonnées d’une adresse, les expose en sorties de l’étape et écrit un aperçu dans le résumé du job. Elle peut aussi prendre une capture.',
+      'The `.github/actions/link-preview` action fetches the metadata of an address, exposes it as step outputs and writes a preview to the job summary. It can also take a screenshot.',
+    ),
+    code('text', 'YAML', 'YAML', `- uses: kayzen-lyon/linkforge/.github/actions/link-preview@main\n  id: preview\n  with:\n    url: ${TARGET}\n    base-url: ${O}\n- run: echo "$TITLE"\n  env:\n    TITLE: \${{ steps.preview.outputs.title }}`),
     p(
       'Le [bac à sable](/playground) génère cette balise pour l’adresse que vous testez. Le détail des options est dans le fichier `README.md` du paquet.',
       'The [playground](/playground) generates this tag for the address you are testing. The options are detailed in the `README.md` of the package.',
@@ -217,8 +238,8 @@ const aiAgents: Guide = {
   title: l('Omnillink pour les agents IA', 'Omnillink for AI agents'),
   nav: l('Agents IA', 'AI agents'),
   description: l(
-    'Donner à un modèle le contenu d’une page web : Markdown propre, citations numérotées, liens et images, fichiers llms.txt.',
-    'Giving a model the content of a web page: clean Markdown, numbered citations, links and images, llms.txt files.',
+    'Donner à un modèle le contenu d’une page web : Markdown propre, citations numérotées, serveur MCP hébergé ou local, fichiers llms.txt.',
+    'Giving a model the content of a web page: clean Markdown, numbered citations, hosted or local MCP server, llms.txt files.',
   ),
   lead: l(
     'Un modèle de langage lit mal le HTML brut : menus, scripts et bandeaux noient le texte. `/content` lui donne la partie lisible de la page.',
@@ -244,6 +265,45 @@ const aiAgents: Guide = {
       'The OpenAPI document describes every endpoint with its parameters: most agent frameworks can derive a tool definition from it.',
     ),
     code('bash', 'Terminal', 'Terminal', `curl "${O}/api/v1/openapi.json"`),
+    h2('mcp', 'Serveur MCP', 'MCP server'),
+    p(
+      'Le Model Context Protocol permet à un agent d’appeler Omnillink comme une série d’outils. Deux façons de s’y brancher : un point d’accès hébergé par l’instance, et un serveur local lancé par votre client.',
+      'The Model Context Protocol lets an agent call Omnillink as a set of tools. There are two ways to connect: an endpoint hosted by the instance, and a local server started by your client.',
+    ),
+    h3('mcp-hosted', 'Point d’accès hébergé', 'Hosted endpoint'),
+    p(
+      '`POST /mcp` parle le transport HTTP sans état : un message JSON-RPC 2.0 par requête, une réponse JSON, sans session. Méthodes : `initialize`, `ping`, `tools/list` et `tools/call`. Un appel d’outil compte pour une requête du quota ; `x-api-key` est prise en compte.',
+      '`POST /mcp` speaks the stateless HTTP transport: one JSON-RPC 2.0 message per request, a JSON answer, no session. Methods: `initialize`, `ping`, `tools/list` and `tools/call`. One tool call counts as one request of the quota; `x-api-key` is honoured.',
+    ),
+    code('bash', 'Terminal', 'Terminal', `curl -X POST "${O}/mcp" \\\n  -H "content-type: application/json" \\\n  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'`),
+    h3('mcp-stdio', 'Serveur local (stdio)', 'Local server (stdio)'),
+    p(
+      'Le paquet `@omnillink/mcp`, dans `packages/mcp`, est un serveur MCP sur stdio, lancé par votre client. Il demande Node.js 20 ou plus récent.',
+      'The `@omnillink/mcp` package, in `packages/mcp`, is an MCP server over stdio, started by your client. It needs Node.js 20 or newer.',
+    ),
+    table(
+      [l('Outil', 'Tool'), l('Sert à', 'Use it to'), l('Renvoie', 'Returns')],
+      [
+        [same('`omnillink_content`'), l('Lire un article ou une page de documentation', 'Read an article or a documentation page'), l('Markdown, en plusieurs parties si le texte est long', 'Markdown, in parts when long')],
+        [same('`omnillink_meta`'), l('Identifier un lien : titre, description, image, flux', 'Identify a link: title, description, image, feeds'), same('JSON')],
+        [same('`omnillink_extract`'), l('Relever des valeurs précises avec des sélecteurs CSS', 'Pull precise values with CSS selectors'), same('JSON')],
+        [same('`omnillink_screenshot`'), l('Voir une page', 'See a page'), l('Une image', 'An image')],
+        [same('`omnillink_pdf`'), l('Conserver une page comme fichier', 'Keep a page as a file'), l('Le chemin du PDF enregistré', 'The path of the saved PDF')],
+      ],
+    ),
+    code('bash', 'Claude Code', 'Claude Code', 'claude mcp add \\\n  --env OMNILLINK_URL=https://links.example.com \\\n  --env OMNILLINK_API_KEY=your-key \\\n  omnillink -- npx -y @omnillink/mcp'),
+    code(
+      'json',
+      'Claude Desktop, Cursor',
+      'Claude Desktop, Cursor',
+      JSON.stringify({ mcpServers: { omnillink: { command: 'npx', args: ['-y', '@omnillink/mcp'], env: { OMNILLINK_URL: 'https://links.example.com', OMNILLINK_API_KEY: 'your-key' } } } }, null, 2),
+    ),
+    ul(
+      l('Claude Desktop : Réglages, Développeur, Modifier la configuration (`claude_desktop_config.json`).', 'Claude Desktop: Settings, Developer, Edit Config (`claude_desktop_config.json`).'),
+      l('Cursor : `~/.cursor/mcp.json` pour tous les projets, ou `.cursor/mcp.json` pour un seul.', 'Cursor: `~/.cursor/mcp.json` for all projects, or `.cursor/mcp.json` for one.'),
+      l('`OMNILLINK_URL` désigne votre instance ; sans elle, le serveur utilise l’instance de démonstration. `OMNILLINK_API_KEY` exige `OMNILLINK_URL` : le serveur refuse d’envoyer une clé à l’instance par défaut.', '`OMNILLINK_URL` names your instance; without it the server uses the demo instance. `OMNILLINK_API_KEY` requires `OMNILLINK_URL`: the server refuses to send a key to the default instance.'),
+      l('Depuis une copie du dépôt, remplacez `npx -y @omnillink/mcp` par `node /chemin/absolu/vers/packages/mcp/dist/bin.js`. La publication du paquet sur le registre npm n’est pas confirmée à ce jour.', 'From a checkout of the repository, replace `npx -y @omnillink/mcp` with `node /absolute/path/to/packages/mcp/dist/bin.js`. Publication of the package on the npm registry is not confirmed at this time.'),
+    ),
     h2('llms', 'Fichiers llms.txt', 'llms.txt files'),
     p(
       'Ce site publie [/llms.txt](/llms.txt), un sommaire de la documentation, et [/llms-full.txt](/llms-full.txt), qui en contient le texte complet en un seul fichier.',
@@ -341,6 +401,8 @@ const ERROR_ROWS: ReadonlyArray<readonly [string, string, string, string, string
   ['EINTERNAL', '500', 'Erreur inattendue du serveur.', 'Réessayez ; si elle se répète, ouvrez un ticket avec l’en-tête `x-request-id` de la réponse.', 'Unexpected server error.', 'Retry; if it happens again, open an issue with the `x-request-id` header of the response.'],
   ['EUNREACHABLE', '502', 'Le site cible ne répond pas : nom introuvable, connexion refusée, erreur TLS.', 'Vérifiez l’adresse dans un navigateur. Le site peut être en panne ou bloquer les robots.', 'The target site does not answer: unknown name, refused connection, TLS error.', 'Check the address in a browser. The site may be down or blocking bots.'],
   ['ETARGETSTATUS', '502', 'Le site cible a répondu par une erreur HTTP (404, 403, 500…).', 'Le message donne le statut. Vérifiez que la page existe et qu’elle est publique.', 'The target site answered with an HTTP error (404, 403, 500…).', 'The message gives the status. Check that the page exists and is public.'],
+  ['EBLOCKED', '502', 'Le site a servi une page de blocage anti-robot au lieu de son contenu.', 'Omnillink ne contourne pas ces protections. Vérifiez la page dans un navigateur, ou demandez un accès au site.', 'The site served an anti-bot block page instead of its content.', 'Omnillink does not work around these protections. Check the page in a browser, or ask the site for access.'],
+  ['ECIRCUITOPEN', '503', 'Le site cible a échoué plusieurs fois de suite ; il est mis à l’écart quelques secondes.', 'Réessayez après le délai de l’en-tête `retry-after`.', 'The target site failed several times in a row; it is set aside for a few seconds.', 'Retry after the delay given by the `retry-after` header.'],
   ['EBUSY', '503', 'Trop de rendus en attente sur l’instance.', 'Réessayez après quelques secondes, avec un délai croissant.', 'Too many renders are queued on the instance.', 'Retry after a few seconds, with an increasing delay.'],
   ['ETIMEOUT', '504', 'Le site cible n’a pas répondu à temps.', 'Réessayez. Pour une page lente, `render=never` évite le navigateur.', 'The target site did not answer in time.', 'Retry. For a slow page, `render=never` avoids the browser.'],
 ];
@@ -371,7 +433,7 @@ const errors: Guide = {
     ),
     h2('retry', 'Quand réessayer', 'When to retry'),
     ul(
-      l('Réessayez `EBUSY`, `ETIMEOUT`, `EUNREACHABLE`, `EBROWSER` et `EINTERNAL`, avec un délai croissant.', 'Retry `EBUSY`, `ETIMEOUT`, `EUNREACHABLE`, `EBROWSER` and `EINTERNAL`, with an increasing delay.'),
+      l('Réessayez `EBUSY`, `ECIRCUITOPEN`, `ETIMEOUT`, `EUNREACHABLE`, `EBROWSER` et `EINTERNAL`, avec un délai croissant.', 'Retry `EBUSY`, `ECIRCUITOPEN`, `ETIMEOUT`, `EUNREACHABLE`, `EBROWSER` and `EINTERNAL`, with an increasing delay.'),
       l('Réessayez `ERATELIMIT` après le délai de l’en-tête `retry-after`.', 'Retry `ERATELIMIT` after the delay given by the `retry-after` header.'),
       l('Ne réessayez pas les autres codes 4xx : la même requête donnera la même erreur.', 'Do not retry the other 4xx codes: the same request will give the same error.'),
     ),
@@ -458,13 +520,19 @@ const security: Guide = {
       l('Les notations inhabituelles, comme `0x7f.1` ou `2130706433`, sont normalisées avant le contrôle.', 'Unusual notations, such as `0x7f.1` or `2130706433`, are normalised before the check.'),
       l('Un seul enregistrement DNS privé suffit à refuser un nom d’hôte.', 'A single private DNS record is enough to refuse a host name.'),
       l('En HTTP, la résolution DNS validée est épinglée à la connexion, et chaque redirection est revalidée.', 'Over HTTP, the validated DNS resolution is pinned to the connection, and every redirect is validated again.'),
-      l('Dans le navigateur, chaque requête est interceptée et validée, sous-ressources, redirections et iframes comprises. WebSockets et service workers sont coupés.', 'In the browser, every request is intercepted and validated, including sub-resources, redirects and iframes. WebSockets and service workers are cut off.'),
+      l('Dans le navigateur, deux couches : chaque requête émise par la page est interceptée et validée, et Chromium n’a pour seule sortie réseau qu’un proxy interne à l’API. À chaque connexion, redirections comprises, ce proxy applique la politique, résout le nom lui-même et se connecte à l’adresse qu’il vient de valider.', 'In the browser, two layers: every request the page makes is intercepted and validated, and the only network exit Chromium has is a proxy inside the API. On every connection, redirects included, that proxy applies the policy, resolves the name itself and connects to the address it has just validated.'),
+      l('L’API n’exécute aucun code fourni par l’appelant. Les seules entrées « programmables » sont des sélecteurs CSS, bornés.', 'The API runs no code supplied by the caller. The only "programmable" inputs are CSS selectors, with bounds.'),
+      l('Seuls `Accept-Language`, `User-Agent` et `Referer` peuvent être fixés vers la cible. `Cookie` et `Authorization` sont exclus, car les réponses sont mises en cache par adresse.', 'Only `Accept-Language`, `User-Agent` and `Referer` can be set towards the target. `Cookie` and `Authorization` are excluded, because answers are cached per address.'),
+      l('Ce qui vient d’une page reste une donnée : `/html` est servi en texte brut, le champ `html` de `/oembed` n’est jamais interprété, les CSV neutralisent les formules.', 'What comes from a page stays data: `/html` is served as plain text, the `html` field of `/oembed` is never interpreted, CSV output neutralises formulas.'),
     ),
     h2('not-covered', 'Ce qui ne l’est pas', 'What is not covered'),
     ul(
       l('Le contenu des pages lues n’est pas filtré : traitez toute réponse comme une donnée non fiable, et ne l’injectez jamais telle quelle dans du HTML.', 'The content of the pages read is not filtered: treat every answer as untrusted data, and never inject it as is into HTML.'),
       l('L’API ne vérifie pas que vous avez le droit de lire, copier ou conserver une page. Cette responsabilité est la vôtre.', 'The API does not check that you are allowed to read, copy or keep a page. That responsibility is yours.'),
-      l('Les limites connues et leur état sont décrits dans le [README du dépôt](https://github.com/kayzen-lyon/linkforge#readme) et dans `SECURITY.md`.', 'Known limits and their status are described in the [repository README](https://github.com/kayzen-lyon/linkforge#readme) and in `SECURITY.md`.'),
+      l('Le proxy de validation vit dans le même processus que l’API : il ne remplace pas un filtrage de sortie au niveau du réseau (pare-feu, VPC), qui reste recommandé en défense en profondeur.', 'The validating proxy lives in the same process as the API: it does not replace egress filtering at network level (firewall, VPC), which remains recommended as defence in depth.'),
+      l('Un rendu exécute le JavaScript de la page dans Chromium. La protection porte sur les destinations joignables, pas sur ce que fait la page une fois chargée.', 'A render runs the JavaScript of the page in Chromium. The protection is about reachable destinations, not about what the page does once loaded.'),
+      l('Les compteurs de quota ne sont pas une protection contre un déni de service distribué.', 'Quota counters are not a protection against distributed denial of service.'),
+      l('Le [README du dépôt](https://github.com/kayzen-lyon/linkforge#readme) et `SECURITY.md` donnent le détail.', 'The [repository README](https://github.com/kayzen-lyon/linkforge#readme) and `SECURITY.md` have the details.'),
     ),
     h2('site', 'Ce site', 'This site'),
     ul(
@@ -510,4 +578,4 @@ const glossary: Guide = {
   ],
 };
 
-export const GUIDE_LIST: readonly Guide[] = [quickstart, selfHosting, sdk, aiAgents, recipes, errors, limits, security, glossary];
+export const GUIDE_LIST: readonly Guide[] = [quickstart, selfHosting, sdk, aiAgents, recipes, errors, limits, security, glossary, changelogGuide()];

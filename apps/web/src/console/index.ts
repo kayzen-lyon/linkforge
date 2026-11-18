@@ -17,8 +17,16 @@ import { CODE_SYNTAX, generateCode, type CodeLangId } from './codegen';
 import { filterJson, renderJson, setAllOpen } from './jsonview';
 import { CORE_OPERATIONS, loadSpec, shortName, type ApiSpec, type Operation, type ParamDef } from './spec';
 import {
+  autoView,
   batchView,
+  checkView,
   compareControl,
+  insightsView,
+  oembedView,
+  paletteView,
+  pictureView,
+  sliderView,
+  tablesView,
   contentView,
   fieldsView,
   headersView,
@@ -131,6 +139,8 @@ export function initConsole(i18n: I18n<Key>): void {
         }
       }
       if (value === '' || (value === item.fallback && !(item.name in overrides))) continue;
+      // A preset replaces hand-written rules: sending both would be contradictory.
+      if (item.name === 'fields' && (values['preset'] ?? '') !== '') continue;
       if (item.where === 'query') {
         query.push([item.name, value]);
       } else if (item.type === 'array') {
@@ -614,7 +624,10 @@ export function initConsole(i18n: I18n<Key>): void {
       }
       const shots = outcome.extra ?? [{ url: objectUrl, mobile: /[?&]device=mobile/.test(outcome.path) }];
       const control = full && /screenshot/.test(name) ? compareControl(i18n, compare, (value) => { compare = value; if (outcome !== null) void run(); }) : null;
-      imageView(output, shots, t('s.alt', { host }), control);
+      if (!/screenshot/.test(name)) pictureView(output, objectUrl, name.replace('/', ''));
+      // Light and dark share their size: one image over the other, under a slider.
+      else if (outcome.extra !== undefined && compare === 'scheme') sliderView(output, shots, t('s.alt', { host }), control, t('s.slider'));
+      else imageView(output, shots, t('s.alt', { host }), control);
     } else if (kind === 'pdf' && objectUrl !== undefined) {
       pdfView(output, objectUrl, i18n);
     } else if (isRecord(data) && /^\/meta$/.test(name)) {
@@ -625,6 +638,19 @@ export function initConsole(i18n: I18n<Key>): void {
       contentView(output, data, i18n, full);
     } else if (Array.isArray(data) && /batch/.test(name)) {
       batchView(output, batchRows(data), i18n);
+    } else if (isRecord(data) && /^\/insights$/.test(name)) {
+      insightsView(output, data, i18n);
+    } else if (isRecord(data) && /^\/check$/.test(name)) {
+      checkView(output, data, i18n);
+    } else if (isRecord(data) && /^\/palette$/.test(name)) {
+      paletteView(output, data, i18n, (hex) => void copyText(hex).then((ok) => toast(ok ? t('pv.copied', { hex }) : hex, ok ? 'info' : 'error')));
+    } else if (isRecord(data) && /^\/oembed$/.test(name)) {
+      oembedView(output, data, i18n);
+    } else if (isRecord(data) && /^\/tables$/.test(name)) {
+      tablesView(output, data, i18n, (file, csv) => download(file, new Blob([`\ufeff${csv}`], { type: 'text/csv' })));
+    } else if (isRecord(data) && Object.values(data).some((value) => (Array.isArray(value) && value.some(isRecord)) || value === null || typeof value !== 'object')) {
+      // Technologies, links, sitemaps, icons, image facts: facts and tables rather than raw JSON.
+      autoView(output, data, i18n);
     } else if (json !== undefined) {
       const box = h('div', { class: 'json-box' });
       renderJson(box, json, jsonText(), copyPath);

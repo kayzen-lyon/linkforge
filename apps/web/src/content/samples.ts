@@ -12,8 +12,8 @@ export const SAMPLES = {
     "source": "http"
   },
   "content": {
-    "markdown": "# Launching the new editor\n\nToday we are releasing a **faster editor** with offline support. It took a year of work and a lot of [feedback](https://example.com/feedback).\n\n## What changed\n\n- Instant search across documents\n- Offline mode with automatic sync\n- A new `export` command\n\nThe team plan now costs 49.90 euros per month.\n\n## Migrating\n\nOpen your workspace, choose Settings, then Migrate. The process keeps your",
-    "wordCount": 106,
+    "markdown": "# Launching the new editor\n\nToday we are releasing a **faster editor** with offline support. It took a year of work and a lot of [feedback](https://example.com/feedback).\n\n## What changed\n\n- Instant search across documents\n- Offline mode with automatic sync\n- A new `export` command\n\nThe team plan now costs 49.90 euros per month.\n\n## Plans\n\n| Plan | Seats | Price (EUR) |\n| --- | --- | --- |\n| Solo | 1 | 9.90 |\n| Team ",
+    "wordCount": 115,
     "readingTimeMinutes": 1
   },
   "extract": {
@@ -43,7 +43,7 @@ export const SAMPLES = {
     }
   },
   "pdf": {
-    "bytes": 27066,
+    "bytes": 29213,
     "contentType": "application/pdf"
   },
   "screenshot": {
@@ -55,6 +55,183 @@ export const SAMPLES = {
       "width": 240,
       "height": 420
     }
+  },
+  "tech": [
+    {
+      "name": "WordPress",
+      "category": "cms",
+      "confidence": "high",
+      "version": "6.5",
+      "evidence": "meta generator: WordPress 6.5"
+    },
+    {
+      "name": "Vue.js",
+      "category": "library",
+      "confidence": "high",
+      "version": "3.4.21",
+      "evidence": "asset: https://cdn.jsdelivr.net/npm/vue@3.4.21/dist/vue.global.prod.js"
+    },
+    {
+      "name": "jsDelivr",
+      "category": "cdn",
+      "confidence": "high",
+      "version": null,
+      "evidence": "asset: https://cdn.jsdelivr.net/npm/vue@3.4.21/dist/vue.global.prod.js"
+    }
+  ],
+  "insights": {
+    "timings": {
+      "ttfbMs": 7,
+      "domContentLoadedMs": 23,
+      "loadMs": 23
+    },
+    "vitals": {
+      "fcpMs": 32,
+      "lcpMs": 32,
+      "cls": 0
+    },
+    "requests": 1,
+    "transferBytes": 2752,
+    "byType": {
+      "document": {
+        "requests": 1,
+        "transferBytes": 2752
+      }
+    },
+    "domElements": 57,
+    "device": "desktop"
+  },
+  "palette": [
+    {
+      "hex": "#1f3b61",
+      "population": 0.804
+    },
+    {
+      "hex": "#b7481f",
+      "population": 0.136
+    },
+    {
+      "hex": "#f3bd49",
+      "population": 0.03
+    },
+    {
+      "hex": "#f2f5f7",
+      "population": 0.03
+    }
+  ],
+  "image": {
+    "format": "png",
+    "width": 1200,
+    "height": 630,
+    "bytes": 5131
+  },
+  "sitemap": {
+    "robotsFound": true,
+    "sitemaps": 1,
+    "urlCount": 5,
+    "urls": [
+      "https://example.com/blog/launch",
+      "https://example.com/pricing",
+      "https://example.com/blog"
+    ]
+  },
+  "check": {
+    "status": 200,
+    "ok": true,
+    "hops": 1,
+    "durationMs": 1,
+    "contentType": "text/html",
+    "tls": null
+  },
+  "tables": {
+    "caption": "Plans and prices",
+    "headers": [
+      "Plan",
+      "Seats",
+      "Price (EUR)"
+    ],
+    "rows": [
+      [
+        "Solo",
+        "1",
+        "9.90"
+      ],
+      [
+        "Team",
+        "10",
+        "49.90"
+      ],
+      [
+        "Company",
+        "50",
+        "199.00"
+      ]
+    ],
+    "csv": "Plan,Seats,Price (EUR)\r\nSolo,1,9.90\r\nTeam,10,49.90\r\nCompany,50,199.00"
+  },
+  "links": {
+    "total": 4,
+    "internal": 3,
+    "external": 1,
+    "first": [
+      {
+        "url": "https://example.com/blog/launch",
+        "text": "Home",
+        "internal": true
+      },
+      {
+        "url": "https://example.com/pricing",
+        "text": "Pricing",
+        "internal": true
+      },
+      {
+        "url": "https://example.com/blog",
+        "text": "Blog",
+        "internal": true
+      }
+    ]
+  },
+  "oembed": {
+    "type": "rich",
+    "title": "Launching the new editor",
+    "providerName": "Example Blog",
+    "authorName": "Ada Example",
+    "width": 600,
+    "height": 340
+  },
+  "favicon": {
+    "format": "png",
+    "width": 1200,
+    "height": 630,
+    "bytes": 5131,
+    "rel": "icon"
+  },
+  "article": {
+    "headline": "Launching the new editor",
+    "description": "What changed in the editor, and how to migrate your documents.",
+    "author": "Ada Example",
+    "publisher": "Example Blog",
+    "datePublished": "2025-03-04T09:00:00.000Z",
+    "image": "https://example.com/cover.png",
+    "language": "en"
+  },
+  "html": {
+    "bytes": 2357
+  },
+  "qr": {
+    "bytes": 3064
+  },
+  "og": {
+    "width": 1200,
+    "height": 630,
+    "bytes": 34830
+  },
+  "animation": {
+    "frames": 4,
+    "bytes": 80255
+  },
+  "cli": {
+    "meta": "Launching the new editor\n  https://example.com/blog/launch\n  What changed in the editor, and how to migrate your documents.\n\n  Publisher  Example Blog\n  Author     Ada Example\n  Date       2025-03-04\n  Language   en\n  Image      https://example.com/img/launch.png\n  Favicon    https://example.com/img/launch.png\n  Logo       https://example.com/img/launch.png\n  Type       text/html\n  http · 0 ms · cached"
   },
   "batch": [
     {

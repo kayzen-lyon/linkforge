@@ -14,7 +14,7 @@ export const same = (value: string): L => ({ fr: value, en: value });
 export type Block =
   | { readonly kind: 'h2' | 'h3'; readonly id: string; readonly text: L }
   | { readonly kind: 'p' | 'note'; readonly text: L }
-  | { readonly kind: 'ul' | 'ol'; readonly items: readonly L[] }
+  | { readonly kind: 'ul' | 'ol'; readonly items: readonly L[]; readonly lang?: string }
   | { readonly kind: 'code'; readonly lang: CodeLang; readonly label: L; readonly code: string }
   | { readonly kind: 'table'; readonly head: readonly L[]; readonly rows: ReadonlyArray<readonly L[]> }
   | { readonly kind: 'terms'; readonly items: ReadonlyArray<readonly [L, L]> };

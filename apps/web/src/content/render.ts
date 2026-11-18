@@ -59,7 +59,7 @@ function block(item: Block, lang: Lang): string {
       return `<p class="note">${inlineToHtml(item.text[lang])}</p>`;
     case 'ul':
     case 'ol':
-      return `<${item.kind} class="doc-list${item.kind === 'ol' ? ' doc-list-ordered' : ''}">${item.items.map((entry) => `<li>${inlineToHtml(entry[lang])}</li>`).join('')}</${item.kind}>`;
+      return `<${item.kind}${item.lang === undefined ? '' : ` lang="${item.lang}"`} class="doc-list${item.kind === 'ol' ? ' doc-list-ordered' : ''}">${item.items.map((entry) => `<li>${inlineToHtml(entry[lang])}</li>`).join('')}</${item.kind}>`;
     case 'code':
       return codeFigure(item.label[lang], item.code, item.lang);
     case 'table': {
