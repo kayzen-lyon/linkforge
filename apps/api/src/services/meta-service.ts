@@ -26,6 +26,8 @@ export interface MetaRequest {
   readonly render: RenderMode;
   /** Bypass the cache read (the fresh result is still written back). */
   readonly force: boolean;
+  /** Cache lifetime for this request; `null` uses the configured default. */
+  readonly ttlSeconds: number | null;
 }
 
 export interface MetaResult {
@@ -33,9 +35,18 @@ export interface MetaResult {
   /** Which pipeline produced the data. */
   readonly source: 'http' | 'browser';
   readonly cached: boolean;
+  /** Lifetime applied to this answer (drives `Cache-Control`). */
+  readonly ttlSeconds: number;
 }
 
-type CachedMeta = Omit<MetaResult, 'cached'>;
+type CachedMeta = Pick<MetaResult, 'data' | 'source'>;
+
+/**
+ * Version of the cached payload's shape. Bump it whenever `LinkMetadata`
+ * changes, so entries written by an older deployment (shared Redis) are not
+ * served with fields missing.
+ */
+const CACHE_SHAPE = 2;
 
 /** Statuses typically returned by anti-bot layers to non-browser clients. */
 const BOT_WALL_STATUSES = new Set([401, 403, 406, 429, 503]);
@@ -55,6 +66,11 @@ function emptyMetadata(url: string): LinkMetadata {
     image: null,
     images: [],
     favicon: null,
+    logo: null,
+    video: null,
+    audio: null,
+    keywords: [],
+    feeds: [],
     jsonLd: [],
   };
 }
@@ -78,19 +94,24 @@ export class MetaService {
   async getMetadata(request: MetaRequest): Promise<MetaResult> {
     // Cheap synchronous validation first: bad input never touches the cache or the network.
     const target = parseTargetUrl(request.url, this.config.ssrf);
-    const key = cacheKey('meta', { url: target.href, render: request.render });
+    const ttlSeconds = request.ttlSeconds ?? this.config.cache.metaTtlSeconds;
+    const key = cacheKey('meta', {
+      url: target.href,
+      render: request.render,
+      shape: CACHE_SHAPE,
+    });
 
     if (!request.force) {
       const hit = await getJson<CachedMeta>(this.cache, key);
-      if (hit !== null) return { ...hit, cached: true };
+      if (hit !== null) return { ...hit, cached: true, ttlSeconds };
     }
 
     const fresh = await this.flights.run(key, async () => {
       const result = await this.compute(target, request.render);
-      await setJson(this.cache, key, result, this.config.cache.metaTtlSeconds);
+      await setJson(this.cache, key, result, ttlSeconds);
       return result;
     });
-    return { ...fresh, cached: false };
+    return { ...fresh, cached: false, ttlSeconds };
   }
 
   private async compute(target: URL, render: RenderMode): Promise<CachedMeta> {
