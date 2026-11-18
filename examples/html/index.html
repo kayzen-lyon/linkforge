@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Omnillink — plain HTML example</title>
+    <style>
+      body { font: 16px/1.5 system-ui, sans-serif; max-width: 40rem; margin: 3rem auto; padding: 0 1rem; }
+      link-preview { display: block; margin: 1rem 0; --omnillink-max-width: 100%; }
+      /* Shown by the element when a preview cannot be loaded. */
+      link-preview[state='error'] { opacity: 0.8; }
+      pre { background: #f4f5f7; padding: 1rem; border-radius: 8px; overflow: auto; }
+    </style>
+
+    <!-- The built SDK, straight from this repository: no bundler, no CDN. -->
+    <script type="module" src="../../packages/sdk/dist/element.js"></script>
+  </head>
+  <body>
+    <h1>&lt;link-preview&gt;</h1>
+    <p>Three cards, one custom element. Pass <code>?api=https://your-instance</code> to use another Omnillink instance.</p>
+
+    <link-preview url="https://github.com" base-url="https://linkforge-sable.vercel.app"></link-preview>
+
+    <link-preview url="https://developer.mozilla.org/en-US/docs/Web/API/Web_components" base-url="https://linkforge-sable.vercel.app" size="large" theme="dark"></link-preview>
+
+    <!-- Your own fallback: displayed before JavaScript runs, and if the preview fails. -->
+    <link-preview url="https://example.com" base-url="https://linkforge-sable.vercel.app" loading="eager">
+      <a href="https://example.com">example.com</a>
+    </link-preview>
+
+    <h2>The client, without the card</h2>
+    <pre id="output">Loading…</pre>
+
+    <script type="module">
+      import { createClient, OmnillinkError } from '../../packages/sdk/dist/index.js';
+
+      // ?api=… overrides the instance, for the cards and for the client.
+      const api = new URLSearchParams(location.search).get('api') ?? 'https://linkforge-sable.vercel.app';
+      for (const card of document.querySelectorAll('link-preview')) card.baseUrl = api;
+
+      document.addEventListener('link-preview:load', (event) => {
+        console.log('loaded', event.target.url, event.detail.data.title);
+      });
+
+      const output = document.querySelector('#output');
+      try {
+        const omnillink = createClient({ baseUrl: api });
+        const { data, meta } = await omnillink.meta('https://example.com');
+        // textContent, never innerHTML: the metadata comes from a third-party page.
+        output.textContent = JSON.stringify({ title: data.title, description: data.description, source: meta.source }, null, 2);
+      } catch (error) {
+        output.textContent = error instanceof OmnillinkError ? `${error.code} (${error.status}): ${error.message}` : String(error);
+      }
+    </script>
+  </body>
+</html>

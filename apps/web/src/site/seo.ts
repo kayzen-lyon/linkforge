@@ -13,7 +13,9 @@ import {
   PUBLISHER_URL,
   REPO_URL,
   SITE_ORIGIN,
-  STORAGE,
+  UTILITY_PAGES,
+  isGuide,
+  localeOf,
   pagePath,
   type Lang,
   type PageId,
@@ -30,37 +32,12 @@ export const plain = (source: string): string =>
 
 const absolute = (path: string): string => `${SITE_ORIGIN}${path}`;
 
-/**
- * Runs before first paint, so nothing flashes:
- *  - a visitor who chose the other language is sent to that language's URL
- *    (unless they are navigating inside the site, where the URL decides);
- *  - the theme (stored choice, else the system setting) and the accessibility
- *    options are applied to <html>.
- */
-function bootScript(page: PageId, lang: Lang): string {
-  const other: Lang = lang === 'fr' ? 'en' : 'fr';
-  return [
-    'try{var d=document.documentElement,s=localStorage,',
-    `l=s.getItem('${STORAGE.lang}');`,
-    `if(l==='${other}'&&document.referrer.indexOf(location.origin)!==0){location.replace('${pagePath(page, other)}'+location.search+location.hash)}`,
-    `var t=s.getItem('${STORAGE.theme}');`,
-    "if(t!=='light'&&t!=='dark')t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';",
-    "d.setAttribute('data-theme',t);",
-    `var a=JSON.parse(s.getItem('${STORAGE.a11y}')||'null');`,
-    "if(a){if(a.fontSize)d.style.fontSize=['100%','112%','125%'][a.fontSize]||'';",
-    "if(a.highContrast)d.classList.add('high-contrast');",
-    "if(a.legibleFont)d.classList.add('legible-font');",
-    "if(a.oled)d.classList.add('oled')}",
-    "}catch(e){if(matchMedia('(prefers-color-scheme: dark)').matches)document.documentElement.setAttribute('data-theme','dark')}",
-  ].join('');
-}
-
 interface FaqEntry {
   readonly question: string;
   readonly answer: string;
 }
 
-function jsonLd(page: PageId, lang: Lang, t: Lookup, faq: readonly FaqEntry[]): string {
+function jsonLd(page: PageId, lang: Lang, t: Lookup, faq: readonly FaqEntry[], modified: string): string {
   const url = absolute(pagePath(page, lang));
   const publisher = { '@id': `${SITE_ORIGIN}/#publisher` };
   const graph: unknown[] = [
@@ -84,7 +61,7 @@ function jsonLd(page: PageId, lang: Lang, t: Lookup, faq: readonly FaqEntry[]): 
     },
   ];
 
-  if (page === 'home' || page === 'docs') {
+  if (page === 'home' || page === 'docs' || page === 'playground') {
     graph.push({
       '@type': 'WebAPI',
       '@id': `${SITE_ORIGIN}/#api`,
@@ -121,39 +98,57 @@ function jsonLd(page: PageId, lang: Lang, t: Lookup, faq: readonly FaqEntry[]): 
       });
     }
   } else {
+    const trail = isGuide(page) ? [{ name: plain(t('nav.guides')), item: absolute(pagePath('quickstart', lang)) }] : [];
     graph.push({
       '@type': 'BreadcrumbList',
-      itemListElement: [
-        { '@type': 'ListItem', position: 1, name: plain(t('crumb.home')), item: absolute(pagePath('home', lang)) },
-        { '@type': 'ListItem', position: 2, name: plain(t('title')), item: url },
-      ],
+      itemListElement: [{ name: plain(t('crumb.home')), item: absolute(pagePath('home', lang)) }, ...trail, { name: plain(t('title')), item: url }].map(
+        (entry, at) => ({ '@type': 'ListItem', position: at + 1, name: entry.name, item: entry.item }),
+      ),
     });
+    if (isGuide(page) || page === 'docs') {
+      graph.push({
+        '@type': 'TechArticle',
+        '@id': `${url}#article`,
+        headline: plain(t('title')),
+        description: plain(t('meta.description')),
+        inLanguage: lang,
+        dateModified: modified,
+        author: publisher,
+        publisher,
+        mainEntityOfPage: { '@id': `${url}#page` },
+      });
+    }
   }
 
   // "<" is escaped so no string can close the script element early.
   return JSON.stringify({ '@context': 'https://schema.org', '@graph': graph }).replace(/</g, '\\u003c');
 }
 
-export function headTags(page: PageId, lang: Lang, t: Lookup, faq: readonly FaqEntry[]): string {
+export function headTags(page: PageId, lang: Lang, t: Lookup, faq: readonly FaqEntry[], modified: string): string {
+  const utility = UTILITY_PAGES.includes(page);
   const url = absolute(pagePath(page, lang));
   const title = escapeHtml(plain(t('meta.title')));
   const description = escapeHtml(plain(t('meta.description')));
-  const image = absolute('/og-image.jpg');
+  const image = absolute(lang === 'fr' ? '/og-image.jpg' : `/og-image-${lang}.jpg`);
   const alternates = LANGS.map(
     (code) => `<link rel="alternate" hreflang="${code}" href="${absolute(pagePath(page, code))}" />`,
   ).join('\n    ');
 
-  return `<link rel="canonical" href="${url}" />
+  const indexing = utility
+    ? '<meta name="robots" content="noindex" />'
+    : `<link rel="canonical" href="${url}" />
     ${alternates}
-    <link rel="alternate" hreflang="x-default" href="${absolute(pagePath(page, 'fr'))}" />
+    <link rel="alternate" hreflang="x-default" href="${absolute(pagePath(page, 'fr'))}" />`;
+
+  return `${indexing}
     <meta name="author" content="${PUBLISHER}" />
     <meta name="color-scheme" content="light dark" />
     <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#0d1621" media="(prefers-color-scheme: dark)" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="${BRAND}" />
-    <meta property="og:locale" content="${lang === 'fr' ? 'fr_FR' : 'en_GB'}" />
-    <meta property="og:locale:alternate" content="${lang === 'fr' ? 'en_GB' : 'fr_FR'}" />
+    <meta property="og:locale" content="${localeOf(lang).og}" />
+    ${LANGS.filter((code) => code !== lang).map((code) => `<meta property="og:locale:alternate" content="${localeOf(code).og}" />`).join('')}
     <meta property="og:url" content="${url}" />
     <meta property="og:title" content="${title}" />
     <meta property="og:description" content="${description}" />
@@ -175,8 +170,8 @@ export function headTags(page: PageId, lang: Lang, t: Lookup, faq: readonly FaqE
     <meta name="msapplication-config" content="/browserconfig.xml" />
     <link rel="preload" href="/fonts/outfit-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preload" href="/fonts/plus-jakarta-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
-    <script>${bootScript(page, lang)}</script>
-    <script type="application/ld+json">${jsonLd(page, lang, t, faq)}</script>`;
+    <script src="/boot.js"></script>
+    <script type="application/ld+json">${jsonLd(page, lang, t, faq, modified)}</script>`;
 }
 
 /** `robots.txt` and `sitemap.xml`, emitted with the build. */
@@ -184,16 +179,14 @@ export function robotsTxt(): string {
   return `User-agent: *\nAllow: /\nDisallow: /api/\n\nSitemap: ${SITE_ORIGIN}/sitemap.xml\n`;
 }
 
-export function sitemapXml(pages: readonly PageId[]): string {
+export function sitemapXml(pages: readonly PageId[], modified: string): string {
   const entries = pages.flatMap((page) =>
     LANGS.map((lang) => {
       const links = [
-        ...LANGS.map(
-          (code) => `    <xhtml:link rel="alternate" hreflang="${code}" href="${absolute(pagePath(page, code))}" />`,
-        ),
+        ...LANGS.map((code) => `    <xhtml:link rel="alternate" hreflang="${code}" href="${absolute(pagePath(page, code))}" />`),
         `    <xhtml:link rel="alternate" hreflang="x-default" href="${absolute(pagePath(page, 'fr'))}" />`,
       ].join('\n');
-      return `  <url>\n    <loc>${absolute(pagePath(page, lang))}</loc>\n${links}\n  </url>`;
+      return `  <url>\n    <loc>${absolute(pagePath(page, lang))}</loc>\n    <lastmod>${modified.slice(0, 10)}</lastmod>\n${links}\n  </url>`;
     }),
   );
   return `<?xml version="1.0" encoding="UTF-8"?>
@@ -201,4 +194,14 @@ export function sitemapXml(pages: readonly PageId[]): string {
 ${entries.join('\n')}
 </urlset>
 `;
+}
+
+/** RFC 9116 security contact. `expires` is one year after the build. */
+export function securityTxt(modified: string): string {
+  const expires = new Date(new Date(modified).getTime() + 365 * 86_400_000).toISOString();
+  return `Contact: mailto:contact@kayzen-lyon.fr\nExpires: ${expires}\nPreferred-Languages: fr, en\nCanonical: ${SITE_ORIGIN}/.well-known/security.txt\nPolicy: ${absolute(pagePath('security', 'en'))}\n`;
+}
+
+export function humansTxt(modified: string): string {
+  return `/* TEAM */\nDesign and development: ${PUBLISHER}\nSite: ${PUBLISHER_URL}\nLocation: Lyon, France\n\n/* SITE */\nLast update: ${modified.slice(0, 10)}\nLanguages: French, English\nStandards: HTML, CSS, TypeScript\nSoftware: Vite, Tailwind CSS, no framework\nSource: ${REPO_URL}\n`;
 }

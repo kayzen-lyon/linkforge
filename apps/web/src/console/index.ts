@@ -526,8 +526,8 @@ export function initConsole(i18n: I18n<Key>): void {
       if (i18n.has(why) && i18n.has(fix)) {
         const cause = h('dd', { class: 'hint' });
         const remedy = h('dd', { class: 'hint' });
-        i18n.render(cause, why);
-        i18n.render(remedy, fix);
+        i18n.render(cause, why as Key);
+        i18n.render(remedy, fix as Key);
         explain.append(h('dt', {}, t('c.error.why')), cause, h('dt', {}, t('c.error.fix')), remedy);
       }
       const body = h(

@@ -37,6 +37,7 @@ import {
 } from './commands.js';
 import { extensionFor, fileNameFor, resolveInside } from './files.js';
 import {
+  clean,
   createStyle,
   formatContentBody,
   formatContentSummary,
@@ -429,7 +430,7 @@ async function main(io: Io, setCommand: (name: string) => void): Promise<number>
           return {
             kind: 'ok',
             record: { url, ok: true, ...result },
-            human: many ? `<!-- source: ${url.replaceAll('--', '%2D%2D')} -->\n\n${body}` : body,
+            human: many ? `<!-- source: ${clean(url).replaceAll('--', '%2D%2D')} -->\n\n${body}` : body,
             note: formatContentSummary(result, err),
           };
         }

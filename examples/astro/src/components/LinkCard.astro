@@ -1,0 +1,75 @@
+---
+/**
+ * A link card rendered on the server: the metadata is fetched at build time
+ * (or per request with an SSR adapter) and ships as plain HTML, no JavaScript.
+ */
+import { createClient, OmnillinkError } from '@omnillink/sdk';
+
+interface Props {
+  url: string;
+}
+
+const { url } = Astro.props;
+
+const omnillink = createClient({
+  baseUrl: import.meta.env.OMNILLINK_URL ?? 'https://linkforge-sable.vercel.app',
+  // Server-side only: variables without the PUBLIC_ prefix never reach the browser.
+  ...(import.meta.env.OMNILLINK_API_KEY ? { apiKey: import.meta.env.OMNILLINK_API_KEY } : {}),
+});
+
+let data = null;
+try {
+  ({ data } = await omnillink.meta(url));
+} catch (error) {
+  // A link that cannot be previewed is still a link: fall back instead of failing the build.
+  if (!(error instanceof OmnillinkError)) throw error;
+  console.warn(`[LinkCard] ${url}: ${error.code} ${error.message}`);
+}
+
+// Only http(s) images: the value comes from a third-party page.
+const image = data?.image?.url && /^https?:\/\//i.test(data.image.url) ? data.image.url : null;
+---
+
+{
+  data === null ? (
+    <a href={url}>{url}</a>
+  ) : (
+    <a class="link-card" href={url} rel="noopener noreferrer">
+      {image && <img src={image} alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" />}
+      <span class="body">
+        <span class="publisher">{data.publisher ?? new URL(url).hostname}</span>
+        <strong>{data.title ?? url}</strong>
+        {data.description && <span class="description">{data.description}</span>}
+      </span>
+    </a>
+  )
+}
+
+<style>
+  .link-card {
+    display: flex;
+    gap: 1rem;
+    max-width: 36rem;
+    padding: 0.75rem;
+    border: 1px solid #dde0e7;
+    border-radius: 14px;
+    color: inherit;
+    text-decoration: none;
+  }
+  .link-card img {
+    width: 8rem;
+    aspect-ratio: 1.91;
+    object-fit: cover;
+    border-radius: 8px;
+  }
+  .body {
+    display: grid;
+    gap: 0.15rem;
+    align-content: center;
+  }
+  .publisher,
+  .description {
+    color: #5a6170;
+    font-size: 0.875rem;
+  }
+</style>

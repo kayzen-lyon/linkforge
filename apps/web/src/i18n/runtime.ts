@@ -26,7 +26,7 @@ export interface I18n<K extends string> {
   /** Plain-text translation, with `{name}` placeholders replaced. */
   t(key: K, vars?: Vars): string;
   /** Whether `key` exists in the dictionary (for keys built at run time). */
-  has(key: string): key is K;
+  has(key: string): boolean;
   /** Renders a translation with its inline markup into `target`. */
   render(target: Element, key: K, vars?: Vars): void;
   lang(): Lang;
@@ -162,7 +162,7 @@ export function createI18n<K extends string>(options: I18nOptions<K>): I18n<K> {
 
   return {
     t: (key, vars) => fill(dict()[key], vars),
-    has: (key): key is K => key in dict(),
+    has: (key) => key in dict(),
     render: (target_, key, vars) => renderInline(target_, fill(dict()[key], vars)),
     lang: () => current,
     switchTo,

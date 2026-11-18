@@ -1,0 +1,29 @@
+---
+import LinkCard from '../components/LinkCard.astro';
+
+const api = import.meta.env.OMNILLINK_URL ?? 'https://linkforge-sable.vercel.app';
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Omnillink + Astro</title>
+  </head>
+  <body style="font-family: system-ui; max-width: 40rem; margin: 3rem auto;">
+    <h1>Omnillink + Astro</h1>
+
+    <h2>Rendered on the server, zero JavaScript</h2>
+    <LinkCard url="https://github.com" />
+
+    <h2>The custom element, hydrated in the browser</h2>
+    <link-preview url="https://astro.build" base-url={api} size="large">
+      <a href="https://astro.build">astro.build</a>
+    </link-preview>
+
+    <script>
+      // Bundled by Astro; registers <link-preview> in the browser.
+      import '@omnillink/sdk/element';
+    </script>
+  </body>
+</html>
