@@ -428,7 +428,8 @@ export interface LinksData {
 
 // ---------------------------------------------------------------- /tech ----
 
-export type TechCategory =
+/** Categories the API knows today. */
+export type KnownTechCategory =
   | 'cms'
   | 'ecommerce'
   | 'framework'
@@ -449,8 +450,10 @@ export type TechCategory =
   | 'font'
   | 'chat'
   | 'security'
-  | 'widget'
-  | (string & {});
+  | 'widget';
+
+/** Open to the categories a newer server may add. */
+export type TechCategory = KnownTechCategory | (string & {});
 
 export interface Technology {
   readonly name: string;

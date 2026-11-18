@@ -4242,3 +4242,17 @@
     min-width: 0;
   }
 }
+
+@layer components {
+  /* Miniatures are crops of real output: start at the top and fade out, rather than cut mid-row. */
+  .cap-group .cap-mini {
+    align-items: flex-start;
+    -webkit-mask-image: linear-gradient(#000 80%, transparent);
+    mask-image: linear-gradient(#000 80%, transparent);
+  }
+  .cap-group .cap-mini:has(> .mini-image, > .mini-pdf, > .mini-shots, > .mini-palette) {
+    align-items: center;
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+}
