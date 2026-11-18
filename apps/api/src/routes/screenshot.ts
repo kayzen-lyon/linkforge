@@ -153,7 +153,11 @@ export const screenshotDoc: EndpointDoc = {
   path: '/api/v1/screenshot',
   operationId: 'getScreenshot',
   summary: 'Page or element screenshot',
-  description: 'Responds with the raw image, so the URL can be used directly as an `<img src>`.',
+  description:
+    'Responds with the raw image, so the URL can be used directly as an `<img src>`. Before ' +
+    'the capture the page can be prepared declaratively: hide elements, click one element, ' +
+    'scroll to one, wait for a selector. The finished capture can be given a device frame, ' +
+    'rounded corners and padding. No script supplied by the caller is ever run.',
   tag: 'Rendering',
   query: ScreenshotQuery,
   responses: {

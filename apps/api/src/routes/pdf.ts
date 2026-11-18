@@ -86,8 +86,10 @@ export const pdfDoc: EndpointDoc = {
   operationId: 'getPdf',
   summary: 'Page as PDF',
   description:
-    'Prints the page with its print stylesheet. At most 100 pages; a document above the ' +
-    'server size limit is refused with `ETOOLARGE`.',
+    'Prints the page with its print stylesheet. Margins, scale, page ranges and a plain-text ' +
+    'header and footer (escaped, with `{page}` / `{pages}` / `{title}` / `{url}` / `{date}` ' +
+    'tokens) can be set. At most 100 pages; a document above the server size limit is ' +
+    'refused with `ETOOLARGE`.',
   tag: 'Rendering',
   query: PdfQuery,
   responses: {
