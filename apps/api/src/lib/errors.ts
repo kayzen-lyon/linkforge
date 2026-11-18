@@ -24,11 +24,13 @@ export const ErrorCode = {
   Blocked: 'EBLOCKED',
   /** Too many rendering jobs are queued; the client should retry later. */
   Busy: 'EBUSY',
+  /** The target host failed repeatedly and is short-circuited for a moment. */
+  CircuitOpen: 'ECIRCUITOPEN',
   /** Rate limit exceeded. */
   RateLimited: 'ERATELIMIT',
   /** An `x-api-key` header was sent but matches no configured key. */
   Unauthorized: 'EUNAUTHORIZED',
-  /** `/meta?embed=`: the requested path is absent or null in the metadata. */
+  /** The item asked for (embed path, preview image, oEmbed endpoint, icon, table) is absent for this URL. */
   EmbedNotFound: 'EEMBEDNOTFOUND',
   /** `/screenshot?selector=`: no visible element matches the selector. */
   SelectorNotFound: 'ESELECTORNOTFOUND',
@@ -114,6 +116,14 @@ export class AppError extends Error {
 
   static busy(message: string): AppError {
     return new AppError(ErrorCode.Busy, 503, message);
+  }
+
+  static circuitOpen(host: string, retryAfterSeconds: number): AppError {
+    return new AppError(
+      ErrorCode.CircuitOpen,
+      503,
+      `${host} failed repeatedly and is not contacted for now, retry in ${retryAfterSeconds} s`,
+    );
   }
 
   static browser(message: string, cause?: unknown): AppError {

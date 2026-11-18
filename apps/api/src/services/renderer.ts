@@ -8,7 +8,10 @@ import type { Deadline } from '../lib/deadline.js';
 import { AppError, findAppError } from '../lib/errors.js';
 import { installBrowserGuard, type BrowserGuardOptions } from '../security/browser-guard.js';
 import { REFUSAL_HEADER, type EgressProxy } from '../security/egress-proxy.js';
+import { CircuitBreaker } from '../lib/circuit-breaker.js';
+import type { TargetHeaders } from '../lib/target-headers.js';
 import type { BrowserPool } from './browser-pool.js';
+import { NetworkMeter } from './network-meter.js';
 
 export interface RenderOptions {
   readonly contextOptions?: BrowserContextOptions;
@@ -27,6 +30,14 @@ export interface RenderOptions {
   readonly reserveMs: number;
   /** CSS selector that must be attached to the DOM before the job runs. */
   readonly waitForSelector?: string | null;
+  /** Caller-chosen `Accept-Language` / `User-Agent` / `Referer` for the target. */
+  readonly requestHeaders?: TargetHeaders | null;
+}
+
+export interface LocalRenderOptions {
+  readonly viewport: { readonly width: number; readonly height: number };
+  readonly deviceScaleFactor?: number;
+  readonly deadline: Deadline;
 }
 
 export interface RenderedPage {
@@ -36,6 +47,8 @@ export interface RenderedPage {
   readonly response: Response | null;
   /** False when `waitUntil` was not reached and loading had to be stopped. */
   readonly loaded: boolean;
+  /** What the page has pulled from the network so far, and whether a cap stopped it. */
+  readonly network: NetworkMeter;
 }
 
 /** Longest wait for `waitForSelector`, when the deadline leaves that much. */
@@ -54,6 +67,9 @@ function normalizeNavigationError(error: unknown, url: URL, blockedByPolicy: boo
 
   const message = error instanceof Error ? error.message : String(error);
   const name = error instanceof Error ? error.name : '';
+
+  // Downloads are refused (`acceptDownloads: false`): a file is not a page.
+  if (/Download is starting/i.test(message)) return AppError.notHtml('a file download');
 
   if (name === 'TimeoutError' || message.includes('ERR_TIMED_OUT')) {
     return AppError.timeout(`Navigation to ${url.host} timed out`, error);
@@ -114,7 +130,38 @@ export class Renderer {
     private readonly pool: BrowserPool,
     private readonly config: AppConfig,
     private readonly egress: EgressProxy,
+    private readonly breaker: CircuitBreaker = new CircuitBreaker(0, 0),
   ) {}
+
+  /**
+   * Renders a document built by the API itself and runs `job` on it.
+   *
+   * The page is offline: every network request is dropped, so the markup can
+   * only show what it embeds (`data:` URIs, inline styles). The caller is
+   * responsible for escaping whatever text it puts in `html`.
+   *
+   * @throws {AppError} `EBUSY`, `ETIMEOUT`, `EBROWSER`.
+   */
+  renderLocal<T>(html: string, options: LocalRenderOptions, job: (page: Page) => Promise<T>): Promise<T> {
+    return this.pool.withPage(
+      {
+        deadline: options.deadline,
+        contextOptions: {
+          viewport: options.viewport,
+          deviceScaleFactor: options.deviceScaleFactor ?? 1,
+          javaScriptEnabled: false,
+        },
+      },
+      async (page, context) => {
+        await installBrowserGuard(context, this.config.ssrf, { offline: true });
+        await page.setContent(html, {
+          waitUntil: 'load',
+          timeout: Math.max(1, options.deadline.budget(10_000, 2000)),
+        });
+        return job(page);
+      },
+    );
+  }
 
   /**
    * Opens `url` in an isolated, SSRF-guarded page and runs `job` on it.
@@ -136,14 +183,34 @@ export class Renderer {
     const refused = new Set<string>();
     const unsubscribe = this.egress.onBlocked((destination) => refused.add(destination));
 
+    const headers = options.requestHeaders ?? null;
+    const contextOptions: BrowserContextOptions = {
+      ...options.contextOptions,
+      ...(headers?.userAgent != null && { userAgent: headers.userAgent }),
+      ...(headers?.acceptLanguage != null && {
+        extraHTTPHeaders: { 'accept-language': headers.acceptLanguage },
+        // `navigator.language` then agrees with the header.
+        locale: headers.acceptLanguage.split(/[,;]/)[0]?.trim().replace('*', 'en') ?? 'en',
+      }),
+    };
+    const meter = new NetworkMeter(
+      this.config.browser.pageMaxRequests,
+      this.config.browser.pageMaxBytes,
+    );
+
     try {
       return await this.pool.withPage(
-        {
-          deadline,
-          ...(options.contextOptions !== undefined && { contextOptions: options.contextOptions }),
-        },
+        { deadline, contextOptions },
         async (page, context) => {
-          const guard = await installBrowserGuard(context, this.config.ssrf, options.guard);
+          const guard = await installBrowserGuard(context, this.config.ssrf, {
+            ...options.guard,
+            admit: () => meter.admit(),
+          });
+          // Best effort: without the meter the page still renders, only unmetered.
+          await context
+            .newCDPSession(page)
+            .then((session) => meter.attach(session, () => void this.stopLoading(page, context)))
+            .catch(() => undefined);
           // Never let a page block the job with alert()/confirm()/beforeunload.
           page.on('dialog', (dialog) => void dialog.dismiss().catch(() => undefined));
 
@@ -166,14 +233,21 @@ export class Renderer {
           }
           const navigationEnds = performance.now() + navigationBudget;
 
-          let response: Response | null;
-          try {
-            // `commit`: the response has started. Waiting for `load` here would
-            // turn a slow third-party script into a failed request.
-            response = await page.goto(url.href, { waitUntil: 'commit', timeout: navigationBudget });
-          } catch (error) {
-            throw normalizeNavigationError(error, url, blocked());
-          }
+          // Only the navigation feeds the breaker: what a page does afterwards
+          // says nothing about whether its host answers.
+          const response = await this.breaker.run(url, async () => {
+            try {
+              // `commit`: the response has started. Waiting for `load` here would
+              // turn a slow third-party script into a failed request.
+              return await page.goto(url.href, {
+                waitUntil: 'commit',
+                timeout: navigationBudget,
+                ...(headers?.referer != null && { referer: headers.referer }),
+              });
+            } catch (error) {
+              throw normalizeNavigationError(error, url, blocked());
+            }
+          });
           // A refused plain-http hop is answered by the proxy itself, with a 403
           // that carries its token: recognised whatever URL tracking says.
           const refusedByProxy =
@@ -211,7 +285,7 @@ export class Renderer {
               'waitForSelector',
             );
           }
-          return job({ page, context, response, loaded });
+          return job({ page, context, response, loaded, network: meter });
         },
       );
     } finally {

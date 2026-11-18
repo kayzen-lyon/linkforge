@@ -64,7 +64,9 @@ export const ERROR_CATALOG: Readonly<Record<ErrorCode, { status: number; descrip
   },
   [ErrorCode.EmbedNotFound]: {
     status: 404,
-    description: 'The `embed` path is absent or null for this URL.',
+    description:
+      'The item asked for is absent for this URL: `embed` path, preview image, oEmbed ' +
+      'endpoint, icon or table.',
   },
   [ErrorCode.SelectorNotFound]: {
     status: 404,
@@ -85,6 +87,12 @@ export const ERROR_CATALOG: Readonly<Record<ErrorCode, { status: number; descrip
       'content. Nothing is cached.',
   },
   [ErrorCode.Busy]: { status: 503, description: 'Rendering pool saturated, retry shortly.' },
+  [ErrorCode.CircuitOpen]: {
+    status: 503,
+    description:
+      'The target host failed repeatedly (timeouts, refused connections) and is not ' +
+      'contacted for a short while. Retry later.',
+  },
   [ErrorCode.Timeout]: { status: 504, description: 'The target did not answer in time.' },
 };
 
@@ -105,6 +113,7 @@ export const TARGET_ERRORS: readonly ErrorCode[] = [
   ErrorCode.TargetStatus,
   ErrorCode.Blocked,
   ErrorCode.Timeout,
+  ErrorCode.CircuitOpen,
   ErrorCode.Busy,
   ErrorCode.Browser,
 ];

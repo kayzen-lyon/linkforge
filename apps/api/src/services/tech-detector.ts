@@ -99,7 +99,10 @@ const T = (
 const V = String.raw`(\d+(?:\.\d+){1,3})`;
 /** Library file name with an optional version: `name-1.2.3.min.js`, `name@1.2.3/`, `/name/1.2.3/`. */
 const lib = (name: string): RegExp =>
-  new RegExp(String.raw`(?:^|/)${name}(?:[-@/.]${V})?(?:/[\w./-]*)?(?:\.slim|\.bundle|\.esm|\.global|\.prod|\.runtime)*(?:\.min)?\.(?:m?js|css)(?:[?#]|$)`, 'i');
+  new RegExp(
+    String.raw`(?:^|/)(?:${name}[@/]${V}/[\w./-]*?)?${name}(?:[-.]v?${V})?(?:\.slim|\.bundle|\.esm|\.umd|\.global|\.prod|\.runtime|\.production|\.development)*(?:\.min)?\.(?:m?js|css)(?:[?#]|$)`,
+    'i',
+  );
 
 const SIGNATURES: readonly Signature[] = [
   // --- CMS and static-site generators ---
@@ -179,13 +182,12 @@ const SIGNATURES: readonly Signature[] = [
   T('Stimulus', 'library', [P('stimulus')]),
   T('jQuery', 'library', [P('jquery'), A(/\/jquery@(\d+(?:\.\d+){1,2})\b/), A(lib('jquery')), A(/\/ajax\/libs\/jquery\/(\d+(?:\.\d+){1,2})\//)]),
   T('jQuery UI', 'library', [A(lib('jquery-ui')), P('jqueryui')], ['jQuery']),
-  T('Lodash', 'library', [P('lodash'), A(lib('lodash'))]),
   T('Moment.js', 'library', [P('moment'), A(lib('moment'))]),
   T('GSAP', 'library', [P('gsap'), A(/\/gsap(?:@|\/)(\d+(?:\.\d+){1,2})\b/), A(lib('gsap'))]),
   T('Three.js', 'library', [P('three'), A(lib('three'))]),
   T('D3', 'library', [P('d3'), A(lib('d3(?:\\.v\\d)?'))]),
   T('Swiper', 'library', [A(/\/swiper@(\d+(?:\.\d+){1,2})\b/), A(lib('swiper(?:-bundle)?')), M(/class="[^"]*\bswiper-wrapper\b/, 'medium')]),
-  T('Leaflet', 'library', [A(/\/leaflet@(\d+(?:\.\d+){1,2})\b/), A(lib('leaflet')), P('leaflet')]),
+  T('Leaflet', 'library', [A(/\/leaflet@(\d+(?:\.\d+){1,2})\b/), A(lib('leaflet')), P('leaflet', 'medium')]),
   T('Apollo Client', 'library', [P('apollo')]),
   T('Workbox', 'library', [A(/\/workbox-(?:sw|window)[\w.-]*\.js/), B(/workbox-(?:core|precaching|routing)\b/, 'medium')]),
   // --- UI kits and styling ---
@@ -219,7 +221,7 @@ const SIGNATURES: readonly Signature[] = [
   T('Mixpanel', 'analytics', [A(/cdn\.mxpnl\.com\//), P('mixpanel')]),
   T('Amplitude', 'analytics', [A(/cdn\.amplitude\.com\//), P('amplitude')]),
   T('Heap', 'analytics', [A(/cdn\.heapanalytics\.com\//), P('heap')]),
-  T('Segment', 'analytics', [A(/cdn\.segment\.com\/analytics\.js/), P('segment')]),
+  T('Segment', 'analytics', [A(/cdn\.segment\.com\/analytics\.js/), P('segment', 'medium')]),
   T('Hotjar', 'analytics', [A(/static\.hotjar\.com\//), M(/\bhjid\s*:\s*\d+/, 'high'), P('hotjar')]),
   T('Microsoft Clarity', 'analytics', [A(/clarity\.ms\/tag\//), P('clarity')]),
   T('FullStory', 'analytics', [A(/edge\.fullstory\.com\//), P('fullstory')]),
@@ -232,7 +234,7 @@ const SIGNATURES: readonly Signature[] = [
   T('Baidu Tongji', 'analytics', [A(/hm\.baidu\.com\/hm\.js/)]),
   T('Piano Analytics', 'analytics', [A(/tag\.aticdn\.net\//)]),
   T('Cloudflare Web Analytics', 'analytics', [A(/static\.cloudflareinsights\.com\/beacon\.min\.js/)]),
-  T('Vercel Analytics', 'analytics', [A(/\/_vercel\/insights\/script\.js/), P('vercelAnalytics')]),
+  T('Vercel Analytics', 'analytics', [A(/\/_vercel\/insights\/script\.js/)]),
   T('Vercel Speed Insights', 'analytics', [A(/\/_vercel\/speed-insights\/script\.js/)]),
   T('HubSpot', 'analytics', [A(/js\.hs-scripts\.com\/|js\.hsforms\.net\/|js\.hs-analytics\.net\//), P('hubspot')]),
   T('Klaviyo', 'analytics', [A(/static\.klaviyo\.com\//)]),
@@ -252,7 +254,7 @@ const SIGNATURES: readonly Signature[] = [
   T('Google Publisher Tag', 'advertising', [A(/securepubads\.g\.doubleclick\.net\/tag\/js\/gpt\.js/)]),
   // --- CDN ---
   T('Cloudflare', 'cdn', [H('server', /^cloudflare/i), H('cf-ray', /./), H('cf-cache-status', /./)]),
-  T('Fastly', 'cdn', [H('x-fastly-request-id', /./), H('x-served-by', /^cache-/i), H('via', /varnish/i, 'low')]),
+  T('Fastly', 'cdn', [H('x-fastly-request-id', /./), H('x-served-by', /^cache-/i)]),
   T('Akamai', 'cdn', [H('server', /AkamaiGHost|AkamaiNetStorage/i), H('x-akamai-transformed', /./)]),
   T('Amazon CloudFront', 'cdn', [H('x-amz-cf-id', /./), H('via', /CloudFront/i)]),
   T('Bunny CDN', 'cdn', [H('server', /^BunnyCDN/i), H('cdn-pullzone', /./)]),
@@ -272,15 +274,14 @@ const SIGNATURES: readonly Signature[] = [
   T('Vercel', 'hosting', [H('x-vercel-id', /./), H('server', /^Vercel$/i), H('x-vercel-cache', /./)]),
   T('Netlify', 'hosting', [H('x-nf-request-id', /./), H('server', /^Netlify/i)]),
   T('GitHub Pages', 'hosting', [H('server', /^GitHub\.com$/i), H('x-github-request-id', /./, 'medium')]),
-  T('Cloudflare Pages', 'hosting', [H('server', /^cloudflare$/i, 'low'), M(/\.pages\.dev\//, 'low')]),
-  T('Heroku', 'hosting', [H('via', /vegur/i), H('server', /^Cowboy$/i, 'low')]),
+  T('Heroku', 'hosting', [H('via', /vegur/i)]),
   T('Render', 'hosting', [H('x-render-origin-server', /./)]),
   T('Fly.io', 'hosting', [H('fly-request-id', /./), H('server', /^Fly\//i)]),
   T('Railway', 'hosting', [H('x-railway-request-id', /./), H('server', /^railway/i)]),
   T('Deno Deploy', 'hosting', [H('server', /^deno\//i)]),
   T('Amazon S3', 'hosting', [H('server', /^AmazonS3$/i)]),
   T('Google Cloud', 'hosting', [H('server', /^Google Frontend$/i), H('x-cloud-trace-context', /./, 'medium')]),
-  T('Microsoft Azure', 'hosting', [H('x-ms-request-id', /./, 'medium'), H('x-powered-by', /^ASP\.NET$/i, 'low')]),
+  T('Microsoft Azure', 'hosting', [H('x-ms-request-id', /./, 'medium')]),
   T('DigitalOcean App Platform', 'hosting', [H('x-do-app-origin', /./)]),
   T('Kinsta', 'hosting', [H('x-kinsta-cache', /./)]),
   T('WP Engine', 'hosting', [H('x-powered-by', /^WP Engine/i)]),
@@ -302,7 +303,7 @@ const SIGNATURES: readonly Signature[] = [
   T('PHP', 'language', [H('x-powered-by', new RegExp(`^PHP(?:/${V})?`, 'i')), C(/^PHPSESSID$/, 'high')]),
   T('Java', 'language', [C(/^JSESSIONID$/), H('server', /^(?:Apache-Coyote|Jetty)/i, 'medium')]),
   T('Python', 'language', [H('server', /^(?:gunicorn|uvicorn|Werkzeug|waitress)/i), H('server', /\bPython\/(\d+(?:\.\d+){1,2})/i)]),
-  T('Ruby', 'language', [H('server', /Phusion Passenger|\bPuma\b|\bUnicorn\b/i, 'medium'), H('x-runtime', /^\d+\.\d+$/, 'low')]),
+  T('Ruby', 'language', [H('server', /Phusion Passenger|\bPuma\b|\bUnicorn\b/i, 'medium')]),
   // --- Consent ---
   T('OneTrust', 'consent', [A(/cdn\.cookielaw\.org\//), P('onetrust')]),
   T('Cookiebot', 'consent', [A(/consent\.cookiebot\.com\//), P('cookiebot')]),
@@ -370,12 +371,12 @@ const SIGNATURES: readonly Signature[] = [
 export const PROBE_GLOBALS: ReadonlyArray<readonly [key: string, path: string]> = [
   ['jquery', 'jQuery.fn.jquery'], ['jqueryui', 'jQuery.ui.version'], ['react', 'React.version'],
   ['preact', 'preact.options'], ['vue', 'Vue.version'], ['angularjs', 'angular.version.full'],
-  ['angular', 'ng.getComponent'], ['next', 'next.version'], ['next', '__NEXT_DATA__.buildId'],
+  ['angular', 'ng.getComponent'], ['next', 'next.version'], ['next', '__NEXT_DATA__.page'],
   ['nuxt', '__NUXT__'], ['nuxt', 'useNuxtApp'], ['gatsby', '___gatsby'], ['remix', '__remixContext'],
   ['reactRouter', '__reactRouterVersion'], ['ember', 'Ember.VERSION'], ['solid', '_$HY'],
   ['lit', 'litElementVersions.0'], ['alpine', 'Alpine.version'], ['htmx', 'htmx.version'],
   ['stimulus', 'Stimulus.controllers'], ['turbo', 'Turbo.session'], ['livewire', 'Livewire.all'],
-  ['lodash', '_.VERSION'], ['moment', 'moment.version'], ['gsap', 'gsap.version'],
+  ['moment', 'moment.version'], ['gsap', 'gsap.version'],
   ['three', 'THREE.REVISION'], ['d3', 'd3.version'], ['leaflet', 'L.version'],
   ['apollo', '__APOLLO_CLIENT__'], ['bootstrap', 'bootstrap.Tooltip.VERSION'],
   ['webpack', 'webpackChunk_N_E'], ['docusaurus', '__DOCUSAURUS_INSERT_BASEURL_BANNER'],
@@ -386,9 +387,9 @@ export const PROBE_GLOBALS: ReadonlyArray<readonly [key: string, path: string]> 
   ['ga', 'GoogleAnalyticsObject'], ['matomo', 'Matomo.initialized'], ['matomo', 'Piwik.initialized'],
   ['plausible', 'plausible'], ['fathom', 'fathom.trackPageview'], ['umami', 'umami.track'],
   ['posthog', 'posthog.__loaded'], ['mixpanel', 'mixpanel.__loaded'], ['amplitude', 'amplitude.getInstance'],
-  ['heap', 'heap.appid'], ['segment', 'analytics.initialized'], ['hotjar', 'hj.q'], ['hotjar', '_hjSettings'],
+  ['heap', 'heap.track'], ['segment', 'analytics.initialized'], ['hotjar', 'hj.q'], ['hotjar', '_hjSettings'],
   ['clarity', 'clarity.q'], ['fullstory', '_fs_namespace'], ['fbq', 'fbq.version'], ['hubspot', '_hsq'],
-  ['vercelAnalytics', 'va'], ['sentry', '__SENTRY__'], ['datadog', 'DD_RUM.getInternalContext'],
+  ['sentry', '__SENTRY__'], ['datadog', 'DD_RUM.getInternalContext'],
   ['newrelic', 'NREUM.info'], ['bugsnag', 'Bugsnag.notify'], ['onetrust', 'OneTrust.IsAlertBoxClosed'],
   ['cookiebot', 'Cookiebot.consent'], ['didomi', 'Didomi.getUserConsentStatusForAll'],
   ['axeptio', 'axeptioSDK'], ['tarteaucitron', 'tarteaucitron.job'], ['klaro', 'klaro.getManager'],
@@ -522,7 +523,9 @@ interface Match {
   readonly version: string | null;
 }
 
-const versionOf = (match: RegExpMatchArray): string | null => match[1] ?? null;
+/** First capture group that took part in the match: the version, by convention of the table. */
+const versionOf = (match: RegExpMatchArray): string | null =>
+  match.slice(1).find((group) => group !== undefined) ?? null;
 
 /** Path of a bundle URL, short enough to quote in an evidence string. */
 function bundleLabel(url: string): string {

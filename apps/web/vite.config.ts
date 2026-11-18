@@ -128,7 +128,7 @@ const cleanUrls: Connect.NextHandleFunction = (request, response, next) => {
     response.end(JSON.stringify(searchIndex(index[1] as Lang)));
     return;
   }
-  if (path.startsWith('/@') || path.startsWith('/src/') || path.startsWith('/node_modules/') || path.startsWith('/api/') || /\.\w+$/.test(path)) return next();
+  if (path.startsWith('/@') || path.startsWith('/src/') || path.startsWith('/node_modules/') || path.startsWith('/api/') || path === '/health' || /\.\w+$/.test(path)) return next();
   const { page, lang } = parsePath(path);
   if (page === 'not-found' && path !== pagePath('not-found', lang)) response.statusCode = 404;
   request.url = `/${fileOf(page, lang)}${query === undefined ? '' : `?${query}`}`;

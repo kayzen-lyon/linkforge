@@ -14,7 +14,9 @@ import type { TLSSocket } from 'node:tls';
 import { Agent, fetch, type Response } from 'undici';
 
 import type { AppConfig } from '../config.js';
+import { CircuitBreaker } from '../lib/circuit-breaker.js';
 import { AppError, findAppError, findErrorCode } from '../lib/errors.js';
+import { toHttpHeaders, type TargetHeaders } from '../lib/target-headers.js';
 import { assertSafeUrl, createSafeLookup } from '../security/ssrf.js';
 
 export interface FetchedDocument {
@@ -47,6 +49,19 @@ export interface BytesOptions {
   readonly accept?: string;
   /** Sent as `Range: bytes=0-<n>`; servers may ignore it, the cap still applies. */
   readonly rangeBytes?: number;
+  /** Caller-chosen `Accept-Language` / `User-Agent` / `Referer`. */
+  readonly headers?: TargetHeaders | null;
+}
+
+export interface FetcherDeps {
+  /** Shared with the browser path, so both learn from each other's failures. */
+  readonly breaker?: CircuitBreaker;
+  /**
+   * Extra certificate authority (PEM) trusted for outbound TLS. A test-only
+   * seam: it is never read from the environment, and verification is never
+   * relaxed, only given one more root.
+   */
+  readonly ca?: string;
 }
 
 export interface ProbeCertificate {
@@ -119,12 +134,20 @@ async function readCapped(response: Response, maxBytes: number): Promise<Buffer>
 
 export class SafeFetcher {
   private readonly agent: Agent;
+  private readonly breaker: CircuitBreaker;
+  private readonly ca: string | undefined;
 
-  constructor(private readonly config: AppConfig) {
+  constructor(
+    private readonly config: AppConfig,
+    deps: FetcherDeps = {},
+  ) {
+    this.breaker = deps.breaker ?? new CircuitBreaker(0, 0);
+    this.ca = deps.ca;
     this.agent = new Agent({
       connect: {
         lookup: createSafeLookup(config.ssrf),
         timeout: config.http.timeoutMs,
+        ...(deps.ca !== undefined && { ca: deps.ca }),
       },
       headersTimeout: config.http.timeoutMs,
       bodyTimeout: config.http.timeoutMs,
@@ -139,7 +162,11 @@ export class SafeFetcher {
    *
    * @throws {AppError} `EFORBIDDENURL`, `ETIMEOUT` or `EUNREACHABLE`.
    */
-  async fetchDocument(target: URL): Promise<FetchedDocument> {
+  fetchDocument(target: URL, headers: TargetHeaders | null = null): Promise<FetchedDocument> {
+    return this.breaker.run(target, () => this.fetchDocumentOnce(target, headers));
+  }
+
+  private async fetchDocumentOnce(target: URL, headers: TargetHeaders | null): Promise<FetchedDocument> {
     const { timeoutMs, maxRedirects, maxBodyBytes, userAgent } = this.config.http;
     const signal = AbortSignal.timeout(timeoutMs);
     let current = target;
@@ -156,6 +183,7 @@ export class SafeFetcher {
             'user-agent': userAgent,
             accept: 'text/html,application/xhtml+xml;q=0.9,*/*;q=0.5',
             'accept-language': 'en;q=0.9,*;q=0.5',
+            ...toHttpHeaders(headers),
           },
         });
 
@@ -201,7 +229,11 @@ export class SafeFetcher {
    *
    * @throws {AppError} `EFORBIDDENURL`, `ETIMEOUT` or `EUNREACHABLE`.
    */
-  async fetchBytes(target: URL, options: BytesOptions): Promise<FetchedBytes> {
+  fetchBytes(target: URL, options: BytesOptions): Promise<FetchedBytes> {
+    return this.breaker.run(target, () => this.fetchBytesOnce(target, options));
+  }
+
+  private async fetchBytesOnce(target: URL, options: BytesOptions): Promise<FetchedBytes> {
     const { timeoutMs, maxRedirects, userAgent } = this.config.http;
     const signal = AbortSignal.timeout(timeoutMs);
     let current = target;
@@ -216,6 +248,7 @@ export class SafeFetcher {
             'user-agent': userAgent,
             accept: options.accept ?? '*/*',
             ...(options.rangeBytes !== undefined && { range: `bytes=0-${options.rangeBytes - 1}` }),
+            ...toHttpHeaders(options.headers),
           },
         });
         const location = response.headers.get('location');
@@ -258,7 +291,11 @@ export class SafeFetcher {
    *
    * @throws {AppError} `EFORBIDDENURL`, `ETIMEOUT` or `EUNREACHABLE`.
    */
-  async probe(target: URL): Promise<ProbeResult> {
+  probe(target: URL): Promise<ProbeResult> {
+    return this.breaker.run(target, () => this.probeOnce(target));
+  }
+
+  private async probeOnce(target: URL): Promise<ProbeResult> {
     const { timeoutMs, maxRedirects, userAgent } = this.config.http;
     const deadline = performance.now() + timeoutMs;
     const lookup = createSafeLookup(this.config.ssrf);
@@ -282,6 +319,7 @@ export class SafeFetcher {
               method: 'GET',
               lookup,
               agent: false,
+              ...(this.ca !== undefined && { ca: this.ca }),
               timeout: Math.max(1, deadline - performance.now()),
               headers: { 'user-agent': userAgent, accept: '*/*' },
             },

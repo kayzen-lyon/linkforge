@@ -35,6 +35,7 @@ const CONTENT_TYPES = {
 
 const assets = [];
 let bytes = 0;
+// Dot-directories matter here: `.well-known/security.txt` is part of the site.
 for (const entry of (await readdir(webDist, { recursive: true })).sort()) {
   const contentType = CONTENT_TYPES[extname(entry).toLowerCase()];
   if (contentType === undefined) continue;
@@ -64,3 +65,16 @@ export const PLAYGROUND_ASSETS: readonly EmbeddedAsset[] = ${JSON.stringify(asse
 await writeFile(target, source);
 const pages = assets.filter((asset) => asset.path.endsWith('.html')).length;
 console.log(`Embedded ${assets.length} file(s), ${pages} page(s), ${Math.round(bytes / 1024)} KiB`);
+
+// Where the weight is, by kind of file.
+const byKind = new Map();
+for (const asset of assets) {
+  const kind = extname(asset.path).slice(1);
+  byKind.set(kind, (byKind.get(kind) ?? 0) + Math.floor((asset.base64.length * 3) / 4));
+}
+console.log(
+  [...byKind]
+    .sort((a, b) => b[1] - a[1])
+    .map(([kind, size]) => `${kind} ${Math.round(size / 1024)} KiB`)
+    .join(' · '),
+);

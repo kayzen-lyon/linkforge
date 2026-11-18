@@ -241,6 +241,8 @@ export class BrowserPool {
       context = await slot.browser.newContext({
         // Service workers would let requests escape `context.route()`.
         serviceWorkers: 'block',
+        // A rendered page has no use for files: a download is refused, never written to disk.
+        acceptDownloads: false,
         ...contextOptions,
         // One coherent identity: the version announced is the version running.
         userAgent:

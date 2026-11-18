@@ -23,6 +23,13 @@ export interface BrowserGuardOptions {
   readonly blockResourceTypes?: readonly string[];
   /** Drop requests to well-known advertising and tracking hosts. */
   readonly blockAds?: boolean;
+  /**
+   * Per-page request budget: asked once per request the page wants to send
+   * (the document included); `false` drops the request.
+   */
+  readonly admit?: () => boolean;
+  /** Let the page load nothing at all from the network (locally built documents). */
+  readonly offline?: boolean;
 }
 
 /**
@@ -112,6 +119,11 @@ export async function installBrowserGuard(
       // Never the document itself: an ad host asked for by the client is the client's choice.
       const isDocument = request.isNavigationRequest() && request.frame().parentFrame() === null;
       if (blockedTypes.has(request.resourceType()) || (blockAds && !isDocument && isAdOrTracker(request.url()))) {
+        await route.abort('blockedbyclient');
+        return;
+      }
+      const inert = INERT_SCHEMES.some((scheme) => request.url().startsWith(scheme));
+      if ((options.offline === true && !inert) || (!inert && options.admit?.() === false)) {
         await route.abort('blockedbyclient');
         return;
       }
