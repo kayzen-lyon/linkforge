@@ -15,11 +15,14 @@ import Fastify, { type FastifyError, type FastifyInstance } from 'fastify';
 import type { AppConfig } from './config.js';
 import { CircuitBreaker } from './lib/circuit-breaker.js';
 import { AppError, ErrorCode, type ErrorBody } from './lib/errors.js';
-import { buildOpenApiDocument } from './openapi.js';
+import { McpServer } from './mcp/server.js';
+import { McpToolbox } from './mcp/tools.js';
+import { API_VERSION, buildOpenApiDocument } from './openapi.js';
 import { contentDoc, contentRoutes } from './routes/content.js';
 import { extractDoc, extractRoutes } from './routes/extract.js';
 import { healthDoc, healthRoutes } from './routes/health.js';
 import { insightsDoc, insightsRoutes } from './routes/insights.js';
+import { mcpDoc, mcpRoutes } from './routes/mcp.js';
 import { metaBatchDoc, metaDoc, metaRoutes } from './routes/meta.js';
 import { openApiDoc, openApiRoutes } from './routes/openapi.js';
 import { pdfDoc, pdfRoutes } from './routes/pdf.js';
@@ -197,6 +200,22 @@ export async function buildApp(config: AppConfig, seams: AppSeams = {}): Promise
   // --- Routes -------------------------------------------------------------------
   await app.register(healthRoutes, { pool, cache });
   await app.register(playgroundRoutes);
+  if (config.mcpEnabled) {
+    const toolbox = new McpToolbox({
+      metaService,
+      contentService,
+      extractService,
+      siteTools,
+      techService,
+      screenshotService,
+    });
+    await app.register(mcpRoutes, {
+      server: new McpServer(toolbox, { name: 'omnillink', version: API_VERSION }, (error) =>
+        app.log.error({ err: error }, 'mcp tool failed'),
+      ),
+      allowedOrigins: config.corsOrigin,
+    });
+  }
   await app.register(
     async (v1) => {
       await v1.register(metaRoutes, {
@@ -228,6 +247,7 @@ export async function buildApp(config: AppConfig, seams: AppSeams = {}): Promise
           imageDoc,
           sitemapDoc,
           checkDoc,
+          ...(config.mcpEnabled ? [mcpDoc] : []),
           openApiDoc,
           healthDoc,
         ]),

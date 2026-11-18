@@ -95,7 +95,10 @@ export const playgroundRoutes: FastifyPluginAsync = async (app) => {
 
   const send = (reply: FastifyReply, assetPath: string, status = 200): FastifyReply => {
     const file = files.get(assetPath);
-    if (file === undefined) return reply.callNotFound();
+    if (file === undefined) {
+      reply.callNotFound();
+      return reply;
+    }
     void reply.status(status).header('content-type', file.contentType).header('x-content-type-options', 'nosniff');
     void reply.header('cache-control', status === 200 ? file.cacheControl : 'no-store');
     if (assetPath.endsWith('.html')) void reply.headers(SITE_SECURITY_HEADERS);
