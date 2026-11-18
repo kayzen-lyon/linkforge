@@ -1,0 +1,32 @@
+{
+  "name": "@linkforge/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/server.js",
+  "scripts": {
+    "dev": "tsx watch --env-file-if-exists=../../.env src/server.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/server.js",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@fastify/cors": "^11.4.3",
+    "@fastify/rate-limit": "^11.2.2",
+    "@fastify/type-provider-typebox": "^6.3.0",
+    "cheerio": "^1.2.0",
+    "fastify": "^5.12.8",
+    "ioredis": "^6.0.0",
+    "ipaddr.js": "^2.5.0",
+    "playwright": "1.63.0",
+    "typebox": "^1.4.7",
+    "undici": "^8.12.4"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.0"
+  }
+}

@@ -1,0 +1,159 @@
+/**
+ * Centralised, typed runtime configuration.
+ *
+ * Every tunable is read once from environment variables, validated, and exposed
+ * as an immutable object that is injected into services (no `process.env`
+ * access anywhere else in the codebase).
+ */
+
+/** Policy applied by the anti-SSRF layer to every outbound destination. */
+export interface SsrfPolicy {
+  /** When true, loopback/private/link-local targets are allowed. Tests and local dev only. */
+  readonly allowPrivateNetworks: boolean;
+  /** Destination ports that may be contacted, or `'any'`. */
+  readonly allowedPorts: readonly number[] | 'any';
+}
+
+export interface AppConfig {
+  readonly env: 'development' | 'test' | 'production';
+  readonly host: string;
+  readonly port: number;
+  readonly logLevel: string;
+  readonly trustProxy: boolean;
+  readonly corsOrigin: string[] | '*';
+  readonly redisUrl: string | null;
+  readonly cache: {
+    readonly metaTtlSeconds: number;
+    readonly screenshotTtlSeconds: number;
+    readonly memoryMaxEntries: number;
+  };
+  readonly http: {
+    readonly timeoutMs: number;
+    readonly maxBodyBytes: number;
+    readonly maxRedirects: number;
+    readonly userAgent: string;
+  };
+  readonly browser: {
+    /** Maximum number of pages rendered simultaneously. */
+    readonly maxConcurrency: number;
+    /** Maximum number of jobs waiting for a free slot before we shed load. */
+    readonly maxQueue: number;
+    readonly acquireTimeoutMs: number;
+    /** A Chromium process is recycled after serving this many jobs. */
+    readonly maxUsesPerBrowser: number;
+    readonly navigationTimeoutMs: number;
+  };
+  readonly ssrf: SsrfPolicy;
+  readonly rateLimit: {
+    readonly max: number;
+    readonly windowMs: number;
+  };
+}
+
+type Env = Readonly<Record<string, string | undefined>>;
+
+/** Thrown at boot when an environment variable has an unusable value. */
+export class ConfigError extends Error {
+  override readonly name = 'ConfigError';
+}
+
+function readString(env: Env, key: string, fallback: string): string {
+  const value = env[key]?.trim();
+  return value === undefined || value === '' ? fallback : value;
+}
+
+function readInt(env: Env, key: string, fallback: number, min = 0): number {
+  const raw = env[key]?.trim();
+  if (raw === undefined || raw === '') return fallback;
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value < min) {
+    throw new ConfigError(`${key} must be an integer >= ${min}, received "${raw}"`);
+  }
+  return value;
+}
+
+function readBool(env: Env, key: string, fallback: boolean): boolean {
+  const raw = env[key]?.trim().toLowerCase();
+  if (raw === undefined || raw === '') return fallback;
+  if (raw === 'true' || raw === '1') return true;
+  if (raw === 'false' || raw === '0') return false;
+  throw new ConfigError(`${key} must be "true" or "false", received "${raw}"`);
+}
+
+function readPorts(env: Env, key: string, fallback: readonly number[]): readonly number[] | 'any' {
+  const raw = env[key]?.trim();
+  if (raw === undefined || raw === '') return fallback;
+  if (raw === '*') return 'any';
+  return raw.split(',').map((part) => {
+    const port = Number(part.trim());
+    if (!Number.isInteger(port) || port < 1 || port > 65_535) {
+      throw new ConfigError(`${key} contains an invalid port: "${part}"`);
+    }
+    return port;
+  });
+}
+
+function readEnvName(env: Env): AppConfig['env'] {
+  const raw = readString(env, 'NODE_ENV', 'development');
+  if (raw === 'development' || raw === 'test' || raw === 'production') return raw;
+  throw new ConfigError(`NODE_ENV must be development, test or production, received "${raw}"`);
+}
+
+/**
+ * Builds the application configuration from environment variables.
+ *
+ * @param env - Source of variables (defaults to `process.env`; injectable for tests).
+ * @throws {ConfigError} When a variable is malformed, or when an unsafe
+ *   combination is requested (private networks allowed in production).
+ */
+export function loadConfig(env: Env = process.env): AppConfig {
+  const envName = readEnvName(env);
+  const allowPrivateNetworks = readBool(env, 'SSRF_ALLOW_PRIVATE_NETWORKS', false);
+
+  if (envName === 'production' && allowPrivateNetworks) {
+    throw new ConfigError('SSRF_ALLOW_PRIVATE_NETWORKS=true is refused when NODE_ENV=production');
+  }
+
+  const cors = readString(env, 'CORS_ORIGIN', '*');
+  const redisUrl = readString(env, 'REDIS_URL', '');
+
+  return Object.freeze({
+    env: envName,
+    host: readString(env, 'HOST', '0.0.0.0'),
+    port: readInt(env, 'PORT', 3000, 0),
+    logLevel: readString(env, 'LOG_LEVEL', envName === 'test' ? 'silent' : 'info'),
+    trustProxy: readBool(env, 'TRUST_PROXY', false),
+    corsOrigin: cors === '*' ? '*' : cors.split(',').map((origin) => origin.trim()),
+    redisUrl: redisUrl === '' ? null : redisUrl,
+    cache: {
+      metaTtlSeconds: readInt(env, 'CACHE_META_TTL_SECONDS', 3600),
+      screenshotTtlSeconds: readInt(env, 'CACHE_SCREENSHOT_TTL_SECONDS', 3600),
+      memoryMaxEntries: readInt(env, 'CACHE_MEMORY_MAX_ENTRIES', 500, 1),
+    },
+    http: {
+      timeoutMs: readInt(env, 'HTTP_TIMEOUT_MS', 10_000, 1),
+      maxBodyBytes: readInt(env, 'HTTP_MAX_BODY_BYTES', 5 * 1024 * 1024, 1024),
+      maxRedirects: readInt(env, 'HTTP_MAX_REDIRECTS', 5),
+      userAgent: readString(
+        env,
+        'HTTP_USER_AGENT',
+        'Mozilla/5.0 (compatible; LinkForgeBot/0.1; +https://github.com/your-org/linkforge)',
+      ),
+    },
+    browser: {
+      maxConcurrency: readInt(env, 'BROWSER_MAX_CONCURRENCY', 4, 1),
+      maxQueue: readInt(env, 'BROWSER_MAX_QUEUE', 50),
+      acquireTimeoutMs: readInt(env, 'BROWSER_ACQUIRE_TIMEOUT_MS', 15_000, 1),
+      maxUsesPerBrowser: readInt(env, 'BROWSER_MAX_USES', 200, 1),
+      navigationTimeoutMs: readInt(env, 'BROWSER_NAVIGATION_TIMEOUT_MS', 20_000, 1),
+    },
+    ssrf: {
+      allowPrivateNetworks,
+      allowedPorts: readPorts(env, 'SSRF_ALLOWED_PORTS', [80, 443]),
+    },
+    rateLimit: {
+      max: readInt(env, 'RATE_LIMIT_MAX', 60, 1),
+      windowMs: readInt(env, 'RATE_LIMIT_WINDOW_MS', 60_000, 1000),
+    },
+  });
+}

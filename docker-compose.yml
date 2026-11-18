@@ -1,0 +1,29 @@
+# Local stack: API + Redis.   docker compose up --build
+services:
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    ports:
+      - '3000:3000'
+    environment:
+      REDIS_URL: redis://redis:6379
+      LOG_LEVEL: info
+    # Chromium needs more shared memory than Docker's 64 MB default.
+    shm_size: 1gb
+    init: true
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    # Pure cache: no persistence, bounded memory, LRU eviction.
+    command: ['redis-server', '--save', '', '--maxmemory', '256mb', '--maxmemory-policy', 'allkeys-lru']
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped

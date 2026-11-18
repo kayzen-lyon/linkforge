@@ -1,0 +1,18 @@
+{
+  "name": "linkforge",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Open-source link intelligence API: rich metadata, screenshots and link previews.",
+  "license": "MIT",
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "workspaces": ["apps/*"],
+  "scripts": {
+    "dev": "npm run dev --workspace @linkforge/api",
+    "dev:web": "npm run dev --workspace @linkforge/web",
+    "build": "npm run build --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "start": "npm run start --workspace @linkforge/api"
+  }
+}

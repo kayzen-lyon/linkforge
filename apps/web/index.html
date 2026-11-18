@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en" class="h-full">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LinkForge — playground</title>
+    <meta name="description" content="Try the LinkForge metadata and screenshot API." />
+  </head>
+  <body class="min-h-full bg-stone-50 text-stone-900 antialiased dark:bg-stone-950 dark:text-stone-100">
+    <main class="mx-auto flex max-w-5xl flex-col gap-8 px-4 py-12 sm:px-6">
+      <header class="flex flex-col gap-2">
+        <p class="font-mono text-sm text-teal-700 dark:text-teal-400">linkforge / playground</p>
+        <h1 class="text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
+          Turn any URL into structured data
+        </h1>
+        <p class="max-w-2xl text-stone-600 dark:text-stone-400">
+          Metadata, Open Graph images, JSON-LD and screenshots from a single REST API.
+        </p>
+      </header>
+
+      <form id="form" class="flex flex-col gap-3 sm:flex-row">
+        <label class="sr-only" for="url">URL to inspect</label>
+        <input
+          id="url"
+          name="url"
+          type="url"
+          required
+          placeholder="https://example.com/article"
+          class="min-w-0 flex-1 rounded-lg border border-stone-300 bg-white px-4 py-2.5 font-mono text-sm shadow-xs outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-600/30 dark:border-stone-700 dark:bg-stone-900"
+        />
+        <label class="sr-only" for="device">Screenshot device</label>
+        <select
+          id="device"
+          name="device"
+          class="rounded-lg border border-stone-300 bg-white px-3 py-2.5 text-sm dark:border-stone-700 dark:bg-stone-900"
+        >
+          <option value="desktop">Desktop</option>
+          <option value="mobile">Mobile</option>
+        </select>
+        <button
+          id="submit"
+          type="submit"
+          class="rounded-lg bg-teal-700 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-teal-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:opacity-50"
+        >
+          Inspect
+        </button>
+      </form>
+
+      <p
+        id="error"
+        role="alert"
+        hidden
+        class="rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200"
+      ></p>
+
+      <section id="results" hidden class="grid gap-6 lg:grid-cols-2">
+        <div class="flex min-w-0 flex-col gap-6">
+          <div>
+            <h2 class="mb-2 text-xs font-medium tracking-wide text-stone-500 uppercase">
+              Link preview
+            </h2>
+            <a
+              id="card"
+              target="_blank"
+              rel="noreferrer noopener"
+              class="block overflow-hidden rounded-xl border border-stone-200 bg-white shadow-xs transition-shadow hover:shadow-md dark:border-stone-800 dark:bg-stone-900"
+            >
+              <img id="card-image" alt="" hidden class="aspect-[1200/630] w-full object-cover" />
+              <div class="flex flex-col gap-1 p-4">
+                <p class="flex items-center gap-2 text-xs text-stone-500">
+                  <img id="card-favicon" alt="" hidden class="size-4 rounded-sm" />
+                  <span id="card-host" class="truncate"></span>
+                </p>
+                <p id="card-title" class="line-clamp-2 font-medium"></p>
+                <p
+                  id="card-description"
+                  class="line-clamp-3 text-sm text-stone-600 dark:text-stone-400"
+                ></p>
+              </div>
+            </a>
+          </div>
+          <div>
+            <h2 class="mb-2 text-xs font-medium tracking-wide text-stone-500 uppercase">
+              Screenshot
+            </h2>
+            <img
+              id="screenshot"
+              alt="Screenshot of the requested page"
+              class="w-full rounded-xl border border-stone-200 bg-stone-100 dark:border-stone-800 dark:bg-stone-900"
+            />
+          </div>
+        </div>
+        <div class="min-w-0">
+          <h2 class="mb-2 flex items-center gap-2 text-xs font-medium tracking-wide text-stone-500 uppercase">
+            JSON response
+            <span id="badge" class="rounded-full bg-stone-200 px-2 py-0.5 font-mono normal-case dark:bg-stone-800"></span>
+          </h2>
+          <pre
+            id="json"
+            class="max-h-[42rem] overflow-auto rounded-xl border border-stone-200 bg-white p-4 font-mono text-xs leading-relaxed dark:border-stone-800 dark:bg-stone-900"
+          ></pre>
+        </div>
+      </section>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
