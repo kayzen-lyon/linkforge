@@ -7,8 +7,8 @@
  * keys that the plugin fills in the page's language and the client can
  * re-translate. Links are written for French; the plugin localises them.
  */
-import type { common } from '../i18n/fr';
-import { BRAND, PAGES, PUBLISHER, REPO_URL, pagePath, type Lang, type PageId } from './config';
+import type { common } from '../i18n/fr.ts';
+import { BRAND, PAGES, PUBLISHER, REPO_URL, pagePath, type Lang, type PageId } from './config.ts';
 
 type Key = keyof typeof common;
 

@@ -6,9 +6,9 @@
  * the reference exists in both languages. Keep names, types and defaults in
  * sync with the API implementation (apps/api): users rely on this page.
  */
-import type { common, docs } from '../i18n/fr';
-import type { Lang } from '../lib/highlight';
-import { SITE_ORIGIN } from '../site/config';
+import type { common, docs } from '../i18n/fr.ts';
+import type { Lang } from '../lib/highlight.ts';
+import { SITE_ORIGIN } from '../site/config.ts';
 
 export type DocsKey = keyof typeof docs;
 export type CommonKey = keyof typeof common;

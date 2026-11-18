@@ -4,13 +4,14 @@ import { fileURLToPath } from 'node:url';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig, type Connect, type Plugin } from 'vite';
 
-import { renderDocsBody, renderDocsNav } from './src/docs/render';
-import * as en from './src/i18n/en';
-import * as fr from './src/i18n/fr';
-import { escapeHtml, inlineToHtml } from './src/lib/inline';
-import { breadcrumb, footer, header, ICONS } from './src/site/chrome';
-import { LANGS, PAGES, localizeHref, parsePath, type Lang, type PageId } from './src/site/config';
-import { headTags, plain, robotsTxt, sitemapXml } from './src/site/seo';
+import { renderDocsBody, renderDocsNav } from './src/docs/render.ts';
+import * as en from './src/i18n/en.ts';
+import * as fr from './src/i18n/fr.ts';
+import * as legal from './src/i18n/legal.ts';
+import { escapeHtml, inlineToHtml } from './src/lib/inline.ts';
+import { breadcrumb, footer, header, ICONS } from './src/site/chrome.ts';
+import { LANGS, PAGES, localizeHref, parsePath, type Lang, type PageId } from './src/site/config.ts';
+import { headTags, plain, robotsTxt, sitemapXml } from './src/site/seo.ts';
 
 const root = fileURLToPath(new URL('.', import.meta.url));
 
@@ -31,13 +32,13 @@ const DICTIONARIES: Readonly<Record<Lang, Readonly<Record<PageId, Dictionary>>>>
     home: { ...fr.common, ...fr.home },
     docs: { ...fr.common, ...fr.docs },
     accessibility: { ...fr.common, ...fr.a11y },
-    legal: { ...fr.common, ...fr.legal },
+    legal: { ...fr.common, ...legal.fr },
   },
   en: {
     home: { ...en.common, ...en.home },
     docs: { ...en.common, ...en.docs },
     accessibility: { ...en.common, ...en.a11y },
-    legal: { ...en.common, ...en.legal },
+    legal: { ...en.common, ...legal.en },
   },
 };
 

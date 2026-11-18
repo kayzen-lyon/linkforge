@@ -5,8 +5,8 @@
  * fills them in French and the client can re-translate them. Code samples are
  * tokenised here so the page needs no highlighter at runtime.
  */
-import { tokenize, type Lang } from '../lib/highlight';
-import { escapeHtml, inlineToHtml } from '../lib/inline';
+import { tokenize, type Lang } from '../lib/highlight.ts';
+import { escapeHtml, inlineToHtml } from '../lib/inline.ts';
 import {
   AUTH_SAMPLE,
   ENDPOINTS,
@@ -22,7 +22,7 @@ import {
   type Endpoint,
   type FieldTable,
   type Row,
-} from './spec';
+} from './spec.ts';
 
 type Key = DocsKey | CommonKey;
 

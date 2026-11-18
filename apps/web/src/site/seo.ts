@@ -5,7 +5,7 @@
  * Everything stated here must be true of the product: no ratings, prices,
  * usage figures or other facts we do not have.
  */
-import { escapeHtml, parseInline } from '../lib/inline';
+import { escapeHtml, parseInline } from '../lib/inline.ts';
 import {
   BRAND,
   LANGS,
@@ -17,7 +17,7 @@ import {
   pagePath,
   type Lang,
   type PageId,
-} from './config';
+} from './config.ts';
 
 /** A dictionary lookup that returns the raw (inline-syntax) string. */
 export type Lookup = (key: string) => string;

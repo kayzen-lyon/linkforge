@@ -21,7 +21,7 @@ import type { LookupFunction } from 'node:net';
 
 import ipaddr from 'ipaddr.js';
 
-import type { SsrfPolicy } from '../config.js';
+import type { ResolvedAddress, SsrfPolicy } from '../config.js';
 import { AppError } from '../lib/errors.js';
 
 /** Host names (and suffixes) that always designate internal resources. */
@@ -49,6 +49,34 @@ export function isPublicAddress(address: string): boolean {
   }
 
   return parsed.range() === 'unicast';
+}
+
+const PRIVATE_ADDRESS = 'The host resolves to a private, loopback or reserved address';
+const BLOCKED_DESTINATION = 'This destination is blocked by the server configuration';
+
+/** Canonical text of an IP literal (`::ffff:1.2.3.4` → `1.2.3.4`), or the lower-cased name. */
+function canonicalHost(host: string): string {
+  const bare = host.startsWith('[') && host.endsWith(']') ? host.slice(1, -1) : host;
+  return ipaddr.isValid(bare) ? ipaddr.process(bare).toString() : bare.toLowerCase().replace(/\.$/, '');
+}
+
+/** Tells whether the operator's deny list (`SsrfPolicy.blockedHosts`) covers `host:port`. */
+export function isBlockedDestination(policy: SsrfPolicy, host: string, port: number | null): boolean {
+  const entries = policy.blockedHosts;
+  if (entries === undefined || entries.length === 0) return false;
+  const wanted = canonicalHost(host);
+  return entries.some((entry) => {
+    // A bare IPv6 literal (`::1`) is all host; otherwise a trailing `:digits` is the port.
+    const split = ipaddr.IPv6.isValid(entry) ? null : entry.match(/^(.*):(\d+)$/);
+    const entryHost = split?.[1] ?? entry;
+    const entryPort = split?.[2] === undefined ? null : Number(split[2]);
+    if (canonicalHost(entryHost) !== wanted) return false;
+    return entryPort === null || entryPort === port;
+  });
+}
+
+async function systemResolve(hostname: string): Promise<LookupAddress[]> {
+  return dns.promises.lookup(hostname, { all: true, verbatim: true });
 }
 
 /** Strips the brackets WHATWG URLs put around IPv6 literals. */
@@ -98,16 +126,20 @@ export function parseTargetUrl(raw: string, policy: SsrfPolicy): URL {
     throw AppError.forbiddenUrl(`Destination port ${effectivePort(url)} is not allowed`);
   }
 
-  if (!policy.allowPrivateNetworks) {
-    if (BLOCKED_HOSTNAMES.has(hostname) || BLOCKED_SUFFIXES.some((s) => hostname.endsWith(s))) {
-      throw AppError.forbiddenUrl('Internal host names are not allowed');
-    }
-    if (ipaddr.isValid(hostname) && !isPublicAddress(hostname)) {
-      throw AppError.forbiddenUrl('Private, loopback and reserved IP addresses are not allowed');
-    }
-  }
-
+  assertHostAllowed(hostname, effectivePort(url), policy);
   return url;
+}
+
+/** Name-level checks shared by URL parsing and by the egress proxy. */
+function assertHostAllowed(hostname: string, port: number, policy: SsrfPolicy): void {
+  if (isBlockedDestination(policy, hostname, port)) throw AppError.forbiddenUrl(BLOCKED_DESTINATION);
+  if (policy.allowPrivateNetworks) return;
+  if (BLOCKED_HOSTNAMES.has(hostname) || BLOCKED_SUFFIXES.some((s) => hostname.endsWith(s))) {
+    throw AppError.forbiddenUrl('Internal host names are not allowed');
+  }
+  if (ipaddr.isValid(hostname) && !isPublicAddress(hostname)) {
+    throw AppError.forbiddenUrl('Private, loopback and reserved IP addresses are not allowed');
+  }
 }
 
 /**
@@ -121,10 +153,13 @@ export function parseTargetUrl(raw: string, policy: SsrfPolicy): URL {
 export async function resolvePublicAddresses(
   hostname: string,
   policy: SsrfPolicy,
-): Promise<LookupAddress[]> {
-  let addresses: LookupAddress[];
+  port: number | null = null,
+): Promise<ResolvedAddress[]> {
+  let addresses: ResolvedAddress[];
   try {
-    addresses = await dns.promises.lookup(hostname, { all: true, verbatim: true });
+    addresses = ipaddr.isValid(hostname)
+      ? [{ address: hostname, family: ipaddr.parse(hostname).kind() === 'ipv6' ? 6 : 4 }]
+      : [...(await (policy.resolve ?? systemResolve)(hostname))];
   } catch (error) {
     throw AppError.unreachable(`Could not resolve host "${hostname}"`, error);
   }
@@ -132,9 +167,36 @@ export async function resolvePublicAddresses(
     throw AppError.unreachable(`Host "${hostname}" has no DNS records`);
   }
   if (!policy.allowPrivateNetworks && !addresses.every((a) => isPublicAddress(a.address))) {
-    throw AppError.forbiddenUrl('The host resolves to a private, loopback or reserved address');
+    throw AppError.forbiddenUrl(PRIVATE_ADDRESS);
+  }
+  if (addresses.some((a) => isBlockedDestination(policy, a.address, port))) {
+    throw AppError.forbiddenUrl(BLOCKED_DESTINATION);
   }
   return addresses;
+}
+
+/**
+ * Connection-time validation of a `host:port` pair, for the egress proxy:
+ * port, name and every resolved address must pass the policy.
+ *
+ * @returns The validated addresses. The caller must dial one of them and must
+ *   not resolve the name again (that is what defeats DNS rebinding).
+ * @throws {AppError} `EFORBIDDENURL` or `EUNREACHABLE`.
+ */
+export async function resolveDestination(
+  host: string,
+  port: number,
+  policy: SsrfPolicy,
+): Promise<ResolvedAddress[]> {
+  const hostname = canonicalHost(host);
+  if (hostname === '' || !Number.isInteger(port) || port < 1 || port > 65_535) {
+    throw AppError.forbiddenUrl('Invalid destination');
+  }
+  if (policy.allowedPorts !== 'any' && !policy.allowedPorts.includes(port)) {
+    throw AppError.forbiddenUrl(`Destination port ${port} is not allowed`);
+  }
+  assertHostAllowed(hostname, port, policy);
+  return resolvePublicAddresses(hostname, policy, port);
 }
 
 /**
@@ -146,7 +208,7 @@ export async function resolvePublicAddresses(
  */
 export async function assertSafeUrl(raw: string | URL, policy: SsrfPolicy): Promise<URL> {
   const url = parseTargetUrl(typeof raw === 'string' ? raw : raw.href, policy);
-  await resolvePublicAddresses(bareHostname(url), policy);
+  await resolvePublicAddresses(bareHostname(url), policy, effectivePort(url));
   return url;
 }
 
@@ -162,16 +224,21 @@ export async function assertSafeUrl(raw: string | URL, policy: SsrfPolicy): Prom
  */
 export function createSafeLookup(policy: SsrfPolicy): LookupFunction {
   return (hostname, options, callback) => {
-    dns.lookup(hostname, { ...options, all: true }, (error, result) => {
-      if (error) {
-        callback(error, '', 0);
-        return;
-      }
-      const addresses = result as LookupAddress[];
-      if (!policy.allowPrivateNetworks && !addresses.every((a) => isPublicAddress(a.address))) {
-        const blocked = AppError.forbiddenUrl(
-          'The host resolves to a private, loopback or reserved address',
-        );
+    const resolved: Promise<readonly ResolvedAddress[]> =
+      policy.resolve !== undefined
+        ? policy.resolve(hostname)
+        : new Promise((resolve, reject) => {
+            dns.lookup(hostname, { ...options, all: true }, (error, result) => {
+              if (error) reject(error);
+              else resolve(result as LookupAddress[]);
+            });
+          });
+    resolved.then((found) => {
+      const addresses = [...found] as LookupAddress[];
+      // The port is unknown here: port-specific deny entries are enforced by `assertSafeUrl`.
+      const denied = addresses.some((a) => isBlockedDestination(policy, a.address, null));
+      if (denied || (!policy.allowPrivateNetworks && !addresses.every((a) => isPublicAddress(a.address)))) {
+        const blocked = AppError.forbiddenUrl(denied ? BLOCKED_DESTINATION : PRIVATE_ADDRESS);
         callback(blocked as unknown as NodeJS.ErrnoException, '', 0);
         return;
       }
@@ -185,6 +252,8 @@ export function createSafeLookup(policy: SsrfPolicy): LookupFunction {
         return;
       }
       callback(null, first.address, first.family);
+    }, (error: unknown) => {
+      callback(error as NodeJS.ErrnoException, '', 0);
     });
   };
 }
