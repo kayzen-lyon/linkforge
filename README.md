@@ -2,7 +2,6 @@
 
 API open-source d'intelligence de liens : métadonnées riches, captures d'écran et aperçus de liens, via une API REST simple.
 
-> Nom de travail. Avant toute publication, vérifiez la disponibilité du nom (npm, GitHub, domaine, marques).
 
 ## Démarrage rapide
 

@@ -201,7 +201,7 @@ export const home: Like<typeof fr.home> = {
   'examples.lead': 'The examples follow the URL and the tab selected in the demo.',
   'examples.endpoint': 'Endpoint',
   'examples.language': 'Language',
-  'examples.more': 'Every parameter is described in the [API reference](/docs).',
+  'examples.more': 'Every parameter is described in the [API reference](/en/docs).',
 
   'selfHost.title': 'Host it yourself',
   'selfHost.lead': 'Omnillink is released under the MIT licence. You need Node.js 22 or newer; Redis is optional.',
@@ -276,7 +276,7 @@ export const home: Like<typeof fr.home> = {
     'Node.js 22 or newer, and Chromium, installed by Playwright. Redis is optional. The configuration for a serverless deployment on Vercel ships with the repository.',
   'faq.7.q': 'Does this site track me?',
   'faq.7.a':
-    'No. It sets no cookies and loads no analytics tool. Your theme, language and accessibility preferences stay in your browser. The details are in the [legal notice](/legal).',
+    'No. It sets no cookies and loads no analytics tool. Your theme, language and accessibility preferences stay in your browser. The details are in the [legal notice](/en/legal).',
   'cta.title': 'Try Omnillink on your own links',
   'cta.lead': 'The demo runs on this instance. The code is on GitHub if you would rather host it yourself.',
 };
