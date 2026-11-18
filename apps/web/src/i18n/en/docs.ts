@@ -7,7 +7,7 @@ export const docs: Record<keyof typeof source, string> = {
     'Complete reference of the Omnillink API: endpoints, parameters, example requests and responses, errors, authentication, rate limits and caching.',
 
   'title': 'API reference',
-  'lead': 'Every endpoint is a `GET` request under `/api/v1`. The examples use the address of this instance.',
+  'lead': 'Every endpoint is a `GET` request under `/api/v1`, except the metadata batch and the MCP endpoint, which are `POST`. The examples use the address of this instance.',
   'toc.label': 'On this page',
   'toc.basics': 'Basics',
   'toc.endpoints': 'Endpoints',

@@ -1,4 +1,6 @@
-import type { FastifyPluginAsync, FastifyReply } from 'fastify';
+import { brotliCompressSync, constants, gzipSync } from 'node:zlib';
+
+import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 
 import { PLAYGROUND_ASSETS } from '../generated/playground-assets.js';
 
@@ -13,6 +15,32 @@ function cacheControlFor(path: string): string {
   if (path.startsWith('/assets/') || path.startsWith('/fonts/')) return IMMUTABLE;
   if (path.endsWith('.html') || path === '/sw.js' || path === '/boot.js') return REVALIDATE;
   return MODERATE;
+}
+
+/** Text formats worth compressing; images and fonts already are. */
+const COMPRESSIBLE = /^(?:text\/|application\/(?:json|javascript|xml|manifest\+json)|image\/svg\+xml)/;
+/** Below this size the saving does not pay for the header. */
+const COMPRESS_MIN_BYTES = 1024;
+
+type Encoding = 'br' | 'gzip';
+
+/** The best encoding the client accepts (`q=0` refuses one), Brotli first. */
+export function negotiateEncoding(acceptEncoding: string | undefined): Encoding | null {
+  if (acceptEncoding === undefined) return null;
+  const accepted = new Set<string>();
+  for (const part of acceptEncoding.toLowerCase().split(',')) {
+    const [name = '', ...params] = part.trim().split(';');
+    const q = params.map((param) => /^\s*q=([\d.]+)\s*$/.exec(param)?.[1]).find((value) => value !== undefined);
+    if (q === undefined || Number(q) > 0) accepted.add(name.trim());
+  }
+  if (accepted.has('br')) return 'br';
+  return accepted.has('gzip') ? 'gzip' : null;
+}
+
+function compress(body: Buffer, encoding: Encoding): Buffer {
+  return encoding === 'br'
+    ? brotliCompressSync(body, { params: { [constants.BROTLI_PARAM_QUALITY]: 9, [constants.BROTLI_PARAM_SIZE_HINT]: body.length } })
+    : gzipSync(body, { level: 6 });
 }
 
 /**
@@ -84,16 +112,27 @@ export function notFoundPageFor(path: string, available: ReadonlySet<string>): s
 export const playgroundRoutes: FastifyPluginAsync = async (app) => {
   if (PLAYGROUND_ASSETS.length === 0) return;
 
-  const files = new Map<string, { readonly body: Buffer; readonly contentType: string; readonly cacheControl: string }>();
+  interface EmbeddedFile {
+    readonly body: Buffer;
+    readonly contentType: string;
+    readonly cacheControl: string;
+    readonly compressible: boolean;
+    /** Compressed copies, made on first use and kept: each file is compressed at most once per encoding. */
+    readonly encoded: Map<Encoding, Buffer>;
+  }
+  const files = new Map<string, EmbeddedFile>();
   for (const asset of PLAYGROUND_ASSETS) {
+    const body = Buffer.from(asset.base64, 'base64');
     files.set(asset.path, {
-      body: Buffer.from(asset.base64, 'base64'),
+      body,
       contentType: asset.contentType,
       cacheControl: cacheControlFor(asset.path),
+      compressible: COMPRESSIBLE.test(asset.contentType) && body.length >= COMPRESS_MIN_BYTES,
+      encoded: new Map(),
     });
   }
 
-  const send = (reply: FastifyReply, assetPath: string, status = 200): FastifyReply => {
+  const send = (request: FastifyRequest, reply: FastifyReply, assetPath: string, status = 200): FastifyReply => {
     const file = files.get(assetPath);
     if (file === undefined) {
       reply.callNotFound();
@@ -102,7 +141,17 @@ export const playgroundRoutes: FastifyPluginAsync = async (app) => {
     void reply.status(status).header('content-type', file.contentType).header('x-content-type-options', 'nosniff');
     void reply.header('cache-control', status === 200 ? file.cacheControl : 'no-store');
     if (assetPath.endsWith('.html')) void reply.headers(SITE_SECURITY_HEADERS);
-    return reply.send(file.body);
+    if (!file.compressible) return reply.send(file.body);
+    const vary = reply.getHeader('vary');
+    void reply.header('vary', typeof vary === 'string' && vary !== '' ? `${vary}, accept-encoding` : 'accept-encoding');
+    const encoding = negotiateEncoding(request.headers['accept-encoding']);
+    if (encoding === null) return reply.send(file.body);
+    let body = file.encoded.get(encoding);
+    if (body === undefined) {
+      body = compress(file.body, encoding);
+      file.encoded.set(encoding, body);
+    }
+    return reply.header('content-encoding', encoding).send(body);
   };
 
   const registered = new Set<string>();
@@ -111,7 +160,7 @@ export const playgroundRoutes: FastifyPluginAsync = async (app) => {
       // A file never shadows another one (e.g. a `docs` file next to `docs.html`).
       if (registered.has(path)) continue;
       registered.add(path);
-      app.get(path, { config: { rateLimit: false } }, (_request, reply) => send(reply, assetPath));
+      app.get(path, { config: { rateLimit: false } }, (request, reply) => send(request, reply, assetPath));
     }
   }
 
@@ -121,7 +170,7 @@ export const playgroundRoutes: FastifyPluginAsync = async (app) => {
   app.get('/*', { config: { rateLimit: false } }, (request, reply) => {
     const path = request.url.split('?')[0] ?? '/';
     const page = path.startsWith('/api/') ? null : notFoundPageFor(path, available);
-    return page === null ? reply.callNotFound() : send(reply, page, 404);
+    return page === null ? reply.callNotFound() : send(request, reply, page, 404);
   });
 
   app.log.info({ files: files.size, routes: registered.size }, 'website embedded');

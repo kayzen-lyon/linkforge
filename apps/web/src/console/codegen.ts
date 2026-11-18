@@ -242,23 +242,21 @@ function sdk(r: CodeRequest): string {
     case 'screenshot':
     case 'pdf':
     case 'animation':
-    case 'qr': {
-      const call = args(q(url), options(endpoint, ['url']));
+    case 'qr':
+    case 'og': {
+      // One options object for the request and for the URL builder; `satisfies` keeps its literal types.
+      const type = `${endpoint.charAt(0).toUpperCase()}${endpoint.slice(1)}Options`;
+      const literal = options(endpoint, ['url']);
+      const fixed = endpoint === 'og' && literal === '' ? '{\n  title: "",\n}' : literal;
+      const shared = fixed === '' ? [] : [`const options = ${fixed} satisfies ${type};`, ''];
+      const call = endpoint === 'og' ? 'options' : args(q(url), fixed === '' ? '' : 'options');
+      if (fixed !== '') head[0] = `import { createClient, type ${type} } from '@omnillink/sdk';`;
       return done([
+        ...shared,
         `const file = await omnillink.${endpoint}(${call}); // a Blob`,
         '',
-        '// Or only the address, for a `src` or `href`: no request is made.',
+        `// Or only the address, for ${endpoint === 'og' ? '`<meta property="og:image">`' : 'a `src` or `href`'}: no request is made.`,
         `const src = omnillink.${endpoint}Url(${call});`,
-      ]);
-    }
-    case 'og': {
-      const params = options('og', []);
-      const call = params === '' ? '{ title: "" }' : params;
-      return done([
-        `const file = await omnillink.og(${call}); // a Blob`,
-        '',
-        '// Or only the address, for `<meta property="og:image">`: no request is made.',
-        `const src = omnillink.ogUrl(${call});`,
       ]);
     }
     default:

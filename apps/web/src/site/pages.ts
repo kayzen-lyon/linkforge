@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 /**
  * Build-time bodies of every page. Text is carried by `data-i18n` keys (filled
  * by the Vite plugin in the page's language), except the guides, whose prose
@@ -47,7 +48,7 @@ function heroDemo(): string {
             <div class="hero-tile hero-tile-card">
               <p class="hero-tile-label">${icon('link', 'size-3.5')}<span ${t('hero.demo.card')}></span></p>
               <div class="mini-card" lang="en">
-                <img src="/samples/screenshot-desktop.webp" alt="" width="${SAMPLES.screenshot.desktop.width}" height="${SAMPLES.screenshot.desktop.height}" decoding="async" />
+                <picture><source type="image/avif" srcset="/samples/screenshot-desktop.avif" /><img src="/samples/screenshot-desktop.webp" alt="" width="${SAMPLES.screenshot.desktop.width}" height="${SAMPLES.screenshot.desktop.height}" decoding="async" /></picture>
                 <p class="mini-site mono">example.com</p>
                 <p class="mini-title">${escapeHtml(meta.title)}</p>
                 <p class="mini-desc">${escapeHtml(meta.description)}</p>
@@ -55,7 +56,7 @@ function heroDemo(): string {
             </div>
             <div class="hero-tile hero-tile-shot">
               <p class="hero-tile-label">${icon('camera', 'size-3.5')}<span ${t('hero.demo.shot')}></span></p>
-              <img class="mini-phone" src="/samples/screenshot-mobile.webp" alt="" width="${SAMPLES.screenshot.mobile.width}" height="${SAMPLES.screenshot.mobile.height}" decoding="async" />
+              <picture><source type="image/avif" srcset="/samples/screenshot-mobile.avif" /><img class="mini-phone" src="/samples/screenshot-mobile.webp" alt="" width="${SAMPLES.screenshot.mobile.width}" height="${SAMPLES.screenshot.mobile.height}" decoding="async" /></picture>
             </div>
             <div class="hero-tile hero-tile-json">
               <p class="hero-tile-label">${icon('braces', 'size-3.5')}<span ${t('hero.demo.json')}></span></p>
@@ -85,18 +86,18 @@ function capCard(id: string, method: string, path: string, name: IconName, mini:
 const code = (source: string, wrap = false): string =>
   `<pre class="mini-code${wrap ? ' mini-code-wrap' : ''}" lang="en"><code>${highlightLines(source, 'json')}</code></pre>`;
 const facts = (pairs: ReadonlyArray<readonly [string, string | number]>): string =>
-  `<dl class="mini-facts" lang="en">${pairs.map(([name, value]) => `<div><dt>${escapeHtml(name)}</dt><dd>${escapeHtml(String(value))}</dd></div>`).join('')}</dl>`;
+  `<dl class="mini-facts" lang="en">${pairs.map(([name, value]) => `<div${name === 'chain' ? ' class="wide"' : ''}><dt>${escapeHtml(name)}</dt><dd>${escapeHtml(String(value))}</dd></div>`).join('')}</dl>`;
 const ref = (id: string): string => `${PAGES.docs}#${id}`;
 
 /** Capabilities in five families, each card with a miniature of a genuine response. */
 function capabilityGroups(): string {
   const S = SAMPLES;
   const play = (path: string, query: Readonly<Record<string, string>> = {}): string => tryLink(`/api/v1/${path}`, query);
-  const image = (file: string, width: number, height: number, cls = ''): string =>
-    `<img class="mini-image ${cls}" src="/samples/${file}" alt="" width="${width}" height="${height}" loading="lazy" decoding="async" />`;
+  const image = (file: string, width: number, height: number, cls = '', avif = file === 'og.webp'): string =>
+    `${avif ? `<picture><source type="image/avif" srcset="/samples/${file.replace(/\.webp$/, '.avif')}" />` : ''}<img class="mini-image ${cls}" src="/samples/${file}" alt="" width="${width}" height="${height}" loading="lazy" decoding="async" />${avif ? '</picture>' : ''}`;
 
   const metaMini = `<div class="mini-card mini-card-row" lang="en"><p class="mini-site mono">example.com</p><p class="mini-title">${escapeHtml(S.meta.title)}</p><p class="mini-desc">${escapeHtml(S.meta.description)}</p><p class="mini-site">${escapeHtml(S.meta.author)} · ${escapeHtml(S.meta.publisher)}</p></div>`;
-  const shotMini = `<div class="mini-shots"><img src="/samples/screenshot-desktop.webp" alt="" width="${S.screenshot.desktop.width}" height="${S.screenshot.desktop.height}" loading="lazy" decoding="async" /><img class="mini-phone" src="/samples/screenshot-mobile.webp" alt="" width="${S.screenshot.mobile.width}" height="${S.screenshot.mobile.height}" loading="lazy" decoding="async" /></div>`;
+  const shotMini = `<div class="mini-shots"><picture><source type="image/avif" srcset="/samples/screenshot-desktop.avif" /><img src="/samples/screenshot-desktop.webp" alt="" width="${S.screenshot.desktop.width}" height="${S.screenshot.desktop.height}" loading="lazy" decoding="async" /></picture><picture><source type="image/avif" srcset="/samples/screenshot-mobile.avif" /><img class="mini-phone" src="/samples/screenshot-mobile.webp" alt="" width="${S.screenshot.mobile.width}" height="${S.screenshot.mobile.height}" loading="lazy" decoding="async" /></picture></div>`;
   const pdfMini = `<div class="mini-pdf">${icon('doc', 'size-8')}<p><span ${t('cap.pdf.fact')}></span><br /><span class="mono">${S.pdf.contentType} · ${formatBytes(S.pdf.bytes)}</span></p></div>`;
   const htmlMini = `<div class="mini-pdf">${icon('code', 'size-8')}<p><span ${t('cap.html.fact')}></span><br /><span class="mono">text/plain · ${formatBytes(S.html.bytes)}</span></p></div>`;
   const batchMini = `<ul class="mini-rows">${S.batch
@@ -117,10 +118,9 @@ function capabilityGroups(): string {
     ['transfer', formatBytes(S.insights.transferBytes)],
   ]);
   const checkMini = facts([
+    ['chain', S.check.chain.join(' → ')],
     ['status', S.check.status],
-    ['hops', S.check.hops],
     ['time', `${S.check.durationMs} ms`],
-    ['type', S.check.contentType],
   ]);
   const sitemapMini = `<div class="mini-pdf">${icon('list', 'size-8')}<p><span class="mono">robots.txt ${S.sitemap.robotsFound ? '✓' : '–'}</span><br /><span class="mono">${S.sitemap.urlCount} URLs · ${S.sitemap.sitemaps} sitemap</span></p></div>`;
   const imageFacts = (item: { format: string; width: number; height: number; bytes: number }): string =>
@@ -336,6 +336,7 @@ function home(): string {
             ${proof('open', 'code', REPO_URL)}
             ${proof('scope', 'info', PAGES.limits)}
           </ul>
+          ${labScores() === '' ? '' : `<div class="lab-block reveal"><h3 class="lab-title" ${t('lab.title')}></h3>${labScores()}</div>`}
         </div>
       </section>
 
@@ -404,13 +405,13 @@ function home(): string {
             ${tool('mcp', 'bot', `${PAGES['ai-agents']}#mcp`, 'packages/mcp')}
             ${tool('action', 'play', `${PAGES.sdk}#action`, '.github/actions')}
           </ul>
-          <div id="cli" class="grid scroll-mt-28 gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:items-center" data-reveal>
+          <div id="cli" class="grid grid-cols-1 scroll-mt-28 gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:items-center" data-reveal>
             <div class="flex flex-col gap-3">
               <h3 ${t('cli.title')}></h3>
               <p class="rich text-muted-foreground" ${t('cli.lead')}></p>
               <p class="rich text-sm text-muted-foreground" ${t('cli.note')}></p>
             </div>
-            <div class="grid min-w-0 gap-4">
+            <div class="grid min-w-0 grid-cols-1 gap-4">
               <div class="terminal">${codeFigure('cli.label', CLI_EXAMPLE, 'bash', true)}</div>
               ${
                 SAMPLES.cli.meta === null
@@ -583,6 +584,7 @@ function playground(): string {
           <p class="mt-8 flex flex-wrap gap-3">
             <a class="btn btn-secondary btn-compact" href="/api/v1/openapi.json" download="omnillink-openapi.json">${icon('download', 'size-4')}<span ${t('dl.openapi')}></span></a>
             <button type="button" id="dl-postman" class="btn btn-secondary btn-compact">${icon('download', 'size-4')}<span ${t('dl.postman')}></span></button>
+            <button type="button" id="dl-bruno" class="btn btn-secondary btn-compact">${icon('download', 'size-4')}<span ${t('dl.bruno')}></span></button>
           </p>
         </section>
       </div>
@@ -626,6 +628,38 @@ ${body}
     </main>`;
 }
 
+interface LabRun {
+  readonly page: 'home' | 'playground' | 'docs';
+  readonly form: 'desktop' | 'mobile';
+  readonly performance: number;
+  readonly accessibility: number;
+  readonly bestPractices: number;
+  readonly seo: number;
+}
+/** Scores written by scripts/lighthouse.mjs; absent until that script has run. */
+const LAB = ((): { readonly measuredOn: string; readonly lighthouse: string; readonly chrome: string; readonly runs: readonly LabRun[] } | null => {
+  try {
+    return JSON.parse(readFileSync(new URL('../content/lighthouse.json', import.meta.url), 'utf8'));
+  } catch {
+    return null;
+  }
+})();
+
+/** The measured Lighthouse scores, labelled as a lab run on a local build. Empty when nothing was measured. */
+function labScores(): string {
+  if (LAB === null || LAB.runs.length === 0) return '';
+  const cell = (key: string, value: number): string => `<td class="mono"><span class="cell-label" ${t(`lab.th.${key}`)}></span>${value}</td>`;
+  return `<div class="lab-scores">
+            <div class="ref-table-wrap"><table class="ref-table ref-table-plain">
+              <caption class="sr-only" ${t('lab.caption')}></caption>
+              <thead><tr><th scope="col" ${t('lab.th.page')}></th><th scope="col" ${t('lab.th.screen')}></th><th scope="col" ${t('lab.th.performance')}></th><th scope="col" ${t('lab.th.accessibility')}></th><th scope="col" ${t('lab.th.practices')}></th><th scope="col" ${t('lab.th.seo')}></th></tr></thead>
+              <tbody>${LAB.runs.map((run) => `<tr><th scope="row" ${t(`lab.page.${run.page}`)}></th><td ${t(`lab.form.${run.form}`)}></td>${cell('performance', run.performance)}${cell('accessibility', run.accessibility)}${cell('practices', run.bestPractices)}${cell('seo', run.seo)}</tr>`).join('')}</tbody>
+            </table></div>
+            <p class="lab-meta mono">Lighthouse ${escapeHtml(LAB.lighthouse)} · Chromium ${escapeHtml(LAB.chrome)} · <time datetime="${escapeHtml(LAB.measuredOn)}">${escapeHtml(LAB.measuredOn)}</time></p>
+            <p class="rich lab-note" ${t('lab.note')}></p>
+          </div>`;
+}
+
 const section = (title: string, inner: string, id: string): string =>
   `<section aria-labelledby="${id}"><h2 id="${id}" ${t(title)}></h2>${inner}</section>`;
 const disclaimer = `<p class="border-t border-border pt-6 text-sm text-muted-foreground" ${t('disclaimer')}></p>`;
@@ -638,6 +672,7 @@ function accessibility(): string {
       '</header>',
       section('built.title', list(range('built', 9)), 'a-built'),
       section('checked.title', p('checked.intro') + list(range('checked', 5)), 'a-checked'),
+      ...(labScores() === '' ? [] : [section('lab.title', labScores(), 'a-lab')]),
       section('unchecked.title', list(range('unchecked', 5)), 'a-unchecked'),
       section('limits.title', list(range('limits', 4)), 'a-limits'),
       section('settings.title', p('settings.p'), 'a-settings'),

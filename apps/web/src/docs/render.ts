@@ -223,7 +223,7 @@ ${params
     (row) => `    <tr>
       <th scope="row"><code class="param-name">${escapeHtml(row.name)}</code>${row.required ? ` <span class="req" ${t('required')}></span>` : ''}</th>
       <td class="cell-type">${inlineToHtml(row.type)}</td>
-      <td class="cell-default">${row.fallback === '' ? '<span aria-hidden="true">–</span>' : `<code>${escapeHtml(row.fallback)}</code>`}</td>
+      <td class="cell-default"><span class="cell-label" ${t('th.default')}></span>${row.fallback === '' ? '<span aria-hidden="true">–</span>' : `<code>${escapeHtml(row.fallback)}</code>`}</td>
       <td>${inlineToHtml(paramText(operation, row, lang))}</td>
     </tr>`,
   )

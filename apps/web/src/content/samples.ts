@@ -43,7 +43,7 @@ export const SAMPLES = {
     }
   },
   "pdf": {
-    "bytes": 29213,
+    "bytes": 35276,
     "contentType": "application/pdf"
   },
   "screenshot": {
@@ -58,47 +58,44 @@ export const SAMPLES = {
   },
   "tech": [
     {
-      "name": "WordPress",
-      "category": "cms",
-      "confidence": "high",
-      "version": "6.5",
-      "evidence": "meta generator: WordPress 6.5"
-    },
-    {
-      "name": "Vue.js",
+      "name": "React",
       "category": "library",
       "confidence": "high",
-      "version": "3.4.21",
-      "evidence": "asset: https://cdn.jsdelivr.net/npm/vue@3.4.21/dist/vue.global.prod.js"
+      "version": null,
+      "evidence": "bundle /assets/index-QQ9mWRMz.js: __reactFiber$"
     },
     {
-      "name": "jsDelivr",
-      "category": "cdn",
-      "confidence": "high",
+      "name": "Vite",
+      "category": "build-tool",
+      "confidence": "medium",
       "version": null,
-      "evidence": "asset: https://cdn.jsdelivr.net/npm/vue@3.4.21/dist/vue.global.prod.js"
+      "evidence": "markup: <script type=\"module\" crossorigin src=\"/assets/index-QQ9mWRMz.js\""
     }
   ],
   "insights": {
     "timings": {
-      "ttfbMs": 9,
-      "domContentLoadedMs": 26,
-      "loadMs": 26
+      "ttfbMs": 8,
+      "domContentLoadedMs": 37,
+      "loadMs": 37
     },
     "vitals": {
-      "fcpMs": 32,
-      "lcpMs": 32,
+      "fcpMs": 36,
+      "lcpMs": 36,
       "cls": 0
     },
-    "requests": 1,
-    "transferBytes": 2752,
+    "requests": 2,
+    "transferBytes": 222098,
     "byType": {
       "document": {
         "requests": 1,
-        "transferBytes": 2752
+        "transferBytes": 2632
+      },
+      "script": {
+        "requests": 1,
+        "transferBytes": 219466
       }
     },
-    "domElements": 57,
+    "domElements": 58,
     "device": "desktop"
   },
   "palette": [
@@ -138,10 +135,13 @@ export const SAMPLES = {
   "check": {
     "status": 200,
     "ok": true,
-    "hops": 1,
-    "durationMs": 2,
-    "contentType": "text/html",
-    "tls": null
+    "chain": [
+      301,
+      302,
+      200
+    ],
+    "durationMs": 5,
+    "contentType": "text/html"
   },
   "tables": {
     "caption": "Plans and prices",
@@ -216,7 +216,7 @@ export const SAMPLES = {
     "language": "en"
   },
   "html": {
-    "bytes": 2357
+    "bytes": 2363
   },
   "qr": {
     "bytes": 3064
@@ -228,7 +228,7 @@ export const SAMPLES = {
   },
   "animation": {
     "frames": 4,
-    "bytes": 80255
+    "bytes": 85306
   },
   "cli": {
     "meta": "Launching the new editor\n  https://example.com/blog/launch\n  What changed in the editor, and how to migrate your documents.\n\n  Publisher  Example Blog\n  Author     Ada Example\n  Date       2025-03-04\n  Language   en\n  Image      https://example.com/img/launch.png\n  Favicon    https://example.com/img/launch.png\n  Logo       https://example.com/img/launch.png\n  oEmbed     https://example.com/blog/launchoembed.json\n  Type       text/html\n  http · 0 ms · cached"

@@ -23,7 +23,7 @@ export const consoleText = {
   'c.apiKey.hint': 'Gardée en mémoire dans cet onglet. Jamais enregistrée, jamais ajoutée aux liens de partage.',
   'c.specLoading': 'Lecture de la spécification OpenAPI…',
   'c.specFailed': 'La spécification OpenAPI est indisponible. Vérifiez que l’API est démarrée, puis réessayez.',
-  'c.specNote': 'Les descriptions des paramètres viennent de la spécification OpenAPI, en anglais.',
+  'c.specNote': 'Les descriptions des paramètres suivent la spécification OpenAPI de cette instance. Un paramètre sans traduction garde sa description en anglais.',
   'c.retry': 'Réessayer',
   'c.copyUrl': 'Copier l’adresse de la requête',
   'c.share': 'Copier le lien de partage',

@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit && npm run check:sdk",
+    "check:sdk": "node --experimental-strip-types --no-warnings scripts/check-sdk-snippets.mjs"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.5",

@@ -174,3 +174,18 @@ export const PARAMS_FR: Readonly<Record<string, string>> = {
   'mcp.id': 'À omettre pour une notification (réponse 202, sans corps).',
   'mcp.params': 'Pour `tools/call` : `{ "name": "<outil>", "arguments": { … } }`.',
 };
+
+/**
+ * Short French names of the operations whose reference section is written by
+ * hand (their full text lives in the docs dictionary). The playground uses
+ * them in its endpoint list.
+ */
+export const SUMMARIES_FR: Readonly<Record<string, string>> = {
+  meta: 'Métadonnées d’aperçu de lien',
+  screenshot: 'Capture d’une page ou d’un élément',
+  pdf: 'Page en PDF',
+  extract: 'Règles d’extraction sur mesure',
+  content: 'Contenu lisible pour l’IA et les agents',
+  health: 'État du service',
+  ...Object.fromEntries(Object.entries(OPERATIONS_FR).map(([id, value]) => [id, value.summary])),
+};

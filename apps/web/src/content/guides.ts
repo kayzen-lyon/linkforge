@@ -6,9 +6,9 @@
  * services): when they change there, change them here. Nothing is promised
  * that the code does not do.
  */
-import { SITE_ORIGIN } from '../site/config.ts';
+import { REPO_URL, SITE_ORIGIN } from '../site/config.ts';
 import { changelogGuide } from './changelog.ts';
-import { code, h2, h3, l, note, p, same, table, terms, ul, type Guide } from './types.ts';
+import { code, h2, h3, l, note, p, same, table, terms, ul, type Guide, type L } from './types.ts';
 
 const O = SITE_ORIGIN;
 const TARGET = 'https://example.com/blog/launch';
@@ -196,8 +196,8 @@ console.log(data.title, data.image?.url, meta.cached);`,
       ],
     ),
     p(
-      'Les méthodes `meta`, `extract`, `content`, `screenshot` et `pdf` reprennent les paramètres de l’API. Les méthodes JSON renvoient `{ data, meta }`.',
-      'The `meta`, `extract`, `content`, `screenshot` and `pdf` methods take the parameters of the API. The JSON methods resolve to `{ data, meta }`.',
+      'Chaque point d’accès a sa méthode, avec les paramètres de l’API pour options : 23 méthodes en tout. Les méthodes JSON (`meta`, `metaBatch`, `extract`, `extractPreset`, `content`, `tables`, `links`, `tech`, `insights`, `image`, `palette`, `favicon`, `oembed`, `sitemap`, `check`) renvoient `{ data, meta }` ; `html`, `contentText` et `tablesCsv` renvoient le texte dans `data` ; `screenshot`, `pdf`, `animation`, `qr` et `og` renvoient un `Blob`. Sept constructeurs d’adresse (`screenshotUrl`, `pdfUrl`, `animationUrl`, `qrUrl`, `ogUrl`, `faviconUrl`, `metaEmbedUrl`) donnent l’adresse sans faire de requête, pour un attribut `src`. L’onglet « TypeScript SDK » du [bac à sable](/playground) écrit l’appel exact pour la requête en cours.',
+      'Every endpoint has its method, with the parameters of the API as options: 23 methods in all. The JSON methods (`meta`, `metaBatch`, `extract`, `extractPreset`, `content`, `tables`, `links`, `tech`, `insights`, `image`, `palette`, `favicon`, `oembed`, `sitemap`, `check`) resolve to `{ data, meta }`; `html`, `contentText` and `tablesCsv` return the text in `data`; `screenshot`, `pdf`, `animation`, `qr` and `og` resolve to a `Blob`. Seven URL builders (`screenshotUrl`, `pdfUrl`, `animationUrl`, `qrUrl`, `ogUrl`, `faviconUrl`, `metaEmbedUrl`) give the address without making a request, for a `src` attribute. The “TypeScript SDK” tab of the [playground](/playground) writes the exact call for the current request.',
     ),
     h2('element', 'L’élément `<link-preview>`', 'The `<link-preview>` element'),
     p(
@@ -579,4 +579,94 @@ const glossary: Guide = {
   ],
 };
 
-export const GUIDE_LIST: readonly Guide[] = [quickstart, selfHosting, sdk, aiAgents, recipes, errors, limits, security, glossary, changelogGuide()];
+/** List items written as two parallel arrays, one per language. */
+const pairs = (fr: readonly string[], en: readonly string[]): L[] => fr.map((text, at) => l(text, en[at] ?? text));
+
+const roadmap: Guide = {
+  id: 'roadmap',
+  title: l('Feuille de route', 'Roadmap'),
+  nav: l('Feuille de route', 'Roadmap'),
+  description: l(
+    'Feuille de route publique d’Omnillink : ce qui existe aujourd’hui, ce qui reste à faire et ce que le projet a choisi de ne pas faire.',
+    'The public Omnillink roadmap: what exists today, what remains to be done and what the project has chosen not to do.',
+  ),
+  lead: l(
+    'Ce qui existe, ce qui reste à faire, et ce que le projet ne fera pas. Aucune date : un projet open source avance au rythme de ses contributions.',
+    'What exists, what remains to be done, and what the project will not do. No dates: an open-source project moves at the pace of its contributions.',
+  ),
+  blocks: [
+    h2('today', 'Ce qui existe', 'What exists'),
+    p(
+      'Tout ce qui suit est dans le dépôt, couvert par des tests et décrit dans la [référence](/docs).',
+      'Everything below is in the repository, covered by tests and described in the [reference](/docs).',
+    ),
+    ul(
+      ...pairs([
+        '**Lire une page** : métadonnées (seules ou par lot de 10), contenu lisible en Markdown ou en texte, extraction par sélecteurs CSS ou par modèle (`article`, `product`, `recipe`, `event`), tableaux en JSON et CSV, liens, HTML rendu.',
+        '**Capturer** : capture d’écran (appareil, élément, pleine page, thème, cadre), PDF (marges, en-tête, pied de page, plages de pages), capture animée par défilement.',
+        '**Analyser** : technologies d’une page, poids et chronologie d’un chargement en laboratoire, vérification d’un lien (redirections, certificat), plans de site et `robots.txt`.',
+        '**Images et intégrations** : meilleure icône d’un site, dimensions réelles d’une image, palette de couleurs, résolution oEmbed, code QR, image de partage générée à partir de texte.',
+        '**Sécurité** : contrôle anti-SSRF de chaque connexion, y compris celles du navigateur et les redirections ; limites de taille, de durée et de nombre de requêtes ; disjoncteur par domaine cible ; pages de blocage anti-robot détectées et jamais mises en cache. Voir [Sécurité](/docs/security).',
+        '**Exploitation** : cache en mémoire ou Redis, `ETag` et réponses 304, limite de débit partagée entre instances avec Redis, journal structuré avec identifiant de requête, métriques au format Prometheus, spécification OpenAPI.',
+        '**Outils** : SDK TypeScript, composant `<link-preview>` et son enveloppe React, outil en ligne de commande, serveur MCP (dans l’API et en paquet autonome), action GitHub. Voir [SDK](/docs/sdk) et [Agents IA](/docs/ai-agents).',
+      ], [
+        '**Reading a page**: metadata (single or in batches of 10), readable content as Markdown or text, extraction by CSS selectors or by preset (`article`, `product`, `recipe`, `event`), tables as JSON and CSV, links, rendered HTML.',
+        '**Capturing**: screenshot (device, element, full page, colour scheme, frame), PDF (margins, header, footer, page ranges), animated scroll capture.',
+        '**Analysing**: technologies of a page, weight and timeline of a lab load, link check (redirects, certificate), sitemaps and `robots.txt`.',
+        '**Images and embeds**: best icon of a site, real dimensions of an image, colour palette, oEmbed resolution, QR code, sharing image generated from text.',
+        '**Security**: SSRF checks on every connection, including those of the browser and redirects; limits on size, duration and number of requests; a circuit breaker per target domain; anti-bot block pages detected and never cached. See [Security](/docs/security).',
+        '**Operations**: in-memory or Redis cache, `ETag` and 304 answers, rate limit shared between instances with Redis, structured log with a request identifier, Prometheus metrics, OpenAPI specification.',
+        '**Tooling**: TypeScript SDK, `<link-preview>` element and its React wrapper, command-line tool, MCP server (in the API and as a standalone package), GitHub Action. See [SDK](/docs/sdk) and [AI agents](/docs/ai-agents).',
+      ]),
+    ),
+    h2('next', 'Ce qui reste à faire', 'What remains to be done'),
+    p(
+      'Ces points figurent dans la feuille de route du dépôt et ne sont pas livrés. Leur ordre n’est pas un engagement.',
+      'These points are in the roadmap of the repository and are not shipped. Their order is not a commitment.',
+    ),
+    ul(
+      ...pairs([
+        '**Mode asynchrone** : lancer un rendu long et être prévenu par webhook, au lieu d’attendre la réponse.',
+        '**Stockage des captures** : un stockage objet compatible S3 pour les fichiers, à la place du cache.',
+        '**Formats d’image** : sortie WebP et AVIF pour les captures, redimensionnement des icônes (aujourd’hui renvoyées telles quelles).',
+        '**Traces** : traces OpenTelemetry en complément des métriques, sondes de vivacité et de disponibilité distinctes.',
+        '**Mesures publiées** : essai de charge et essai long de mémoire documentés. Aucune mesure de référence n’est publiée à ce jour.',
+        '**Extracteurs par site** : une architecture de modules pour les sites dont le balisage demande un traitement propre.',
+        '**Exemples d’intégration** : l’exemple HTML est vérifié dans un navigateur ; ceux pour Next.js et Astro restent à exécuter de bout en bout.',
+        '**Offre hébergée avec comptes** : clés par utilisateur, quotas et suivi de consommation. Aujourd’hui, une instance se protège par une clé unique et une limite de débit.',
+      ], [
+        '**Asynchronous mode**: start a long render and be told by webhook, instead of waiting for the answer.',
+        '**Capture storage**: S3-compatible object storage for files, in place of the cache.',
+        '**Image formats**: WebP and AVIF output for captures, resizing of icons (returned as they are today).',
+        '**Traces**: OpenTelemetry traces next to the metrics, separate liveness and readiness probes.',
+        '**Published measurements**: a documented load test and long-running memory test. No reference measurement is published to date.',
+        '**Per-site extractors**: a module architecture for sites whose markup needs its own handling.',
+        '**Integration examples**: the HTML example is verified in a browser; the Next.js and Astro ones remain to be run end to end.',
+        '**Hosted offer with accounts**: per-user keys, quotas and usage tracking. Today an instance is protected by a single key and a rate limit.',
+      ]),
+    ),
+    h2('out-of-scope', 'Ce que le projet ne fera pas', 'What the project will not do'),
+    p(
+      'Ces choix sont volontaires. Ils tiennent à la sécurité du service et au respect des sites lus.',
+      'These choices are deliberate. They follow from the security of the service and from respect for the sites it reads.',
+    ),
+    ul(
+      ...pairs([
+        '**Exécuter du code fourni par l’appelant.** Pas de script injecté dans la page, pas de fonction envoyée à l’API. Les interactions se limitent à des sélecteurs CSS (`click`, `scrollTo`, `waitForSelector`) et la sonde de détection des technologies est fixe, intégrée à l’API.',
+        '**Extraire les résultats des moteurs de recherche.** L’API lit la page dont vous donnez l’adresse ; elle n’interroge pas un moteur à votre place.',
+        '**Contourner les protections anti-robot.** Pas de résolution de CAPTCHA, pas d’empreinte de navigateur falsifiée, pas de rotation d’adresses pour échapper à un blocage. Une page de blocage est signalée par l’erreur `EBLOCKED` : voir [Erreurs](/docs/errors).',
+      ], [
+        '**Run code supplied by the caller.** No script injected into the page, no function sent to the API. Interactions are limited to CSS selectors (`click`, `scrollTo`, `waitForSelector`) and the technology probe is fixed and built into the API.',
+        '**Scrape search-engine results.** The API reads the page whose address you give; it does not query a search engine on your behalf.',
+        '**Get around anti-bot protections.** No CAPTCHA solving, no forged browser fingerprint, no address rotation to escape a block. A block page is reported with the `EBLOCKED` error: see [Errors](/docs/errors).',
+      ]),
+    ),
+    h2('contribute', 'Proposer ou contribuer', 'Suggest or contribute'),
+    p(
+      `Une idée, un manque, un défaut : ouvrez un ticket sur [le dépôt](${REPO_URL}). Le [journal des modifications](/docs/changelog) liste ce qui a été livré.`,
+      `An idea, a gap, a defect: open an issue on [the repository](${REPO_URL}). The [changelog](/docs/changelog) lists what has shipped.`,
+    ),
+  ],
+};
+
+export const GUIDE_LIST: readonly Guide[] = [quickstart, selfHosting, sdk, aiAgents, recipes, errors, limits, security, glossary, roadmap, changelogGuide()];

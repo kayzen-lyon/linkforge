@@ -1,0 +1,56 @@
+{
+  "measuredOn": "2026-11-18",
+  "lighthouse": "12.8.2",
+  "chrome": "153.0.0.0",
+  "conditions": "local production build embedded in the API, same machine, headless Chromium, one run per page, Lighthouse default throttling (simulated)",
+  "runs": [
+    {
+      "page": "home",
+      "form": "desktop",
+      "performance": 100,
+      "accessibility": 100,
+      "bestPractices": 100,
+      "seo": 100
+    },
+    {
+      "page": "home",
+      "form": "mobile",
+      "performance": 98,
+      "accessibility": 100,
+      "bestPractices": 100,
+      "seo": 100
+    },
+    {
+      "page": "playground",
+      "form": "desktop",
+      "performance": 100,
+      "accessibility": 100,
+      "bestPractices": 100,
+      "seo": 100
+    },
+    {
+      "page": "playground",
+      "form": "mobile",
+      "performance": 99,
+      "accessibility": 100,
+      "bestPractices": 100,
+      "seo": 100
+    },
+    {
+      "page": "docs",
+      "form": "desktop",
+      "performance": 100,
+      "accessibility": 100,
+      "bestPractices": 100,
+      "seo": 100
+    },
+    {
+      "page": "docs",
+      "form": "mobile",
+      "performance": 99,
+      "accessibility": 100,
+      "bestPractices": 100,
+      "seo": 100
+    }
+  ]
+}

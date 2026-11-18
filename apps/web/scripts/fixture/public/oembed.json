@@ -1,0 +1,1 @@
+{"version":"1.0","type":"rich","provider_name":"Example Blog","provider_url":"http://127.0.0.1:4100/","title":"Launching the new editor","author_name":"Ada Example","html":"<iframe src=\"http://127.0.0.1:4100/embed\" width=\"600\" height=\"340\"></iframe>","width":600,"height":340}

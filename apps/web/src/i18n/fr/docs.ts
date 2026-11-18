@@ -6,7 +6,7 @@ export const docs = {
 
   'title': 'Référence de l’API',
   'lead':
-    'Tous les points d’accès sont des requêtes `GET` sous `/api/v1`. Les exemples utilisent l’adresse de cette instance.',
+    'Tous les points d’accès sont des requêtes `GET` sous `/api/v1`, sauf le lot de métadonnées et le point d’accès MCP, qui sont des `POST`. Les exemples utilisent l’adresse de cette instance.',
   'toc.label': 'Sur cette page',
   'toc.basics': 'Principes',
   'toc.endpoints': 'Points d’accès',
