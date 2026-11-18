@@ -108,8 +108,12 @@ export interface ExtractField {
 /** Rules keyed by the name of the field they produce. */
 export type ExtractFields = Readonly<Record<string, ExtractField>>;
 
-type ExtractScalar<F extends ExtractField> = F extends { readonly type: 'number' }
-  ? number
+type ExtractScalar<R> = 'type' extends keyof R
+  ? [R['type' & keyof R]] extends ['number']
+    ? number
+    : ['number'] extends [R['type' & keyof R]]
+      ? string | number // `type` is not known precisely
+      : string
   : string;
 
 type ExtractValue<R, S> = 'all' extends keyof R
