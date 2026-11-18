@@ -1,6 +1,6 @@
 # Omnillink — 150 améliorations
 
-Liste de travail. État au dernier pointage : 105 livrés, 24 partiels, 21 à faire.
+Liste de travail. État au dernier pointage : 125 livrés, 21 partiels, 4 à faire.
 
 Chaque ligne porte un statut tenu à jour à l'intégration : `[ ]` à faire, `[x]` livré et vérifié, `[~]` partiel (la note dit ce qui manque), `[-]` écarté (la note dit pourquoi).
 
@@ -131,28 +131,28 @@ Règle commune à toutes les lignes : rien d'inventé. Pas de témoignages, de l
 106. [x] `/content` : liens, images, citations, sortie Markdown directe, indicateur de troncature.
 107. [x] `/meta` : date de modification, type, couleur de thème, robots, oEmbed, alternatives de langue, cartes Twitter, paywall, domaine.
 108. [x] Métadonnées par lot (`POST /meta/batch`, 10 adresses).
-109. [ ] Palette de couleurs dominantes de l'image principale. — en cours (suite de l'API).
+109. [x] Palette de couleurs dominantes de l'image principale
 110. [x] Dimensions et poids réels des images (lecture de l'en-tête seulement).
-111. [ ] Résolution oEmbed : lecteur intégré normalisé. — en cours (suite de l'API).
-112. [~] Détection des technologies d'une page (CMS, framework, analytique). — point d'accès /tech en ligne, mais détection encore pauvre sur les sites modernes (renforcement en cours).
+111. [x] Résolution oEmbed : lecteur intégré normalisé
+112. [x] Détection des technologies d'une page (CMS, framework, analytique)
 113. [x] `/links` : liens d'une page, internes et externes, avec texte et attributs `rel`.
 114. [x] `/sitemap` : lecture d'un plan de site et de `robots.txt`, bornée.
-115. [ ] `/favicon` : meilleure icône d'un site, redimensionnée. — en cours (suite de l'API).
+115. [~] `/favicon` : meilleure icône d'un site, redimensionnée — sans redimensionnement (il demanderait un décodeur d'images).
 116. [x] `/health/url` : état d'un lien (statut, redirections, durée, certificat).
-117. [ ] `/og` : génération d'image de partage à partir d'un titre et d'un modèle. — en cours (suite de l'API).
-118. [ ] `/qr` : code QR d'une adresse. — en cours (suite de l'API).
-119. [~] Capture : attente d'un sélecteur, défilement pour le contenu différé, masquage des bandeaux cookies. — attente d'un sélecteur, défilement et masquage des bandeaux faits.
-120. [ ] Capture : clic et défilement vers un élément avant la prise. — en cours (suite de l'API).
-121. [ ] Capture : cadre d'appareil et arrondis optionnels. — en cours (suite de l'API).
-122. [ ] PDF : marges, échelle, en-tête et pied de page, plage de pages. — en cours (suite de l'API).
-123. [ ] Extraction : modèles prêts à l'emploi (article, produit, recette, événement). — en cours (suite de l'API).
-124. [ ] Extraction : sortie de tableaux HTML en JSON et CSV. — en cours (suite de l'API).
-125. [~] Sorties `format=json|markdown|text|html` cohérentes sur les points d'accès de contenu. — json, markdown, texte sur /content et HTML rendu via /html.
+117. [x] `/og` : génération d'image de partage à partir d'un titre et d'un modèle
+118. [x] `/qr` : code QR d'une adresse
+119. [x] Capture : attente d'un sélecteur, défilement pour le contenu différé, masquage des bandeaux cookies
+120. [x] Capture : clic et défilement vers un élément avant la prise
+121. [x] Capture : cadre d'appareil et arrondis optionnels
+122. [x] PDF : marges, échelle, en-tête et pied de page, plage de pages
+123. [x] Extraction : modèles prêts à l'emploi (article, produit, recette, événement)
+124. [x] Extraction : sortie de tableaux HTML en JSON et CSV
+125. [x] Sorties `format=json|markdown|text|html` cohérentes sur les points d'accès de contenu
 126. [x] `ETag` et réponses 304, en-tête de source de rendu.
-127. [~] Blocage optionnel des publicités et traceurs pendant le rendu. — liste intégrée courte, désactivée par défaut.
+127. [x] Blocage optionnel des publicités et traceurs pendant le rendu
 128. [x] Détection des pages de blocage anti-robot, jamais mises en cache.
-129. [~] Spécification OpenAPI complète, avec exemples par point d'accès. — exemples sur les nouveaux points d'accès seulement.
-130. [ ] Point d'accès MCP : les fonctions de l'API exposées comme outils pour agents. — en cours (suite de l'API).
+129. [~] Spécification OpenAPI complète, avec exemples par point d'accès — exemples sur les réponses JSON ; aucun pour les sorties binaires.
+130. [x] Point d'accès MCP : les fonctions de l'API exposées comme outils pour agents
 
 ## G. Sécurité et fiabilité de l'API
 
@@ -161,13 +161,13 @@ Règle commune à toutes les lignes : rien d'inventé. Pas de témoignages, de l
 133. [x] Délai global par requête, dérivé de la limite de la plateforme.
 134. [x] Rendu qui se dégrade au lieu d'échouer quand une page ne finit pas de charger.
 135. [x] Identité de navigateur cohérente.
-136. [ ] Limites strictes : taille des réponses, nombre de requêtes par page, téléchargements bloqués. — en cours (suite de l'API).
-137. [ ] Débit partagé entre instances quand Redis est configuré. — en cours (suite de l'API).
-138. [ ] Disjoncteur par domaine cible. — en cours (suite de l'API).
-139. [ ] Journal structuré avec identifiant de requête, sans donnée personnelle. — en cours (suite de l'API).
-140. [ ] Métriques au format Prometheus (latences, taux de cache, recours au navigateur). — en cours (suite de l'API).
+136. [x] Limites strictes : taille des réponses, nombre de requêtes par page, téléchargements bloqués
+137. [x] Débit partagé entre instances quand Redis est configuré
+138. [x] Disjoncteur par domaine cible
+139. [x] Journal structuré avec identifiant de requête, sans donnée personnelle
+140. [x] Métriques au format Prometheus (latences, taux de cache, recours au navigateur)
 141. [x] Corrections des défauts relevés par l'étude comparative (dates, langues CJK, JSON-LD, Markdown).
-142. [ ] Corpus de non-régression de pages réelles figées. — en cours (suite de l'API).
+142. [x] Corpus de non-régression de pages réelles figées
 
 ## H. Outils pour développeurs
 
