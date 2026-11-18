@@ -10,6 +10,7 @@ import { join } from "node:path";
 var RETRYABLE = /* @__PURE__ */ new Set([
   "ERATELIMIT",
   "EBUSY",
+  "ECIRCUITOPEN",
   "ETIMEOUT",
   "ENETWORK",
   "EUNREACHABLE"
@@ -21,11 +22,14 @@ var OmnillinkError = class extends Error {
   status;
   /** Seconds to wait before retrying, when the server said so. */
   retryAfter;
+  /** `x-request-id` of the failed response: quote it when reporting a problem. */
+  requestId;
   constructor(init) {
     super(init.message, init.cause === void 0 ? void 0 : { cause: init.cause });
     this.code = init.code;
     this.status = init.status;
     this.retryAfter = init.retryAfter;
+    this.requestId = init.requestId;
   }
   /** True when trying again later can reasonably succeed. */
   get retryable() {
@@ -47,59 +51,23 @@ function normalizeBaseUrl(baseUrl) {
     base = base.slice(0, -API_PREFIX.length);
   return base;
 }
-function assertTargetUrl(url) {
-  if (typeof url !== "string" || url.trim() === "") {
-    throw new OmnillinkError({
-      code: "EINVALIDURL",
-      status: 0,
-      message: "The target `url` must be a non-empty string"
-    });
+var invalid = (code, message) => new OmnillinkError({ code, status: 0, message });
+var PARAMS = new Set("url render embed acceptLanguage userAgent referer force ttl device width height fullPage selector hide hideBanners blockAds waitForSelector click scrollTo waitFor colorScheme frame radius padding background format quality landscape printBackground margin scale pageRanges headerText footerText frames delay fields preset mainContent include exclude citations table scope limit redirect maxWidth maxHeight count size ecc color title description site author label template theme accent".split(" "));
+function buildUrl(base, endpoint, params, required = "url") {
+  const source = typeof params === "object" && params !== null ? params : {};
+  const main = source[required];
+  if (typeof main !== "string" || main.trim() === "") {
+    throw required === "url" ? invalid("EINVALIDURL", "The target `url` must be a non-empty string") : invalid("EINVALIDPARAMS", "`title` must be a non-empty string");
   }
-}
-function buildUrl(base, endpoint, url, params = {}) {
-  assertTargetUrl(url);
-  const query = new URLSearchParams({ url });
-  for (const [name, value] of Object.entries(params)) {
-    if (value === void 0 || value === null)
+  const query = new URLSearchParams();
+  for (const name of Object.keys(source)) {
+    const value = source[name];
+    if (value === void 0 || value === null || !PARAMS.has(name))
       continue;
     query.set(name, Array.isArray(value) ? value.join(",") : String(value));
   }
   return `${base}${API_PREFIX}/${endpoint}?${query.toString()}`;
 }
-var pick = (options, keys) => {
-  const picked = {};
-  if (options !== void 0 && options !== null) {
-    for (const key of keys)
-      picked[key] = options[key];
-  }
-  return picked;
-};
-var metaParams = (options) => pick(options, ["render", "force", "ttl"]);
-var screenshotParams = (options) => pick(options, [
-  "device",
-  "fullPage",
-  "format",
-  "quality",
-  "width",
-  "height",
-  "selector",
-  "waitFor",
-  "colorScheme",
-  "hide",
-  "force",
-  "ttl"
-]);
-var pdfParams = (options) => pick(options, ["format", "landscape", "printBackground", "force", "ttl"]);
-var extractParams = (fields, options) => {
-  if (typeof fields !== "object" || fields === null || Array.isArray(fields)) {
-    throw new OmnillinkError({
-      code: "EINVALIDPARAMS",
-      status: 0,
-      message: "`fields` must be an object of extraction rules"
-    });
-  }
-  return { fields: JSON.stringify(fields), ...pick(options, ["render"]) };
-};
 
 // ../../../packages/sdk/dist/client.js
 var DEFAULT_TIMEOUT_MS = 3e4;
@@ -112,9 +80,15 @@ function parseJson(text) {
     return void 0;
   }
 }
+var header = (response, name) => response.headers?.get(name) ?? null;
+function numberHeader(response, name) {
+  const raw = header(response, name);
+  const value = raw === null || raw.trim() === "" ? Number.NaN : Number(raw);
+  return Number.isFinite(value) ? value : null;
+}
 function parseRetryAfter(response) {
-  const raw = response.headers?.get("retry-after");
-  if (raw === null || raw === void 0 || raw.trim() === "")
+  const raw = header(response, "retry-after");
+  if (raw === null || raw.trim() === "")
     return void 0;
   const seconds = Number(raw);
   if (Number.isFinite(seconds) && seconds >= 0)
@@ -122,24 +96,47 @@ function parseRetryAfter(response) {
   const date = Date.parse(raw);
   return Number.isNaN(date) ? void 0 : Math.max(0, Math.round((date - Date.now()) / 1e3));
 }
+function readInfo(response) {
+  const cache = header(response, "x-cache");
+  const source = header(response, "x-render-source");
+  const limit = numberHeader(response, "x-ratelimit-limit");
+  const remaining = numberHeader(response, "x-ratelimit-remaining");
+  const reset = numberHeader(response, "x-ratelimit-reset");
+  return {
+    status: response.status,
+    cache: cache === "HIT" || cache === "MISS" ? cache : null,
+    renderSource: source === "http" || source === "browser" ? source : null,
+    requestId: header(response, "x-request-id"),
+    etag: header(response, "etag"),
+    rateLimit: limit === null && remaining === null && reset === null ? null : { limit, remaining, reset },
+    finalUrl: header(response, "x-final-url"),
+    animationFrames: numberHeader(response, "x-animation-frames"),
+    qrVersion: numberHeader(response, "x-qr-version")
+  };
+}
+var infos = /* @__PURE__ */ new WeakMap();
 async function errorFromResponse(response) {
   const body = parseJson(await response.text());
   const retryAfter = parseRetryAfter(response);
+  const requestId = header(response, "x-request-id");
+  const extra = {
+    status: response.status,
+    ...retryAfter === void 0 ? {} : { retryAfter },
+    ...requestId === null ? {} : { requestId }
+  };
   if (isRecord(body) && typeof body["code"] === "string" && body["code"] !== "") {
     const message = body["message"];
     return new OmnillinkError({
       code: body["code"],
-      status: response.status,
       message: typeof message === "string" && message !== "" ? message : `Request failed (${body["code"]})`,
-      ...retryAfter === void 0 ? {} : { retryAfter }
+      ...extra
     });
   }
   const reason = response.statusText ? ` ${response.statusText}` : "";
   return new OmnillinkError({
     code: "EHTTP",
-    status: response.status,
     message: `Request failed with HTTP ${response.status}${reason}`,
-    ...retryAfter === void 0 ? {} : { retryAfter }
+    ...extra
   });
 }
 function createClient(options) {
@@ -149,7 +146,7 @@ function createClient(options) {
   const base = normalizeBaseUrl(options.baseUrl);
   const { apiKey, fetch: customFetch } = options;
   const defaultTimeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
-  async function request(endpoint, kind, requestOptions, read) {
+  async function request(endpoint, accept, params, read, body) {
     const doFetch = customFetch ?? ((input, init) => globalThis.fetch(input, init));
     if (customFetch === void 0 && typeof globalThis.fetch !== "function") {
       throw new OmnillinkError({
@@ -158,8 +155,11 @@ function createClient(options) {
         message: "No global fetch: pass a `fetch` implementation to createClient()"
       });
     }
+    const requestOptions = params;
     const userSignal = requestOptions?.signal;
     const timeoutMs = requestOptions?.timeoutMs ?? defaultTimeoutMs;
+    const etag = requestOptions?.ifNoneMatch;
+    const conditional = typeof etag === "string" && etag !== "";
     const controller = new AbortController();
     let timedOut = false;
     const abortedError = (cause) => new OmnillinkError({ code: "EABORTED", status: 0, message: "The request was aborted", cause });
@@ -172,16 +172,30 @@ function createClient(options) {
       controller.abort();
     }, timeoutMs) : void 0;
     const headers = {};
-    if (kind === "json")
-      headers["accept"] = "application/json";
+    if (accept !== void 0)
+      headers["accept"] = accept;
+    if (body !== void 0)
+      headers["content-type"] = "application/json";
+    if (conditional)
+      headers["if-none-match"] = etag;
     if (apiKey !== void 0 && apiKey !== "")
       headers["x-api-key"] = apiKey;
     try {
       const response = await doFetch(endpoint, {
-        method: "GET",
+        method: body === void 0 ? "GET" : "POST",
         headers,
-        signal: controller.signal
+        signal: controller.signal,
+        ...body === void 0 ? {} : { body }
       });
+      if (response.status === 304 && conditional) {
+        const outcome = {
+          notModified: true,
+          data: void 0,
+          meta: void 0,
+          response: readInfo(response)
+        };
+        return outcome;
+      }
       if (!response.ok)
         throw await errorFromResponse(response);
       return await read(response);
@@ -210,40 +224,89 @@ function createClient(options) {
       userSignal?.removeEventListener("abort", onUserAbort);
     }
   }
-  const json = (endpoint, requestOptions) => request(endpoint, "json", requestOptions, async (response) => {
+  const readJson = async (response) => {
     const body = parseJson(await response.text());
     if (isRecord(body) && body["status"] === "success" && "data" in body) {
-      return { data: body["data"], meta: body["meta"] };
+      return { data: body["data"], meta: body["meta"], response: readInfo(response) };
     }
+    const requestId = header(response, "x-request-id");
+    const extra = { status: response.status, ...requestId === null ? {} : { requestId } };
     if (isRecord(body) && typeof body["code"] === "string" && typeof body["message"] === "string") {
-      throw new OmnillinkError({ code: body["code"], status: response.status, message: body["message"] });
+      throw new OmnillinkError({ code: body["code"], message: body["message"], ...extra });
     }
     throw new OmnillinkError({
       code: "EBADRESPONSE",
-      status: response.status,
-      message: "The server answered with something that is not an Omnillink response"
+      message: "The server answered with something that is not an Omnillink response",
+      ...extra
     });
+  };
+  const readText = async (response) => ({
+    data: await response.text(),
+    response: readInfo(response)
   });
-  const binary = (endpoint, requestOptions) => request(endpoint, "binary", requestOptions, (response) => response.blob());
-  return {
-    meta: async (url, opts) => json(buildUrl(base, "meta", url, metaParams(opts)), opts),
-    extract: async (url, fields, opts) => json(buildUrl(base, "extract", url, extractParams(fields, opts)), opts),
-    content: async (url, opts) => json(buildUrl(base, "content", url, { render: opts?.render }), opts),
-    screenshot: async (url, opts) => binary(buildUrl(base, "screenshot", url, screenshotParams(opts)), opts),
-    pdf: async (url, opts) => binary(buildUrl(base, "pdf", url, pdfParams(opts)), opts),
-    screenshotUrl: (url, opts) => buildUrl(base, "screenshot", url, screenshotParams(opts)),
-    pdfUrl: (url, opts) => buildUrl(base, "pdf", url, pdfParams(opts)),
-    metaEmbedUrl: (url, path, opts) => {
-      if (typeof path !== "string" || path === "") {
-        throw new OmnillinkError({
-          code: "EINVALIDPARAMS",
-          status: 0,
-          message: '`path` must be a dot path into the metadata, e.g. "image.url"'
-        });
+  const readBlob = async (response) => {
+    const blob = await response.blob();
+    infos.set(blob, readInfo(response));
+    return blob;
+  };
+  const url = (endpoint, target, params, extra) => buildUrl(base, endpoint, { url: target, ...params, ...extra });
+  const json = (endpoint, extra) => async (target, opts) => request(url(endpoint, target, opts, extra), "application/json", opts, readJson);
+  const text = (endpoint, extra) => async (target, opts) => request(url(endpoint, target, opts, extra(opts)), void 0, opts, readText);
+  const binary = (endpoint) => async (target, opts) => request(url(endpoint, target, opts), void 0, opts, readBlob);
+  const builder = (endpoint, extra) => (target, opts) => url(endpoint, target, opts, extra);
+  const extraction = (target, what, opts) => request(buildUrl(base, "extract", { url: target, ...what, ...opts, fields: what["fields"], preset: what["preset"] }), "application/json", opts, readJson);
+  const client = {
+    meta: json("meta"),
+    metaBatch: async (urls, opts) => {
+      if (!Array.isArray(urls) || urls.length === 0 || urls.some((item) => typeof item !== "string" || item === "")) {
+        throw invalid("EINVALIDURL", "`urls` must be a non-empty array of URLs");
       }
-      return buildUrl(base, "meta", url, { ...metaParams(opts), embed: path });
+      const body = JSON.stringify({ urls, force: opts?.["force"], ttl: opts?.["ttl"] });
+      return request(`${base}/api/v1/meta/batch`, "application/json", opts, readJson, body);
+    },
+    extract: async (target, fields, opts) => {
+      if (!isRecord(fields))
+        throw invalid("EINVALIDPARAMS", "`fields` must be an object of extraction rules");
+      return extraction(target, { fields: JSON.stringify(fields) }, opts);
+    },
+    extractPreset: async (target, preset, opts) => {
+      if (typeof preset !== "string" || preset === "")
+        throw invalid("EINVALIDPARAMS", "`preset` must be a preset name");
+      return extraction(target, { preset }, opts);
+    },
+    content: json("content", { format: void 0 }),
+    tables: json("tables", { format: void 0, table: void 0 }),
+    links: json("links"),
+    tech: json("tech"),
+    insights: json("insights"),
+    image: json("image"),
+    palette: json("palette"),
+    favicon: json("favicon", { redirect: void 0 }),
+    oembed: json("oembed"),
+    sitemap: json("sitemap"),
+    check: json("check"),
+    html: text("html", () => void 0),
+    contentText: text("content", (opts) => ({ format: opts?.["format"] === "text" ? "text" : "markdown" })),
+    tablesCsv: text("tables", () => ({ format: "csv" })),
+    screenshot: binary("screenshot"),
+    pdf: binary("pdf"),
+    animation: binary("animation"),
+    qr: binary("qr"),
+    og: async (params) => request(buildUrl(base, "og", params, "title"), void 0, params, readBlob),
+    screenshotUrl: builder("screenshot"),
+    pdfUrl: builder("pdf"),
+    animationUrl: builder("animation"),
+    qrUrl: builder("qr"),
+    ogUrl: (params) => buildUrl(base, "og", params, "title"),
+    faviconUrl: builder("favicon", { redirect: true }),
+    metaEmbedUrl: (target, path, opts) => {
+      if (typeof path !== "string" || path === "") {
+        throw invalid("EINVALIDPARAMS", '`path` must be a dot path into the metadata, e.g. "image.url"');
+      }
+      return url("meta", target, opts, { embed: path });
     }
   };
+  return client;
 }
 
 // src/action.ts
@@ -315,6 +378,7 @@ function renderSummary({ url, data, meta, screenshotUrl, screenshotPath, screens
     row("Publisher", text(data.publisher, 120)),
     row("Author", text(data.author, 120)),
     row("Date", text(data.date, 40)),
+    row("Modified", text(data.dateModified, 40)),
     row("Language", text(data.lang, 20)),
     row("Type", text(data.contentType, 80)),
     row("Feeds", data.feeds.length === 0 ? null : String(data.feeds.length)),
@@ -336,6 +400,44 @@ function renderFailure(url, code, message) {
 <p><code>${escapeText(code, 40)}</code> \u2014 ${escapeText(message, 300)}</p>
 <p>${link(url) ?? escapeText(url, 200)}</p>
 `;
+}
+var MAX_CHECKED_URLS = 100;
+var CHECK_CONCURRENCY = 4;
+function parseUrlList(value) {
+  const urls = value.split(/\r?\n/).map((line) => line.trim()).filter((line) => line !== "" && !line.startsWith("#")).flatMap((line) => line.split(/[\s,]+/)).filter((item) => item !== "");
+  return [...new Set(urls)];
+}
+async function mapLimit(items, limit, worker) {
+  const results = new Array(items.length);
+  let next = 0;
+  const lane = async () => {
+    for (let index = next++; index < items.length; index = next++) results[index] = await worker(items[index]);
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, lane));
+  return results;
+}
+function renderCheckSummary(links) {
+  const broken = links.filter((item) => !item.ok).length;
+  const rows = links.map((item) => {
+    if (item.check === void 0) {
+      return `<tr><td>\u26A0\uFE0F</td><td>${link(item.url) ?? escapeText(item.url, 120)}</td><td><code>${escapeText(item.error.code, 40)}</code></td><td colspan="3">${escapeText(item.error.message, 200)}</td></tr>
+`;
+    }
+    const { check } = item;
+    const hops = check.redirects.length - 1;
+    const final = check.finalUrl !== check.url ? link(check.finalUrl) ?? escapeText(check.finalUrl, 120) : "";
+    const tls = check.tls === null ? "" : `${check.tls.daysLeft}&#32;d`;
+    return `<tr><td>${check.ok ? "\u2705" : "\u274C"}</td><td>${link(item.url) ?? escapeText(item.url, 120)}</td><td>${check.status}</td><td>${hops === 0 ? "" : hops}</td><td>${final}</td><td>${tls}</td></tr>
+`;
+  }).join("");
+  return [
+    `<h3>\u{1F517} Link check: ${broken === 0 ? `${links.length} link(s), all working` : `${broken} of ${links.length} link(s) broken`}</h3>
+`,
+    '<table>\n<tr><th></th><th align="left">URL</th><th>Status</th><th>Redirects</th><th align="left">Final URL</th><th>Certificate</th></tr>\n',
+    rows,
+    "</table>\n",
+    "<p><sub>Omnillink \xB7 checked just now, bodies not downloaded</sub></p>\n"
+  ].join("");
 }
 function screenshotName(url, extension) {
   let readable = "page";
@@ -359,7 +461,10 @@ async function run(io) {
     "canonical-url": "",
     publisher: "",
     metadata: "",
-    "screenshot-path": ""
+    "screenshot-path": "",
+    "checked-count": "",
+    "broken-count": "",
+    results: ""
   };
   let summary = "";
   let wantSummary = true;
@@ -373,8 +478,21 @@ async function run(io) {
     url = getInput(env, "url");
     wantSummary = getBoolean(env, "summary", true);
     failOnError = getBoolean(env, "fail-on-error", true);
+    const mode = getChoice(env, "mode", ["preview", "check-links"], "preview");
     const baseUrl = getInput(env, "base-url");
-    if (safeUrl(url) === null) throw new InputError('Input "url" must be an absolute http(s) URL');
+    const urls = mode === "check-links" ? parseUrlList(`${getInput(env, "urls")}
+${url}`) : [];
+    if (mode === "check-links") {
+      if (urls.length === 0) throw new InputError('Mode "check-links" needs the input "urls": one URL per line');
+      if (urls.length > MAX_CHECKED_URLS) throw new InputError(`Input "urls" lists ${urls.length} URLs: at most ${MAX_CHECKED_URLS} per step`);
+      const bad = urls.find((item) => safeUrl(item) === null);
+      if (bad !== void 0) {
+        url = bad;
+        throw new InputError('Input "urls" must only list absolute http(s) URLs');
+      }
+    } else if (safeUrl(url) === null) {
+      throw new InputError('Input "url" must be an absolute http(s) URL');
+    }
     if (safeUrl(baseUrl) === null) throw new InputError('Input "base-url" must be an absolute http(s) URL, without credentials');
     const render = getChoice(env, "render", ["auto", "never", "always"], "auto");
     const wantScreenshot = getBoolean(env, "screenshot", false);
@@ -388,48 +506,82 @@ async function run(io) {
       ...apiKey === "" ? {} : { apiKey },
       ...io.fetch === void 0 ? {} : { fetch: io.fetch }
     });
-    log(`Fetching the metadata of ${escapeData(url)}`);
-    const { data, meta } = await client.meta(url, { render });
-    let screenshotPath = null;
-    let screenshotError = null;
-    const shotOptions = { device, fullPage };
-    if (wantScreenshot) {
-      log("Taking a screenshot");
-      try {
-        const blob = await client.screenshot(url, shotOptions);
-        const directory = join(env["RUNNER_TEMP"] ?? tmpdir(), "omnillink-link-preview");
-        await mkdir(directory, { recursive: true });
-        screenshotPath = join(directory, screenshotName(url, blob.type === "image/jpeg" ? "jpg" : "png"));
-        await writeFile(screenshotPath, Buffer.from(await blob.arrayBuffer()));
-        log(`Screenshot saved (${blob.size} bytes)`);
-      } catch (error) {
-        screenshotError = isOmnillinkError(error) ? `${error.code}: ${redact(error.message)}` : "the image could not be saved";
-        log(`::warning title=Omnillink::${escapeData(`No screenshot: ${screenshotError}`)}`);
+    if (mode === "check-links") {
+      log(`Checking ${urls.length} link(s)`);
+      const links = await mapLimit(urls, CHECK_CONCURRENCY, async (target) => {
+        try {
+          const { data } = await client.check(target);
+          return { url: target, ok: data.ok, check: data };
+        } catch (error) {
+          const code = isOmnillinkError(error) ? String(error.code) : "EFAILED";
+          return { url: target, ok: false, error: { code, message: redact(error instanceof Error ? error.message : String(error)) } };
+        }
+      });
+      const broken = links.filter((item) => !item.ok);
+      const results = links.map(
+        (item) => item.check === void 0 ? { url: item.url, ok: false, status: null, finalUrl: null, redirects: null, error: item.error.code } : { url: item.url, ok: item.ok, status: item.check.status, finalUrl: item.check.finalUrl, redirects: item.check.redirects.length - 1, error: null }
+      );
+      Object.assign(outputs, {
+        ok: String(broken.length === 0),
+        "error-code": broken.length === 0 ? "" : broken.find((item) => item.error !== void 0)?.error?.code ?? "EBROKENLINK",
+        "checked-count": String(links.length),
+        "broken-count": String(broken.length),
+        results: JSON.stringify(results)
+      });
+      summary = renderCheckSummary(links);
+      if (broken.length > 0) {
+        const level = failOnError ? "error" : "warning";
+        log(`::${level} title=Omnillink link check::${escapeData(`${broken.length} of ${links.length} link(s) broken or unreachable; see the job summary`)}`);
+        if (failOnError) exitCode = 1;
       }
+      log("Done");
+    } else {
+      await preview();
     }
-    let metadata = JSON.stringify(data);
-    if (metadata.length > MAX_METADATA_OUTPUT) metadata = JSON.stringify({ ...data, jsonLd: [] });
-    Object.assign(outputs, {
-      ok: "true",
-      title: data.title ?? "",
-      description: data.description ?? "",
-      image: data.image?.url ?? "",
-      "canonical-url": data.canonicalUrl ?? data.url ?? "",
-      publisher: data.publisher ?? "",
-      metadata: metadata.length > MAX_METADATA_OUTPUT ? "" : metadata,
-      "screenshot-path": screenshotPath ?? ""
-    });
-    summary = renderSummary({
-      url,
-      data,
-      meta,
-      // The summary is rendered by browsers that cannot send the key: only an
-      // anonymous instance can serve the image directly. The key is never in this URL.
-      screenshotUrl: screenshotPath !== null && apiKey === "" ? client.screenshotUrl(url, shotOptions) : null,
-      screenshotPath,
-      screenshotError
-    });
-    log("Done");
+    async function preview() {
+      log(`Fetching the metadata of ${escapeData(url)}`);
+      const { data, meta } = await client.meta(url, { render });
+      let screenshotPath = null;
+      let screenshotError = null;
+      const shotOptions = { device, fullPage };
+      if (wantScreenshot) {
+        log("Taking a screenshot");
+        try {
+          const blob = await client.screenshot(url, shotOptions);
+          const directory = join(env["RUNNER_TEMP"] ?? tmpdir(), "omnillink-link-preview");
+          await mkdir(directory, { recursive: true });
+          screenshotPath = join(directory, screenshotName(url, blob.type === "image/jpeg" ? "jpg" : "png"));
+          await writeFile(screenshotPath, Buffer.from(await blob.arrayBuffer()));
+          log(`Screenshot saved (${blob.size} bytes)`);
+        } catch (error) {
+          screenshotError = isOmnillinkError(error) ? `${error.code}: ${redact(error.message)}` : "the image could not be saved";
+          log(`::warning title=Omnillink::${escapeData(`No screenshot: ${screenshotError}`)}`);
+        }
+      }
+      let metadata = JSON.stringify(data);
+      if (metadata.length > MAX_METADATA_OUTPUT) metadata = JSON.stringify({ ...data, jsonLd: [] });
+      Object.assign(outputs, {
+        ok: "true",
+        title: data.title ?? "",
+        description: data.description ?? "",
+        image: data.image?.url ?? "",
+        "canonical-url": data.canonicalUrl ?? data.url ?? "",
+        publisher: data.publisher ?? "",
+        metadata: metadata.length > MAX_METADATA_OUTPUT ? "" : metadata,
+        "screenshot-path": screenshotPath ?? ""
+      });
+      summary = renderSummary({
+        url,
+        data,
+        meta,
+        // The summary is rendered by browsers that cannot send the key: only an
+        // anonymous instance can serve the image directly. The key is never in this URL.
+        screenshotUrl: screenshotPath !== null && apiKey === "" ? client.screenshotUrl(url, shotOptions) : null,
+        screenshotPath,
+        screenshotError
+      });
+      log("Done");
+    }
   } catch (error) {
     const code = error instanceof InputError ? "EINPUT" : isOmnillinkError(error) ? String(error.code) : "EFAILED";
     const message = redact(error instanceof Error ? error.message : String(error));

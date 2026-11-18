@@ -4,6 +4,18 @@ import { describe, expect, it } from 'vitest';
 import { fileNameFor, resolveInside } from '../src/files.js';
 import { clean, createStyle, formatBytes, formatError, formatExtract, formatMeta, shouldUseColor, truncate } from '../src/format.js';
 
+const RESPONSE = {
+  status: 200,
+  cache: 'HIT',
+  renderSource: 'http',
+  requestId: 'req-1',
+  etag: null,
+  rateLimit: null,
+  finalUrl: null,
+  animationFrames: null,
+  qrVersion: null,
+} as const;
+
 const plain = createStyle(false);
 const colored = createStyle(true);
 
@@ -17,6 +29,15 @@ const result = (overrides: Partial<LinkMetadata> = {}): OmnillinkResult<LinkMeta
     publisher: 'Example',
     lang: 'en',
     date: '2025-03-04T09:00:00.000Z',
+    dateModified: null,
+    type: null,
+    themeColor: null,
+    robots: null,
+    oembed: null,
+    alternates: [],
+    twitter: { card: null, site: null },
+    paywalled: null,
+    domain: 'example.com',
     image: { url: 'https://example.com/og.png', width: 1200, height: 630, type: 'image/png', alt: null },
     images: [],
     favicon: 'https://example.com/favicon.ico',
@@ -30,6 +51,7 @@ const result = (overrides: Partial<LinkMetadata> = {}): OmnillinkResult<LinkMeta
     ...overrides,
   },
   meta: { cached: true, source: 'http', durationMs: 12.4 },
+  response: RESPONSE,
 });
 
 describe('formatMeta()', () => {

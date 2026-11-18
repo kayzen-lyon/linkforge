@@ -6,7 +6,7 @@ Two ways to show a link in Astro:
 
 | File | What it shows |
 | --- | --- |
-| [`src/components/LinkCard.astro`](src/components/LinkCard.astro) | The metadata is fetched in the component's frontmatter (at build time, or per request with an SSR adapter) and rendered as plain HTML. **No JavaScript is sent.** A link that cannot be previewed falls back to a plain link instead of failing the build. |
+| [`src/components/LinkCard.astro`](src/components/LinkCard.astro) | The metadata is fetched in the component's frontmatter (at build time, or per request with an SSR adapter) and rendered as plain HTML. **No JavaScript is sent.** A link that cannot be previewed falls back to a plain link instead of failing the build. The site icon is an `<img>` whose `src` comes from `faviconUrl()`. |
 | [`src/pages/index.astro`](src/pages/index.astro) | The same page also uses the `<link-preview>` custom element, registered by a bundled `<script>`. |
 
 ## Run it
@@ -32,4 +32,5 @@ Set these in `.env` (see [Astro's environment variables](https://docs.astro.buil
 
 - Astro escapes `{expressions}`, which is what you want for third-party metadata. Do not use `set:html` with it.
 - `<link-preview>` calls the instance from the browser, without a key. For a key-protected instance, use the server-rendered `LinkCard`.
+- The icon URL built by `faviconUrl()` never contains the key and is fetched by the browser: with a key-protected instance, leave it out or serve the icon through your own route.
 - Importing `@omnillink/sdk/element` is safe during the build: without a DOM it registers nothing.

@@ -28,6 +28,8 @@ try {
 
 // Only http(s) images: the value comes from a third-party page.
 const image = data?.image?.url && /^https?:\/\//i.test(data.image.url) ? data.image.url : null;
+// A URL that redirects to the best icon of the site: built here, fetched by the browser, never with the key.
+const icon = omnillink.faviconUrl(url, { ttl: 86400 });
 ---
 
 {
@@ -37,7 +39,10 @@ const image = data?.image?.url && /^https?:\/\//i.test(data.image.url) ? data.im
     <a class="link-card" href={url} rel="noopener noreferrer">
       {image && <img src={image} alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" />}
       <span class="body">
-        <span class="publisher">{data.publisher ?? new URL(url).hostname}</span>
+        <span class="publisher">
+          <img class="icon" src={icon} alt="" width="16" height="16" loading="lazy" decoding="async" referrerpolicy="no-referrer" />
+          {data.publisher ?? data.domain ?? new URL(url).hostname}
+        </span>
         <strong>{data.title ?? url}</strong>
         {data.description && <span class="description">{data.description}</span>}
       </span>
@@ -56,7 +61,13 @@ const image = data?.image?.url && /^https?:\/\//i.test(data.image.url) ? data.im
     color: inherit;
     text-decoration: none;
   }
-  .link-card img {
+  .link-card img.icon {
+    width: 1rem;
+    aspect-ratio: 1;
+    vertical-align: -0.15em;
+    border-radius: 3px;
+  }
+  .link-card > img {
     width: 8rem;
     aspect-ratio: 1.91;
     object-fit: cover;

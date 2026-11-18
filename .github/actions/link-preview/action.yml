@@ -2,15 +2,29 @@ name: Omnillink link preview
 description: >-
   Fetch the metadata of a URL (and optionally a screenshot) from an Omnillink
   instance, expose it as outputs and write a link preview to the job summary.
+  Or check the health of a list of links.
 author: Omnillink contributors
 branding:
   icon: link
   color: blue
 
 inputs:
+  mode:
+    description: >-
+      "preview" (default): metadata of `url`, as a link preview.
+      "check-links": status, redirects and certificate of every URL in `urls`, as a table.
+    required: false
+    default: preview
   url:
-    description: Absolute http(s) URL of the page to preview.
-    required: true
+    description: Absolute http(s) URL of the page to preview. Required in "preview" mode.
+    required: false
+    default: ''
+  urls:
+    description: >-
+      "check-links" mode: the URLs to check, one per line (at most 100; blank
+      lines and lines starting with # are skipped).
+    required: false
+    default: ''
   base-url:
     description: Origin of the Omnillink instance, e.g. https://links.example.com.
     required: true
@@ -42,8 +56,9 @@ inputs:
     default: 'true'
   fail-on-error:
     description: >-
-      "true": the step fails when the preview cannot be fetched. "false": the
-      step succeeds, with the outputs `ok` = false and `error-code` set.
+      "true": the step fails when the preview cannot be fetched, or when a
+      checked link is broken. "false": the step succeeds, with the outputs
+      `ok` = false and `error-code` set.
     required: false
     default: 'true'
   timeout-ms:
@@ -53,9 +68,12 @@ inputs:
 
 outputs:
   ok:
-    description: '"true" when the metadata was fetched, "false" otherwise.'
+    description: '"true" when the metadata was fetched (preview) or every link works (check-links), "false" otherwise.'
   error-code:
-    description: Omnillink error code (EFORBIDDENURL, ETIMEOUT, ENETWORK…) when `ok` is false, empty otherwise.
+    description: >-
+      Omnillink error code (EFORBIDDENURL, ETIMEOUT, ENETWORK…) when `ok` is false, empty otherwise.
+      In "check-links" mode: the code of the first check that could not be made, or EBROKENLINK when
+      every check was made and at least one link answered with an HTTP error.
   title:
     description: Title of the page, or an empty string.
   description:
@@ -70,6 +88,15 @@ outputs:
     description: The whole metadata object as JSON (the `data` of GET /meta; `jsonLd` is dropped when the object is very large).
   screenshot-path:
     description: Absolute path of the screenshot on the runner (for actions/upload-artifact), or an empty string.
+  checked-count:
+    description: '"check-links" mode: number of links checked.'
+  broken-count:
+    description: '"check-links" mode: number of links that are broken (HTTP status 400 or above) or could not be checked.'
+  results:
+    description: >-
+      "check-links" mode: JSON array, one item per URL in input order:
+      { url, ok, status, finalUrl, redirects, error }. `error` is an Omnillink code when the
+      check could not be made (status, finalUrl and redirects are then null).
 
 runs:
   using: node24

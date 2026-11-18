@@ -7,6 +7,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 
 import { ConfigError, DEFAULT_BASE_URL, readConfig } from './config.js';
 import { createServer, readVersion } from './server.js';
+import { TOOLS } from './tools.js';
 
 const HELP = `omnillink-mcp ${readVersion()} — Omnillink as tools for AI agents (Model Context Protocol, stdio)
 
@@ -22,7 +23,10 @@ Environment:
   OMNILLINK_MCP_MAX_IMAGE_BYTES  largest screenshot returned inline (default: 700000)
   OMNILLINK_MCP_OUTPUT_DIR       where omnillink_pdf saves its files (default: <tmp>/omnillink-mcp)
 
-Tools: omnillink_meta, omnillink_content, omnillink_extract, omnillink_screenshot, omnillink_pdf
+Tools: ${TOOLS.map((tool) => tool.name).join(', ').replace(/(.{60,90}?), /g, '$1,\n       ')}
+
+The API also serves MCP itself, over HTTP, at <instance>/mcp: nothing to install,
+fewer tools. See the README for when to prefer which.
 `;
 
 const [argument] = process.argv.slice(2);

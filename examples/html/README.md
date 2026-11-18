@@ -26,7 +26,8 @@ http://localhost:8080/examples/html/?api=http://localhost:3000
 - `<link-preview url base-url>` with the `size`, `theme` and `loading` attributes.
 - A custom fallback (the element's children), shown before JavaScript runs and when a preview fails.
 - The `link-preview:load` event, which bubbles.
-- `createClient({ baseUrl }).meta(url)` and `OmnillinkError` from the same build.
+- `createClient({ baseUrl }).meta(url)` and `OmnillinkError` from the same build, with the response metadata (`response.cache`, `response.rateLimit`) and `error.retryable`.
+- `qrUrl()` and `faviconUrl()`: URLs for an `<img src>`, built without any request.
 
 In your own project, replace the relative paths with the package:
 

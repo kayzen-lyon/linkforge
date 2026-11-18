@@ -16,7 +16,7 @@ import { appendFile, mkdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { createClient, isOmnillinkError, type LinkMetadata, type OmnillinkClient, type ResponseMeta } from '@omnillink/sdk';
+import { createClient, isOmnillinkError, type LinkCheck, type LinkMetadata, type OmnillinkClient, type ResponseMeta } from '@omnillink/sdk';
 
 type Env = Readonly<Record<string, string | undefined>>;
 
@@ -118,6 +118,7 @@ export function renderSummary({ url, data, meta, screenshotUrl, screenshotPath, 
     row('Publisher', text(data.publisher, 120)),
     row('Author', text(data.author, 120)),
     row('Date', text(data.date, 40)),
+    row('Modified', text(data.dateModified, 40)),
     row('Language', text(data.lang, 20)),
     row('Type', text(data.contentType, 80)),
     row('Feeds', data.feeds.length === 0 ? null : String(data.feeds.length)),
@@ -133,6 +134,63 @@ export function renderSummary({ url, data, meta, screenshotUrl, screenshotPath, 
 
 export function renderFailure(url: string, code: string, message: string): string {
   return `<h3>🔗 Link preview unavailable</h3>\n<p><code>${escapeText(code, 40)}</code> — ${escapeText(message, 300)}</p>\n<p>${link(url) ?? escapeText(url, 200)}</p>\n`;
+}
+
+// ---- check-links --------------------------------------------------------------
+
+/** Most URLs one step checks: a summary is a page, not a crawl. */
+export const MAX_CHECKED_URLS = 100;
+const CHECK_CONCURRENCY = 4;
+
+/** One URL per line (or separated by spaces or commas); blank lines and `#` comments are skipped. */
+export function parseUrlList(value: string): string[] {
+  const urls = value
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line !== '' && !line.startsWith('#'))
+    .flatMap((line) => line.split(/[\s,]+/))
+    .filter((item) => item !== '');
+  return [...new Set(urls)];
+}
+
+export type CheckedLink =
+  | { readonly url: string; readonly ok: boolean; readonly check: LinkCheck; readonly error?: undefined }
+  /** The check itself could not be made (refused address, unreachable host, quota…). */
+  | { readonly url: string; readonly ok: false; readonly check?: undefined; readonly error: { readonly code: string; readonly message: string } };
+
+/** Runs `worker` over `items`, `limit` at a time, keeping the order of the input. */
+async function mapLimit<T, R>(items: readonly T[], limit: number, worker: (item: T) => Promise<R>): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let next = 0;
+  const lane = async (): Promise<void> => {
+    for (let index = next++; index < items.length; index = next++) results[index] = await worker(items[index] as T);
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, lane));
+  return results;
+}
+
+export function renderCheckSummary(links: readonly CheckedLink[]): string {
+  const broken = links.filter((item) => !item.ok).length;
+  const rows = links
+    .map((item) => {
+      if (item.check === undefined) {
+        return `<tr><td>⚠️</td><td>${link(item.url) ?? escapeText(item.url, 120)}</td><td><code>${escapeText(item.error.code, 40)}</code></td><td colspan="3">${escapeText(item.error.message, 200)}</td></tr>\n`;
+      }
+      const { check } = item;
+      const hops = check.redirects.length - 1;
+      const final = check.finalUrl !== check.url ? (link(check.finalUrl) ?? escapeText(check.finalUrl, 120)) : '';
+      const tls = check.tls === null ? '' : `${check.tls.daysLeft}&#32;d`;
+      return `<tr><td>${check.ok ? '✅' : '❌'}</td><td>${link(item.url) ?? escapeText(item.url, 120)}</td><td>${check.status}</td><td>${hops === 0 ? '' : hops}</td><td>${final}</td><td>${tls}</td></tr>\n`;
+    })
+    .join('');
+  // One HTML block, without a blank line: nothing in it is parsed as Markdown.
+  return [
+    `<h3>🔗 Link check: ${broken === 0 ? `${links.length} link(s), all working` : `${broken} of ${links.length} link(s) broken`}</h3>\n`,
+    '<table>\n<tr><th></th><th align="left">URL</th><th>Status</th><th>Redirects</th><th align="left">Final URL</th><th>Certificate</th></tr>\n',
+    rows,
+    '</table>\n',
+    '<p><sub>Omnillink · checked just now, bodies not downloaded</sub></p>\n',
+  ].join('');
 }
 
 // ---- main ---------------------------------------------------------------------
@@ -177,6 +235,9 @@ export async function run(io: Io): Promise<number> {
     publisher: '',
     metadata: '',
     'screenshot-path': '',
+    'checked-count': '',
+    'broken-count': '',
+    results: '',
   };
   let summary = '';
   let wantSummary = true;
@@ -193,8 +254,20 @@ export async function run(io: Io): Promise<number> {
     url = getInput(env, 'url');
     wantSummary = getBoolean(env, 'summary', true);
     failOnError = getBoolean(env, 'fail-on-error', true);
+    const mode = getChoice(env, 'mode', ['preview', 'check-links'] as const, 'preview');
     const baseUrl = getInput(env, 'base-url');
-    if (safeUrl(url) === null) throw new InputError('Input "url" must be an absolute http(s) URL');
+    const urls = mode === 'check-links' ? parseUrlList(`${getInput(env, 'urls')}\n${url}`) : [];
+    if (mode === 'check-links') {
+      if (urls.length === 0) throw new InputError('Mode "check-links" needs the input "urls": one URL per line');
+      if (urls.length > MAX_CHECKED_URLS) throw new InputError(`Input "urls" lists ${urls.length} URLs: at most ${MAX_CHECKED_URLS} per step`);
+      const bad = urls.find((item) => safeUrl(item) === null);
+      if (bad !== undefined) {
+        url = bad;
+        throw new InputError('Input "urls" must only list absolute http(s) URLs');
+      }
+    } else if (safeUrl(url) === null) {
+      throw new InputError('Input "url" must be an absolute http(s) URL');
+    }
     if (safeUrl(baseUrl) === null) throw new InputError('Input "base-url" must be an absolute http(s) URL, without credentials');
     const render = getChoice(env, 'render', ['auto', 'never', 'always'] as const, 'auto');
     const wantScreenshot = getBoolean(env, 'screenshot', false);
@@ -210,51 +283,90 @@ export async function run(io: Io): Promise<number> {
       ...(io.fetch === undefined ? {} : { fetch: io.fetch }),
     });
 
-    log(`Fetching the metadata of ${escapeData(url)}`);
-    const { data, meta } = await client.meta(url, { render });
-
-    let screenshotPath: string | null = null;
-    let screenshotError: string | null = null;
-    const shotOptions = { device, fullPage } as const;
-    if (wantScreenshot) {
-      log('Taking a screenshot');
-      try {
-        const blob = await client.screenshot(url, shotOptions);
-        const directory = join(env['RUNNER_TEMP'] ?? tmpdir(), 'omnillink-link-preview');
-        await mkdir(directory, { recursive: true });
-        screenshotPath = join(directory, screenshotName(url, blob.type === 'image/jpeg' ? 'jpg' : 'png'));
-        await writeFile(screenshotPath, Buffer.from(await blob.arrayBuffer()));
-        log(`Screenshot saved (${blob.size} bytes)`);
-      } catch (error) {
-        // The metadata is the point of the action: a missing screenshot is a warning.
-        screenshotError = isOmnillinkError(error) ? `${error.code}: ${redact(error.message)}` : 'the image could not be saved';
-        log(`::warning title=Omnillink::${escapeData(`No screenshot: ${screenshotError}`)}`);
+    if (mode === 'check-links') {
+      log(`Checking ${urls.length} link(s)`);
+      const links = await mapLimit(urls, CHECK_CONCURRENCY, async (target): Promise<CheckedLink> => {
+        try {
+          const { data } = await client.check(target);
+          return { url: target, ok: data.ok, check: data };
+        } catch (error) {
+          const code = isOmnillinkError(error) ? String(error.code) : 'EFAILED';
+          return { url: target, ok: false, error: { code, message: redact(error instanceof Error ? error.message : String(error)) } };
+        }
+      });
+      const broken = links.filter((item) => !item.ok);
+      const results = links.map((item) =>
+        item.check === undefined
+          ? { url: item.url, ok: false, status: null, finalUrl: null, redirects: null, error: item.error.code }
+          : { url: item.url, ok: item.ok, status: item.check.status, finalUrl: item.check.finalUrl, redirects: item.check.redirects.length - 1, error: null },
+      );
+      Object.assign(outputs, {
+        ok: String(broken.length === 0),
+        'error-code': broken.length === 0 ? '' : (broken.find((item) => item.error !== undefined)?.error?.code ?? 'EBROKENLINK'),
+        'checked-count': String(links.length),
+        'broken-count': String(broken.length),
+        results: JSON.stringify(results),
+      });
+      summary = renderCheckSummary(links);
+      if (broken.length > 0) {
+        // Counts only: the URLs came from the workflow, but they are data, and the log obeys `::` lines.
+        const level = failOnError ? 'error' : 'warning';
+        log(`::${level} title=Omnillink link check::${escapeData(`${broken.length} of ${links.length} link(s) broken or unreachable; see the job summary`)}`);
+        if (failOnError) exitCode = 1;
       }
+      log('Done');
+    } else {
+      await preview();
     }
 
-    let metadata = JSON.stringify(data);
-    if (metadata.length > MAX_METADATA_OUTPUT) metadata = JSON.stringify({ ...data, jsonLd: [] });
-    Object.assign(outputs, {
-      ok: 'true',
-      title: data.title ?? '',
-      description: data.description ?? '',
-      image: data.image?.url ?? '',
-      'canonical-url': data.canonicalUrl ?? data.url ?? '',
-      publisher: data.publisher ?? '',
-      metadata: metadata.length > MAX_METADATA_OUTPUT ? '' : metadata,
-      'screenshot-path': screenshotPath ?? '',
-    });
-    summary = renderSummary({
-      url,
-      data,
-      meta,
-      // The summary is rendered by browsers that cannot send the key: only an
-      // anonymous instance can serve the image directly. The key is never in this URL.
-      screenshotUrl: screenshotPath !== null && apiKey === '' ? client.screenshotUrl(url, shotOptions) : null,
-      screenshotPath,
-      screenshotError,
-    });
-    log('Done');
+    async function preview(): Promise<void> {
+
+      log(`Fetching the metadata of ${escapeData(url)}`);
+      const { data, meta } = await client.meta(url, { render });
+
+      let screenshotPath: string | null = null;
+      let screenshotError: string | null = null;
+      const shotOptions = { device, fullPage } as const;
+      if (wantScreenshot) {
+        log('Taking a screenshot');
+        try {
+          const blob = await client.screenshot(url, shotOptions);
+          const directory = join(env['RUNNER_TEMP'] ?? tmpdir(), 'omnillink-link-preview');
+          await mkdir(directory, { recursive: true });
+          screenshotPath = join(directory, screenshotName(url, blob.type === 'image/jpeg' ? 'jpg' : 'png'));
+          await writeFile(screenshotPath, Buffer.from(await blob.arrayBuffer()));
+          log(`Screenshot saved (${blob.size} bytes)`);
+        } catch (error) {
+          // The metadata is the point of the action: a missing screenshot is a warning.
+          screenshotError = isOmnillinkError(error) ? `${error.code}: ${redact(error.message)}` : 'the image could not be saved';
+          log(`::warning title=Omnillink::${escapeData(`No screenshot: ${screenshotError}`)}`);
+        }
+      }
+
+      let metadata = JSON.stringify(data);
+      if (metadata.length > MAX_METADATA_OUTPUT) metadata = JSON.stringify({ ...data, jsonLd: [] });
+      Object.assign(outputs, {
+        ok: 'true',
+        title: data.title ?? '',
+        description: data.description ?? '',
+        image: data.image?.url ?? '',
+        'canonical-url': data.canonicalUrl ?? data.url ?? '',
+        publisher: data.publisher ?? '',
+        metadata: metadata.length > MAX_METADATA_OUTPUT ? '' : metadata,
+        'screenshot-path': screenshotPath ?? '',
+      });
+      summary = renderSummary({
+        url,
+        data,
+        meta,
+        // The summary is rendered by browsers that cannot send the key: only an
+        // anonymous instance can serve the image directly. The key is never in this URL.
+        screenshotUrl: screenshotPath !== null && apiKey === '' ? client.screenshotUrl(url, shotOptions) : null,
+        screenshotPath,
+        screenshotError,
+      });
+      log('Done');
+    }
   } catch (error) {
     const code = error instanceof InputError ? 'EINPUT' : isOmnillinkError(error) ? String(error.code) : 'EFAILED';
     const message = redact(error instanceof Error ? error.message : String(error));

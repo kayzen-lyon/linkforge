@@ -11,19 +11,23 @@ import {
   createClient,
   isOmnillinkError,
   OmnillinkError,
+  responseInfo,
   type ExtractData,
   type ExtractField,
-  type LinkMetadata,
+  type ExtractPreset,
   type OmnillinkClient,
   type OmnillinkResult,
-  type ReadableContent,
+  type OmnillinkText,
+  type PresetData,
   type RequestOptions,
+  type ResponseInfo,
 } from '@omnillink/sdk';
 
 import { closest, parseArgs, splitCommand, UsageError, type FlagValue } from './args.js';
 import { mapOrdered, readUrlLines } from './batch.js';
 import {
   ALIASES,
+  BATCH_SIZE,
   COMMANDS,
   commandHelp,
   DEFAULT_BASE_URL,
@@ -38,6 +42,7 @@ import {
 import { extensionFor, fileNameFor, resolveInside } from './files.js';
 import {
   clean,
+  cleanBlock,
   createStyle,
   formatContentBody,
   formatContentSummary,
@@ -47,14 +52,32 @@ import {
   formatSaved,
   formatUsageError,
   shouldUseColor,
+  type Style,
 } from './format.js';
+import {
+  DEFAULT_COLUMNS,
+  formatBatchItem,
+  formatCheck,
+  formatFavicon,
+  formatImage,
+  formatInsights,
+  formatLinks,
+  formatOembed,
+  formatPalette,
+  formatPreset,
+  formatSitemap,
+  formatTables,
+  formatTech,
+  parseQrSvg,
+  renderQr,
+} from './views.js';
 
 export interface Io {
   /** Arguments after the program name (`process.argv.slice(2)`). */
   readonly argv: readonly string[];
   readonly env: Readonly<Record<string, string | undefined>>;
   readonly stdin: Readable & { readonly isTTY?: boolean };
-  readonly stdout: Writable & { readonly isTTY?: boolean };
+  readonly stdout: Writable & { readonly isTTY?: boolean; readonly columns?: number };
   readonly stderr: Writable & { readonly isTTY?: boolean };
   /** Directory relative paths are resolved against. Defaults to the process's. */
   readonly cwd?: string;
@@ -66,8 +89,24 @@ export interface Io {
 
 /** One line of `--json` output. */
 export type OutputRecord =
-  | { readonly url: string; readonly ok: true; readonly data: unknown; readonly meta: unknown }
-  | { readonly url: string; readonly ok: true; readonly file: string | null; readonly bytes: number; readonly type: string }
+  | {
+      readonly url: string;
+      readonly ok: true;
+      readonly data: unknown;
+      /** Absent for text answers (`html`, `tables --csv`) and for `batch` items. */
+      readonly meta?: unknown;
+      /** What the response headers said: cache state, request id, quota, etag. */
+      readonly response?: ResponseInfo;
+    }
+  | {
+      readonly url: string;
+      readonly ok: true;
+      readonly file: string | null;
+      readonly bytes: number;
+      readonly type: string;
+      /** `animation` only: frames in the file. */
+      readonly frames?: number;
+    }
   | {
       readonly url: string;
       readonly ok: false;
@@ -98,7 +137,7 @@ function write(stream: Writable, chunk: string | Uint8Array): Promise<void> {
 const camel = (name: string): string => name.replace(/-([a-z])/g, (_, letter: string) => letter.toUpperCase());
 
 /** Flags that steer the CLI itself and are not parameters of the endpoint. */
-const LOCAL_FLAGS = new Set(['output-dir', 'field', 'fields', 'text']);
+const LOCAL_FLAGS = new Set(['output-dir', 'field', 'fields', 'text', 'preset', 'csv', 'fail', 'invert', 'fg', 'bg']);
 
 function endpointOptions(command: CommandSpec, flags: ReadonlyMap<string, FlagValue>): Record<string, FlagValue> {
   const options: Record<string, FlagValue> = {};
@@ -106,6 +145,10 @@ function endpointOptions(command: CommandSpec, flags: ReadonlyMap<string, FlagVa
     const value = flags.get(spec.name);
     if (value !== undefined && !LOCAL_FLAGS.has(spec.name)) options[camel(spec.name)] = value;
   }
+  // `--color` is the global switch for ANSI colours: the QR colours have their own names.
+  const [fg, bg] = [flags.get('fg'), flags.get('bg')];
+  if (fg !== undefined) options['color'] = fg;
+  if (bg !== undefined) options['background'] = bg;
   return options;
 }
 
@@ -318,17 +361,27 @@ async function main(io: Io, setCommand: (name: string) => void): Promise<number>
   const timeoutMs = (flags.get('timeout') as number | undefined) ?? DEFAULT_TIMEOUT_MS;
   const concurrency = (flags.get('concurrency') as number | undefined) ?? DEFAULT_CONCURRENCY;
   const options = endpointOptions(command, flags);
-  const fields = command.name === 'extract' ? buildFields(flags) : undefined;
+  const preset = flags.get('preset') as ExtractPreset | undefined;
+  if (preset !== undefined && (flags.has('field') || flags.has('fields'))) {
+    throw new UsageError('--preset replaces the rules: remove --field / --fields, or remove --preset');
+  }
+  const fields = command.name === 'extract' && preset === undefined ? buildFields(flags) : undefined;
   const asText = flags.get('text') === true;
+  const asCsv = flags.get('csv') === true;
+  if (flags.has('table') && !asCsv) throw new UsageError('--table selects the table that --csv exports: add --csv');
+  const columns = io.stdout.isTTY === true && typeof io.stdout.columns === 'number' && io.stdout.columns >= 40 ? io.stdout.columns : DEFAULT_COLUMNS;
+  const titled = command.argument === 'title';
 
   const fromStdin = positionals.includes('-') || (positionals.length === 0 && io.stdin.isTTY !== true);
   if (positionals.includes('-') && positionals.length > 1) {
     throw new UsageError('"-" reads the URLs from standard input and cannot be mixed with URLs on the command line');
   }
   if (positionals.length === 0 && !fromStdin) {
-    throw new UsageError('Missing URL', `Usage: omnillink ${command.name} <url>...   or pipe a list: omnillink ${command.name} < urls.txt`);
+    throw titled
+      ? new UsageError('Missing title', `Usage: omnillink ${command.name} '<title>' [options] -o card.png`)
+      : new UsageError('Missing URL', `Usage: omnillink ${command.name} <url>...   or pipe a list: omnillink ${command.name} < urls.txt`);
   }
-  if (!fromStdin) positionals.forEach(assertTargetUrl);
+  if (!fromStdin && !titled) positionals.forEach(assertTargetUrl);
   const many = fromStdin || positionals.length > 1;
 
   const outputFlag = flags.get('output');
@@ -336,8 +389,11 @@ async function main(io: Io, setCommand: (name: string) => void): Promise<number>
   const outputFile = typeof outputFlag === 'string' ? resolve(cwd, outputFlag) : undefined;
   const outputDir = typeof outputDirFlag === 'string' ? resolve(cwd, outputDirFlag) : undefined;
   let binaryToStdout = false;
+  // `qr` on a terminal draws the code instead of refusing to print an image.
+  const qrInTerminal =
+    command.name === 'qr' && !json && outputFile === undefined && outputDir === undefined && io.stdout.isTTY === true && options['format'] !== 'png';
 
-  if (command.kind === 'binary') {
+  if (command.kind === 'binary' && !qrInTerminal) {
     if (outputFile !== undefined && outputDir !== undefined) {
       throw new UsageError('--output and --output-dir are mutually exclusive');
     }
@@ -350,10 +406,10 @@ async function main(io: Io, setCommand: (name: string) => void): Promise<number>
     if (outputFile === undefined && outputDir === undefined) {
       if (json) throw new UsageError('--json describes the file that was written: add --output <file> or --output-dir <dir>');
       if (io.stdout.isTTY === true) {
-        const sample = command.name === 'pdf' ? 'page.pdf' : 'shot.png';
+        const sample = { pdf: 'page.pdf', animation: 'scroll.png', qr: 'qr.png', og: 'card.png' }[command.name as string] ?? 'shot.png';
         throw new UsageError(
           'Refusing to write binary data to the terminal',
-          `Use --output ${sample}, or redirect: omnillink ${command.name} <url> > ${sample}`,
+          `Use --output ${sample}, or redirect: omnillink ${command.name} ${titled ? '<title>' : '<url>'} > ${sample}`,
         );
       }
       binaryToStdout = true;
@@ -413,42 +469,129 @@ async function main(io: Io, setCommand: (name: string) => void): Promise<number>
     };
   };
 
+  // Flags become SDK options by name; which flag exists on which command is the table's job.
+  const callOptions = { ...options, ...request } as {};
+  const record = (url: string, result: { readonly data: unknown; readonly meta?: unknown; readonly response?: ResponseInfo }): OutputRecord => ({
+    url,
+    ok: true,
+    data: result.data,
+    ...(result.meta === undefined ? {} : { meta: result.meta }),
+    ...(result.response === undefined ? {} : { response: result.response }),
+  });
+  /** One structured answer: the record for --json, the view for people. */
+  const shown = <R extends { readonly data: unknown; readonly meta?: unknown; readonly response?: ResponseInfo }>(
+    url: string,
+    result: R,
+    view: (result: R, style: Style, columns: number) => string,
+  ): Outcome => ({ kind: 'ok', record: record(url, result), human: view(result, out, columns) });
+  const sourceComment = (url: string): string => `<!-- source: ${clean(url).replaceAll('--', '%2D%2D')} -->\n\n`;
+  let broken = 0;
+
   const work = async (url: string): Promise<Outcome> => {
     try {
+      if (qrInTerminal) {
+        const blob = await client.qr(url, { ...callOptions, format: 'svg', margin: (options['margin'] as number | undefined) ?? 2 });
+        const modules = parseQrSvg(await blob.text());
+        if (modules === null) throw new Error('This instance draws its QR codes in a way this version cannot read: use --output qr.svg');
+        return {
+          kind: 'ok',
+          record: { url, ok: true, file: null, bytes: blob.size, type: blob.type },
+          human: `${renderQr(modules, { color: out.enabled, invert: flags.get('invert') === true })}\n${out.dim(clean(url))}`,
+        };
+      }
       switch (command.name) {
-        case 'meta': {
-          const result: OmnillinkResult<LinkMetadata> = await client.meta(url, { ...options, ...request });
-          return { kind: 'ok', record: { url, ok: true, ...result }, human: formatMeta(result, out) };
-        }
+        case 'meta':
+          return shown(url, await client.meta(url, callOptions), formatMeta);
         case 'extract': {
-          const result = (await client.extract(url, fields ?? {}, { ...options, ...request })) as OmnillinkResult<ExtractData>;
-          return { kind: 'ok', record: { url, ok: true, ...result }, human: formatExtract(result, out) };
+          if (preset !== undefined) {
+            return shown(url, (await client.extractPreset(url, preset, callOptions)) as OmnillinkResult<PresetData>, formatPreset);
+          }
+          return shown(url, (await client.extract(url, fields ?? {}, callOptions)) as OmnillinkResult<ExtractData>, formatExtract);
         }
         case 'content': {
-          const result: OmnillinkResult<ReadableContent> = await client.content(url, { ...options, ...request });
+          const result = await client.content(url, callOptions);
           const body = formatContentBody(result, asText);
           return {
             kind: 'ok',
-            record: { url, ok: true, ...result },
-            human: many ? `<!-- source: ${clean(url).replaceAll('--', '%2D%2D')} -->\n\n${body}` : body,
+            record: record(url, result),
+            human: many ? `${sourceComment(url)}${body}` : body,
             note: formatContentSummary(result, err),
           };
         }
-        case 'shot':
-        case 'pdf': {
-          const blob = command.name === 'pdf' ? await client.pdf(url, { ...options, ...request }) : await client.screenshot(url, { ...options, ...request });
-          const bytes = new Uint8Array(await blob.arrayBuffer());
-          if (binaryToStdout) {
-            return { kind: 'binary-stdout', bytes, record: { url, ok: true, file: null, bytes: bytes.byteLength, type: blob.type } };
+        case 'html': {
+          const result: OmnillinkText = await client.html(url, callOptions);
+          // Byte for byte into a file or a pipe; control characters only matter on a terminal.
+          const body = (io.stdout.isTTY === true && textFile === undefined ? cleanBlock(result.data) : result.data).trimEnd();
+          const final = result.response.finalUrl ?? url;
+          return {
+            kind: 'ok',
+            record: record(url, result),
+            human: many ? `${sourceComment(url)}${body}` : body,
+            note: err.dim(`${result.data.length} characters · ${result.response.renderSource ?? 'unknown source'} · ${clean(final)}`),
+          };
+        }
+        case 'tables': {
+          if (asCsv) {
+            const result: OmnillinkText = await client.tablesCsv(url, callOptions);
+            return { kind: 'ok', record: record(url, result), human: result.data.replace(/\r?\n$/, '') };
           }
-          const fallback = command.name === 'pdf' ? 'pdf' : options['format'] === 'jpeg' ? 'jpg' : 'png';
+          return shown(url, await client.tables(url, callOptions), formatTables);
+        }
+        case 'links':
+          return shown(url, await client.links(url, callOptions), formatLinks);
+        case 'tech':
+          return shown(url, await client.tech(url, callOptions), formatTech);
+        case 'insights':
+          return shown(url, await client.insights(url, callOptions), formatInsights);
+        case 'image':
+          return shown(url, await client.image(url, callOptions), formatImage);
+        case 'palette':
+          return shown(url, await client.palette(url, callOptions), formatPalette);
+        case 'favicon':
+          return shown(url, await client.favicon(url, callOptions), formatFavicon);
+        case 'oembed':
+          return shown(url, await client.oembed(url, callOptions), formatOembed);
+        case 'sitemap':
+          return shown(url, await client.sitemap(url, callOptions), formatSitemap);
+        case 'check': {
+          const result = await client.check(url, request);
+          if (!result.data.ok) broken += 1;
+          return shown(url, result, formatCheck);
+        }
+        case 'batch':
+          // Handled in groups, below: never reached one URL at a time.
+          throw new Error('batch is not a per-URL command');
+        case 'qr':
+        case 'shot':
+        case 'pdf':
+        case 'animation':
+        case 'og': {
+          const blob =
+            command.name === 'pdf'
+              ? await client.pdf(url, callOptions)
+              : command.name === 'animation'
+                ? await client.animation(url, callOptions)
+                : command.name === 'qr'
+                  ? await client.qr(url, callOptions)
+                  : command.name === 'og'
+                    ? await client.og({ ...callOptions, title: url })
+                    : await client.screenshot(url, callOptions);
+          const bytes = new Uint8Array(await blob.arrayBuffer());
+          const frames = responseInfo(blob)?.animationFrames;
+          const extra = typeof frames === 'number' ? { frames } : {};
+          if (binaryToStdout) {
+            return { kind: 'binary-stdout', bytes, record: { url, ok: true, file: null, bytes: bytes.byteLength, type: blob.type, ...extra } };
+          }
+          const fallback =
+            command.name === 'pdf' ? 'pdf' : command.name === 'qr' ? (options['format'] === 'png' ? 'png' : 'svg') : options['format'] === 'jpeg' ? 'jpg' : 'png';
           const file =
             outputFile ?? resolveInside(outputDir ?? cwd, fileNameFor(url, extensionFor(blob.type, fallback)));
           await writeFile(file, bytes);
+          const what = typeof frames === 'number' ? `${blob.type}, ${frames} frames` : blob.type;
           return {
             kind: 'ok',
-            record: { url, ok: true, file, bytes: bytes.byteLength, type: blob.type },
-            human: formatSaved(shortPath(cwd, file), blob.type, bytes.byteLength, url, out),
+            record: { url, ok: true, file, bytes: bytes.byteLength, type: blob.type, ...extra },
+            human: formatSaved(shortPath(cwd, file), what, bytes.byteLength, url, out),
           };
         }
       }
@@ -457,12 +600,40 @@ async function main(io: Io, setCommand: (name: string) => void): Promise<number>
     }
   };
 
+  /** `batch`: one request for up to ten URLs, one outcome per URL. */
+  const workGroup = async (urls: readonly string[]): Promise<Outcome[]> => {
+    try {
+      const result = await client.metaBatch(urls, callOptions);
+      return urls.map((url, index) => {
+        const item = result.data[index];
+        if (item === undefined) return failed(url, new OmnillinkError({ code: 'EBADRESPONSE', status: 200, message: 'The batch answer has no item for this URL' }));
+        if (item.status === 'success') {
+          return { kind: 'ok', record: { url, ok: true, data: item.data, meta: { cached: item.cached, source: 'http' } }, human: formatBatchItem(item, out) };
+        }
+        const status = item.status === 'fail' ? 400 : 502;
+        const error = new OmnillinkError({ code: item.code, status, message: redact(item.message) });
+        return {
+          kind: 'error',
+          exit: EXIT.api,
+          human: formatBatchItem({ ...item, message: redact(item.message) }, err),
+          // The item carries a code, not an HTTP status: the status is left out rather than invented.
+          record: { url, ok: false, error: { code: error.code, status: 0, message: error.message, retryable: error.retryable } },
+        };
+      });
+    } catch (error) {
+      // The request itself failed (quota, network): every URL of the group shares that fate.
+      return urls.map((url) => failed(url, error));
+    }
+  };
+
   let succeeded = 0;
   let failures = 0;
   let exit: number = EXIT.ok;
-  // 1 (local failure) outranks 4 (network), which outranks 3 (API).
-  const rank = (code: number): number => [EXIT.ok, EXIT.api, EXIT.network, EXIT.failure].indexOf(code as 0);
+  // 1 (local failure) outranks 4 (network), which outranks 3 (API), which outranks 5 (a broken link).
+  const rank = (code: number): number => [EXIT.ok, EXIT.broken, EXIT.api, EXIT.network, EXIT.failure].indexOf(code as 0);
   let first = true;
+  // One-line results (files written, batch items) follow each other; blocks are separated by a blank line.
+  const compact = command.kind === 'binary' ? !qrInTerminal : command.name === 'batch' || asCsv;
 
   const emit = async (outcome: Outcome): Promise<void> => {
     if (outcome.kind === 'error') {
@@ -479,7 +650,7 @@ async function main(io: Io, setCommand: (name: string) => void): Promise<number>
     } else if (outcome.kind === 'error') {
       await write(io.stderr, `${outcome.human}\n`);
     } else {
-      const separator = first || command.kind === 'binary' ? '' : '\n';
+      const separator = first || compact ? '' : '\n';
       await emitText(`${separator}${outcome.human}\n`);
       if (outcome.note !== undefined && io.stderr.isTTY === true) await write(io.stderr, `${outcome.note}\n`);
       first = false;
@@ -494,13 +665,38 @@ async function main(io: Io, setCommand: (name: string) => void): Promise<number>
     }
   }
 
+  async function* groups(): AsyncGenerator<string[]> {
+    let group: string[] = [];
+    for await (const url of source()) {
+      group.push(url);
+      if (group.length === BATCH_SIZE) {
+        yield group;
+        group = [];
+      }
+    }
+    if (group.length > 0) yield group;
+  }
+
   try {
-    const total = await mapOrdered(source(), many ? concurrency : 1, work, emit);
+    let total = 0;
+    if (command.name === 'batch') {
+      // One group at a time unless asked otherwise: the batch route has a tenth of the normal quota.
+      const lanes = flags.has('concurrency') ? concurrency : 1;
+      await mapOrdered(groups(), lanes, workGroup, async (outcomes) => {
+        for (const outcome of outcomes) {
+          total += 1;
+          await emit(outcome);
+        }
+      });
+    } else {
+      total = await mapOrdered(source(), many ? concurrency : 1, work, emit);
+    }
     if (io.signal?.aborted === true) return EXIT.interrupted;
-    if (total === 0) throw new UsageError('No URL on standard input', 'Expected one URL per line.');
-    if (many && !json) {
-      const summary = `${succeeded} succeeded, ${failures} failed`;
-      await write(io.stderr, `${failures === 0 ? err.dim(summary) : err.yellow(summary)}\n`);
+    if (total === 0) throw new UsageError(titled ? 'No title on standard input' : 'No URL on standard input', titled ? 'Expected one title per line.' : 'Expected one URL per line.');
+    if (flags.get('fail') === true && broken > 0 && rank(EXIT.broken) > rank(exit)) exit = EXIT.broken;
+    if ((many || command.name === 'batch') && !json) {
+      const summary = `${succeeded} succeeded, ${failures} failed${command.name === 'check' && broken > 0 ? `, ${broken} broken` : ''}`;
+      await write(io.stderr, `${failures === 0 && broken === 0 ? err.dim(summary) : err.yellow(summary)}\n`);
     }
     return exit;
   } finally {

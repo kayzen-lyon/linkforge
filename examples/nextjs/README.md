@@ -7,7 +7,8 @@ Three ways to use Omnillink in a Next.js app, each in a few lines:
 | File | What it shows |
 | --- | --- |
 | [`app/page.tsx`](app/page.tsx) | A Server Component that awaits `createClient().meta()`: the metadata ships as HTML. |
-| [`app/components/link-card.tsx`](app/components/link-card.tsx) | Client Components: `<LinkPreview>` (the drop-in card) and `useLinkMeta()` (your own markup). |
+| [`app/components/link-card.tsx`](app/components/link-card.tsx) | Client Components: `<LinkPreview>` (the drop-in card), `useLinkMeta()` (your own markup), `useTech()` and `useLinkCheck()` (what the site runs on, whether the link works), `<QrCode>` (an `<img>`). |
+| [`app/layout.tsx`](app/layout.tsx) | `ogImageUrl()` in the page metadata: an `og:image` drawn by the instance from a title. |
 | [`app/api/preview/route.ts`](app/api/preview/route.ts) | A route handler that proxies `/meta`, so the API key never reaches the browser. |
 
 ## Run it
@@ -29,6 +30,7 @@ Until `@omnillink/sdk` and `@omnillink/react` are published, point the two depen
 
 ## Notes
 
-- `<LinkPreview>` and `useLinkMeta()` call the instance **from the browser**, without a key: they need an instance that accepts anonymous requests from your origin. With a key-protected instance, fetch on the server (`page.tsx`) or go through your own route (`route.ts`).
+- `<LinkPreview>` and the hooks (`useLinkMeta()`, `useTech()`, `useLinkCheck()`) call the instance **from the browser**, without a key: they need an instance that accepts anonymous requests from your origin. With a key-protected instance, fetch on the server (`page.tsx`) or go through your own route (`route.ts`).
 - `<LinkPreview>` renders a plain link on the server and upgrades in the browser, so there is nothing to wrap in `dynamic(..., { ssr: false })`.
+- `<QrCode>` and the `og:image` URL are plain image URLs: the browser (or the crawler) fetches them, also without a key.
 - Metadata is third-party text. React escapes it; never pass it to `dangerouslySetInnerHTML`.

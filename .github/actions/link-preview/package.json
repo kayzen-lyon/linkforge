@@ -2,7 +2,7 @@
   "name": "omnillink-link-preview-action",
   "version": "0.1.0",
   "private": true,
-  "description": "GitHub Action: link preview of a URL in the job summary, through an Omnillink instance.",
+  "description": "GitHub Action: link preview of a URL, or link health of a list of URLs, in the job summary, through an Omnillink instance.",
   "license": "MIT",
   "type": "module",
   "engines": {
