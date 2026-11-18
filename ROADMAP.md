@@ -15,7 +15,7 @@ Les durées sont des ordres de grandeur pour une à deux personnes à temps plei
 | Cache mémoire LRU + Redis, déduplication des requêtes concurrentes | Fait, testé |
 | Erreurs typées, rate limiting par IP, CORS, health check | Fait |
 | Playground Vite + Tailwind | Fait |
-| Déploiement Vercel (fonction unique + playground statique, Chromium serverless) | Configuré, mode serverless testé en local |
+| Déploiement Vercel (fonction unique servant l'API et le playground, Chromium serverless) | En ligne, vérifié (meta, capture, blocage SSRF) |
 
 ---
 

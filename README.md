@@ -127,6 +127,8 @@ linkforge/
 │   │   │   │   └── cache/         # Interface Cache, LRU mémoire, Redis
 │   │   │   └── routes/            # meta, screenshot, health
 │   │   ├── test/                  # Vitest (unitaires + bout en bout)
+│   │   ├── scripts/embed-playground.mjs  # Intègre le playground au bundle de l'API
+│   │   └── vercel.json            # Installation et build sur Vercel
 │   └── web/                       # Playground Vite + Tailwind CSS v4
 ├── ROADMAP.md                     # Feuille de route détaillée
 └── PROMPT.md                      # Prompt maître pour faire évoluer le projet avec un agent IA
@@ -152,10 +154,11 @@ linkforge/
 
 ## Déploiement sur Vercel
 
-Le dépôt se déploie tel quel : importez-le dans Vercel, sans réglage à modifier (`vercel.json` fait foi).
+Démo en ligne : https://linkforge-skyymar69-9413s-projects.vercel.app
 
-- Le playground (`apps/web`) est servi en statique par le CDN.
-- Le projet est déclaré en deux « services » Vercel : `web` (Vite) et `api` (Fastify, point d'entrée `apps/api/src/server.ts`). `/api/*` et `/health` sont réécrits vers `api`, tout le reste vers `web`.
+Le projet Vercel a pour dossier racine `apps/api` et le preset Fastify ; `apps/api/vercel.json` définit l'installation et le build.
+
+- Une seule fonction sert tout : l'API Fastify (`apps/api/src/server.ts`) et le playground. Au build, `apps/web` est compilé puis intégré au bundle de l'API par `scripts/embed-playground.mjs`, et servi depuis la mémoire (`routes/playground.ts`).
 - Le Chromium de Playwright ne tourne pas dans une fonction serverless. Sur Vercel (détecté par la variable `VERCEL`), le pool lance `@sparticuz/chromium`, un binaire prévu pour cet environnement. Ce binaire s'arrête quand sa dernière page se ferme : chaque rendu y reçoit donc son propre navigateur. Si le binaire n'a pas été embarqué dans la fonction, il est téléchargé au premier rendu (`BROWSER_SERVERLESS_PACK_URL`).
 - Les réponses portent `s-maxage` : le CDN de Vercel les met en cache, ce qui évite de relancer une fonction pour une URL déjà demandée.
 
