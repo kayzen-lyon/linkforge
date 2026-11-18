@@ -4,7 +4,14 @@ import { Type } from 'typebox';
 import { ErrorCode } from '../lib/errors.js';
 import { TARGET_ERRORS, type EndpointDoc } from '../openapi.js';
 import type { ScreenshotService } from '../services/screenshot-service.js';
-import { CACHE_HEADERS, cacheControl, ForceParam, TtlParam, UrlParam } from './shared.js';
+import {
+  CACHE_HEADERS,
+  cacheControl,
+  ForceParam,
+  TtlParam,
+  UrlParam,
+  WaitForSelectorParam,
+} from './shared.js';
 
 const ScreenshotQuery = Type.Object(
   {
@@ -33,7 +40,9 @@ const ScreenshotQuery = Type.Object(
     fullPage: Type.Optional(
       Type.Boolean({
         default: false,
-        description: 'Capture the whole page (capped at 12 000 px high). Ignored with `selector`.',
+        description:
+          'Capture the whole page (capped at 12 000 px high), after one scroll pass that ' +
+          'lets lazy content load. Ignored with `selector`.',
       }),
     ),
     selector: Type.Optional(
@@ -52,6 +61,15 @@ const ScreenshotQuery = Type.Object(
           '(cookie banners, ads). At most 20 selectors of 200 characters.',
       }),
     ),
+    hideBanners: Type.Optional(
+      Type.Boolean({
+        default: true,
+        description:
+          'Hide common cookie / consent banners before the capture, with a built-in ' +
+          'stylesheet (nothing is clicked, no consent is given).',
+      }),
+    ),
+    waitForSelector: WaitForSelectorParam,
     waitFor: Type.Optional(
       Type.Integer({
         minimum: 0,
@@ -132,6 +150,8 @@ export const screenshotRoutes: FastifyPluginAsyncTypebox<ScreenshotRouteOptions>
       waitForMs: waitFor,
       colorScheme: request.query.colorScheme ?? null,
       hide: request.query.hide ?? null,
+      hideBanners: request.query.hideBanners ?? true,
+      waitForSelector: request.query.waitForSelector ?? null,
       force,
       ttlSeconds: request.query.ttl ?? null,
     });
@@ -139,6 +159,7 @@ export const screenshotRoutes: FastifyPluginAsyncTypebox<ScreenshotRouteOptions>
     return reply
       .header('content-type', result.contentType)
       .header('x-cache', result.cached ? 'HIT' : 'MISS')
+      .header('x-render-source', 'browser')
       .header('cache-control', cacheControl(result.ttlSeconds))
       .send(result.image);
   });

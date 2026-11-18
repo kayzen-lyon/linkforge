@@ -4,7 +4,14 @@ import { Type } from 'typebox';
 import { ErrorCode } from '../lib/errors.js';
 import { TARGET_ERRORS, type EndpointDoc } from '../openapi.js';
 import type { PdfService } from '../services/pdf-service.js';
-import { CACHE_HEADERS, cacheControl, ForceParam, TtlParam, UrlParam } from './shared.js';
+import {
+  CACHE_HEADERS,
+  cacheControl,
+  ForceParam,
+  TtlParam,
+  UrlParam,
+  WaitForSelectorParam,
+} from './shared.js';
 
 const PdfQuery = Type.Object(
   {
@@ -16,6 +23,13 @@ const PdfQuery = Type.Object(
     printBackground: Type.Optional(
       Type.Boolean({ default: true, description: 'Print CSS background colours and images.' }),
     ),
+    hideBanners: Type.Optional(
+      Type.Boolean({
+        default: false,
+        description: 'Hide common cookie / consent banners before printing (nothing is clicked).',
+      }),
+    ),
+    waitForSelector: WaitForSelectorParam,
     force: ForceParam,
     ttl: TtlParam,
   },
@@ -38,7 +52,7 @@ export const pdfDoc: EndpointDoc = {
       content: { 'application/pdf': Type.String({ format: 'binary' }) },
     },
   },
-  errors: [...TARGET_ERRORS, ErrorCode.TooLarge],
+  errors: [...TARGET_ERRORS, ErrorCode.TooLarge, ErrorCode.SelectorNotFound],
 };
 
 export interface PdfRouteOptions {
@@ -62,6 +76,8 @@ export const pdfRoutes: FastifyPluginAsyncTypebox<PdfRouteOptions> = async (app,
       format,
       landscape,
       printBackground,
+      hideBanners: request.query.hideBanners ?? false,
+      waitForSelector: request.query.waitForSelector ?? null,
       force,
       ttlSeconds: ttl ?? null,
     });
@@ -70,6 +86,7 @@ export const pdfRoutes: FastifyPluginAsyncTypebox<PdfRouteOptions> = async (app,
       .header('content-type', 'application/pdf')
       .header('content-disposition', 'inline; filename="page.pdf"')
       .header('x-cache', result.cached ? 'HIT' : 'MISS')
+      .header('x-render-source', 'browser')
       .header('cache-control', cacheControl(result.ttlSeconds))
       .send(result.pdf);
   });

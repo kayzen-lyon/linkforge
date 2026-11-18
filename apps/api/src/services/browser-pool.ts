@@ -10,7 +10,10 @@
  *   bounded FIFO queue and an acquire timeout (load shedding instead of OOM).
  * - **Guaranteed cleanup**: the context is closed in a `finally`, whatever
  *   happens to the job (success, error, timeout).
- * - **Hard deadline** per job, so a hung page cannot hold a slot forever.
+ * - **One deadline** per request, covering the wait for a slot, the launch
+ *   and the job, so a hung page cannot hold a slot forever.
+ * - **No direct network access**: Chromium only reaches the network through
+ *   the validating egress proxy (`security/egress-proxy.ts`).
  * - **Recycling**: a Chromium process is retired after `maxUsesPerBrowser`
  *   jobs (long-lived browsers slowly leak), once its in-flight jobs finish.
  * - **Crash recovery**: a disconnected browser is dropped and lazily replaced.
@@ -25,7 +28,9 @@ import {
 } from 'playwright-core';
 
 import type { AppConfig } from '../config.js';
+import type { Deadline } from '../lib/deadline.js';
 import { AppError } from '../lib/errors.js';
+import type { EgressProxy } from '../security/egress-proxy.js';
 
 export interface PoolLogger {
   info(obj: object, msg: string): void;
@@ -42,13 +47,17 @@ export interface PoolStats {
 export interface JobOptions {
   /** Viewport, user agent, device scale factor... */
   readonly contextOptions?: BrowserContextOptions;
-  /** Hard deadline for the whole job, in milliseconds. */
-  readonly timeoutMs: number;
+  /** Deadline of the request: waiting for a slot, launching and the job all fit in it. */
+  readonly deadline: Deadline;
 }
 
 /** A running Chromium process and its bookkeeping. */
 interface Slot {
   readonly browser: Browser;
+  /** Desktop user agent of this very build, without the "Headless" marker. */
+  readonly userAgent: string;
+  /** Major version of the build, to keep device presets consistent with it. */
+  readonly majorVersion: string;
   /** Total number of jobs ever assigned to this process. */
   uses: number;
   /** Jobs currently running on this process. */
@@ -82,6 +91,25 @@ const CHROMIUM_ARGS = [
 ];
 
 /**
+ * Flags that are part of the security model or of the browser's identity;
+ * they are added to both the regular and the serverless build.
+ */
+const REQUIRED_ARGS = [
+  // Chromium must never resolve a name itself: every lookup happens in the
+  // egress proxy. (The proxy is addressed by IP, hence the exclusion.)
+  '--host-resolver-rules=MAP * ~NOTFOUND , EXCLUDE 127.0.0.1',
+  // WebRTC would otherwise send UDP straight to arbitrary addresses, around the proxy.
+  '--force-webrtc-ip-handling-policy=disable_non_proxied_udp',
+  // Do not announce automation through `navigator.webdriver`.
+  '--disable-blink-features=AutomationControlled',
+];
+
+/** Time granted to close a context before the answer is sent anyway. */
+const CLEANUP_GRACE_MS = 2000;
+/** Below this, waiting for a slot is pointless: the job could not run anyway. */
+const MIN_JOB_MS = 3000;
+
+/**
  * Picks the Chromium build to launch.
  *
  * Serverless functions cannot run the regular Playwright browser (missing
@@ -90,7 +118,7 @@ const CHROMIUM_ARGS = [
  * dynamic so local development never loads it.
  */
 async function resolveLaunchOptions(config: AppConfig['browser']): Promise<LaunchOptions> {
-  if (!config.serverless) return { headless: true, args: CHROMIUM_ARGS };
+  if (!config.serverless) return { headless: true, args: [...CHROMIUM_ARGS, ...REQUIRED_ARGS] };
 
   const { default: serverlessChromium } = await import('@sparticuz/chromium');
   let executablePath: string;
@@ -101,7 +129,11 @@ async function resolveLaunchOptions(config: AppConfig['browser']): Promise<Launc
     // file tracing skipped it): download the matching pack into /tmp instead.
     executablePath = await serverlessChromium.executablePath(config.serverlessPackUrl);
   }
-  return { headless: true, args: serverlessChromium.args, executablePath };
+  return {
+    headless: true,
+    args: [...serverlessChromium.args, ...REQUIRED_ARGS],
+    executablePath,
+  };
 }
 
 export class BrowserPool {
@@ -114,6 +146,7 @@ export class BrowserPool {
   constructor(
     private readonly config: AppConfig['browser'],
     private readonly logger: PoolLogger,
+    private readonly egress: EgressProxy,
   ) {}
 
   /**
@@ -131,32 +164,54 @@ export class BrowserPool {
   ): Promise<T> {
     if (this.closed) throw AppError.browser('The browser pool is shut down');
 
-    await this.acquire();
-    let opened: OpenedPage | null = null;
-    let deadline: NodeJS.Timeout | undefined;
+    const { deadline } = options;
+    await this.acquire(deadline.budget(this.config.acquireTimeoutMs, MIN_JOB_MS));
+
+    // From here on a single timer covers the launch, the page and the job.
+    let timer: NodeJS.Timeout | undefined;
+    const timedOut = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => {
+        reject(AppError.timeout(`Rendering exceeded the ${deadline.totalMs} ms request budget`));
+      }, deadline.remaining());
+    });
+    timedOut.catch(() => undefined);
+
+    const opening = this.openPage(options.contextOptions);
+    // Runs once the page exists, even when the deadline fired during the launch.
+    const cleanup = (): Promise<void> =>
+      opening.then(
+        async (opened) => {
+          await opened.context.close().catch((error: unknown) => {
+            this.logger.warn({ err: error }, 'failed to close browser context');
+          });
+          opened.slot.active -= 1;
+          this.disposeIfIdle(opened.slot);
+        },
+        () => undefined,
+      );
+    let isOpen = false;
 
     try {
-      opened = await this.openPage(options.contextOptions);
-      const { page, context } = opened;
-
-      const timedOut = new Promise<never>((_, reject) => {
-        deadline = setTimeout(() => {
-          reject(AppError.timeout(`Rendering exceeded ${options.timeoutMs} ms`));
-        }, options.timeoutMs);
-      });
-      const running = job(page, context);
+      const opened = await Promise.race([opening, timedOut]);
+      isOpen = true;
+      const running = job(opened.page, opened.context);
       // If the deadline wins, the job later rejects when its context closes: swallow it.
       running.catch(() => undefined);
-
       return await Promise.race([running, timedOut]);
     } finally {
-      clearTimeout(deadline);
-      if (opened !== null) {
-        await opened.context.close().catch((error: unknown) => {
-          this.logger.warn({ err: error }, 'failed to close browser context');
-        });
-        opened.slot.active -= 1;
-        this.disposeIfIdle(opened.slot);
+      clearTimeout(timer);
+      // The page is closed as soon as it exists; a browser that no longer
+      // answers must not delay the response beyond a short grace period.
+      const cleaned = cleanup();
+      if (isOpen) {
+        let grace: NodeJS.Timeout | undefined;
+        await Promise.race([
+          cleaned,
+          new Promise<void>((resolve) => {
+            grace = setTimeout(resolve, CLEANUP_GRACE_MS);
+          }),
+        ]);
+        clearTimeout(grace);
       }
       this.release();
     }
@@ -182,10 +237,16 @@ export class BrowserPool {
 
     let context: BrowserContext | null = null;
     try {
+      const presetAgent = contextOptions?.userAgent;
       context = await slot.browser.newContext({
         // Service workers would let requests escape `context.route()`.
         serviceWorkers: 'block',
         ...contextOptions,
+        // One coherent identity: the version announced is the version running.
+        userAgent:
+          presetAgent === undefined
+            ? slot.userAgent
+            : presetAgent.replace(/Chrome\/[\d.]+/, `Chrome/${slot.majorVersion}.0.0.0`),
       });
       const page = await context.newPage();
       return { slot, context, page };
@@ -224,12 +285,12 @@ export class BrowserPool {
   }
 
   /** Takes a concurrency permit, queueing when the pool is saturated. */
-  private acquire(): Promise<void> {
+  private acquire(timeoutMs: number): Promise<void> {
     if (this.active < this.config.maxConcurrency) {
       this.active += 1;
       return Promise.resolve();
     }
-    if (this.waiters.length >= this.config.maxQueue) {
+    if (this.waiters.length >= this.config.maxQueue || timeoutMs <= 0) {
       return Promise.reject(AppError.busy('Too many rendering jobs in progress, retry shortly'));
     }
     return new Promise<void>((resolve, reject) => {
@@ -240,7 +301,7 @@ export class BrowserPool {
           const index = this.waiters.indexOf(waiter);
           if (index !== -1) this.waiters.splice(index, 1);
           reject(AppError.busy('Timed out waiting for a free browser slot, retry shortly'));
-        }, this.config.acquireTimeoutMs),
+        }, timeoutMs),
       };
       this.waiters.push(waiter);
     });
@@ -272,12 +333,28 @@ export class BrowserPool {
   private async launch(): Promise<Slot> {
     let browser: Browser;
     try {
-      browser = await chromium.launch(await resolveLaunchOptions(this.config));
+      const proxy = await this.egress.endpoint();
+      browser = await chromium.launch({
+        ...(await resolveLaunchOptions(this.config)),
+        // The only route to the network. Chromium skips proxies for loopback
+        // unless told otherwise: `<-loopback>` removes that implicit bypass.
+        proxy: { ...proxy, bypass: '<-loopback>' },
+      });
     } catch (error) {
       throw AppError.browser('Could not start the headless browser', error);
     }
 
-    const slot: Slot = { browser, uses: 0, active: 0, retiring: false };
+    const majorVersion = browser.version().split('.')[0] ?? '0';
+    const slot: Slot = {
+      browser,
+      majorVersion,
+      userAgent:
+        'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) ' +
+        `Chrome/${majorVersion}.0.0.0 Safari/537.36`,
+      uses: 0,
+      active: 0,
+      retiring: false,
+    };
     browser.on('disconnected', () => {
       if (this.slot === slot) {
         this.slot = null;

@@ -4,10 +4,22 @@
 import { devices, type BrowserContextOptions, type Page } from 'playwright-core';
 
 import type { AppConfig } from '../config.js';
+import { Deadline } from '../lib/deadline.js';
 import { AppError } from '../lib/errors.js';
+import { assertCssSelector, parseSelectorList } from '../lib/selectors.js';
 import { parseTargetUrl } from '../security/ssrf.js';
 import { cacheKey, SingleFlight, type Cache } from './cache/index.js';
-import type { Renderer } from './renderer.js';
+import {
+  CONSENT_BANNER_SELECTORS,
+  freezeMotion,
+  hideElements,
+  IMAGE_SETTLE_BUDGET_MS,
+  SCROLL_PASS_BUDGET_MS,
+  scrollThrough,
+  waitForFonts,
+  waitForImages,
+} from './page-prep.js';
+import { waitForCss, type Renderer } from './renderer.js';
 
 export type DeviceKind = 'desktop' | 'mobile';
 export type ImageFormat = 'png' | 'jpeg';
@@ -31,6 +43,10 @@ export interface ScreenshotRequest {
   readonly colorScheme: ColorScheme | null;
   /** Comma-separated CSS selectors of elements to hide before the capture. */
   readonly hide: string | null;
+  /** Hide common cookie / consent banners before the capture. */
+  readonly hideBanners: boolean;
+  /** CSS selector that must be in the DOM before the capture; `null` for none. */
+  readonly waitForSelector: string | null;
   readonly force: boolean;
   /** Cache lifetime for this request; `null` uses the configured default. */
   readonly ttlSeconds: number | null;
@@ -56,100 +72,18 @@ const DEVICE_PRESETS: Readonly<Record<DeviceKind, BrowserContextOptions>> = {
 /** Full-page captures are clipped to this height to bound memory usage. */
 const MAX_FULL_PAGE_HEIGHT = 12_000;
 
-/** Neutralises motion so the capture is deterministic and never mid-transition. */
-const FREEZE_MOTION_CSS = `
-  *, *::before, *::after {
-    animation-duration: 0s !important;
-    animation-delay: 0s !important;
-    transition-duration: 0s !important;
-    transition-delay: 0s !important;
-    scroll-behavior: auto !important;
-    caret-color: transparent !important;
-  }
-`;
-
-/** Bounds of the `hide` parameter. */
-const MAX_HIDE_SELECTORS = 20;
-const MAX_HIDE_SELECTOR_LENGTH = 200;
 /** How long a `selector` target may take to appear once the page has settled. */
 const SELECTOR_TIMEOUT_MS = 3000;
+/** Time kept for the capture itself (encoding a tall PNG is not instant). */
+const CAPTURE_RESERVE_MS = 6000;
 
 /**
  * Splits the `hide` parameter into individual selectors.
  *
- * Commas nested in `()`, `[]` or quotes belong to a selector (`:is(a, b)`).
- * Characters that could close the generated rule and open another one are
- * refused outright rather than escaped: no legitimate selector needs them.
- *
  * @throws {AppError} `EINVALIDPARAMS` when a selector is refused or a bound is exceeded.
  */
 export function parseHideSelectors(raw: string): string[] {
-  if (/[{}<;@]|\/\*/.test(raw)) {
-    throw AppError.invalidParams('hide: selectors must not contain { } ; @ < or comments');
-  }
-
-  const selectors: string[] = [];
-  let current = '';
-  let depth = 0;
-  let quote: string | null = null;
-  for (let i = 0; i < raw.length; i += 1) {
-    const char = raw.charAt(i);
-    if (char === '\\') {
-      // A CSS escape protects the next character (`.md\:flex`, `\,`).
-      current += char + raw.charAt(i + 1);
-      i += 1;
-      continue;
-    }
-    if (quote !== null) {
-      if (char === quote) quote = null;
-    } else if (char === '"' || char === "'") {
-      quote = char;
-    } else if (char === '(' || char === '[') {
-      depth += 1;
-    } else if (char === ')' || char === ']') {
-      depth = Math.max(0, depth - 1);
-    } else if (char === ',' && depth === 0) {
-      selectors.push(current);
-      current = '';
-      continue;
-    }
-    current += char;
-  }
-  selectors.push(current);
-
-  const cleaned = selectors.map((selector) => selector.trim()).filter((selector) => selector !== '');
-  if (cleaned.length > MAX_HIDE_SELECTORS) {
-    throw AppError.invalidParams(`hide: at most ${MAX_HIDE_SELECTORS} selectors are allowed`);
-  }
-  if (cleaned.some((selector) => selector.length > MAX_HIDE_SELECTOR_LENGTH)) {
-    throw AppError.invalidParams(
-      `hide: a selector is longer than ${MAX_HIDE_SELECTOR_LENGTH} characters`,
-    );
-  }
-  return cleaned;
-}
-
-/**
- * Runs **inside the page** (serialised by Playwright, so it must be
- * self-contained). Hides elements through a constructed stylesheet:
- * `insertRule` accepts exactly one rule, so a selector can never smuggle in
- * extra CSS, and an invalid one is skipped without affecting the others.
- * Selectors travel as an evaluation argument, never as source code.
- */
-function hideElementsInPage(selectors: string[]): void {
-  const scope = globalThis as unknown as {
-    CSSStyleSheet: new () => { insertRule(rule: string): number };
-    document: { adoptedStyleSheets: unknown[] };
-  };
-  const sheet = new scope.CSSStyleSheet();
-  for (const selector of selectors) {
-    try {
-      sheet.insertRule(`${selector} { display: none !important; }`);
-    } catch {
-      // Not a selector this browser understands: nothing to hide.
-    }
-  }
-  scope.document.adoptedStyleSheets = [...scope.document.adoptedStyleSheets, sheet];
+  return parseSelectorList(raw, 'hide');
 }
 
 export class ScreenshotService {
@@ -168,9 +102,16 @@ export class ScreenshotService {
    *   target HTTP error, saturated browser pool.
    */
   async capture(request: ScreenshotRequest): Promise<ScreenshotResult> {
+    const deadline = new Deadline(this.config.requestDeadlineMs);
     const target = parseTargetUrl(request.url, this.config.ssrf);
     const contentType = request.format === 'png' ? 'image/png' : 'image/jpeg';
     const hide = request.hide === null ? [] : parseHideSelectors(request.hide);
+    const selector =
+      request.selector === null ? null : assertCssSelector(request.selector, 'selector');
+    const waitForSelector =
+      request.waitForSelector === null
+        ? null
+        : assertCssSelector(request.waitForSelector, 'waitForSelector');
     const ttlSeconds = request.ttlSeconds ?? this.config.cache.screenshotTtlSeconds;
     const key = cacheKey('screenshot', {
       url: target.href,
@@ -180,10 +121,12 @@ export class ScreenshotService {
       quality: request.format === 'jpeg' ? request.quality : null,
       width: request.width,
       height: request.height,
-      selector: request.selector,
+      selector,
       waitForMs: request.waitForMs,
       colorScheme: request.colorScheme,
       hide,
+      hideBanners: request.hideBanners,
+      waitForSelector,
     });
 
     if (!request.force) {
@@ -192,7 +135,7 @@ export class ScreenshotService {
     }
 
     const image = await this.flights.run(key, async () => {
-      const fresh = await this.render(target, request, hide);
+      const fresh = await this.render(target, { ...request, selector, waitForSelector }, hide, deadline);
       await this.cache.set(key, fresh, ttlSeconds);
       return fresh;
     });
@@ -203,16 +146,25 @@ export class ScreenshotService {
     target: URL,
     request: ScreenshotRequest,
     hide: readonly string[],
+    deadline: Deadline,
   ): Promise<Buffer> {
     const preset = DEVICE_PRESETS[request.device];
     const presetViewport = preset.viewport ?? { width: 1280, height: 800 };
+    const wholePage = request.fullPage && request.selector === null;
+    const prepareMs = IMAGE_SETTLE_BUDGET_MS + (wholePage ? SCROLL_PASS_BUDGET_MS : 0);
 
     return this.renderer.render(
       target,
       {
         waitUntil: 'load',
         settleMs: 3000,
-        extraBudgetMs: request.waitForMs + (request.selector === null ? 0 : SELECTOR_TIMEOUT_MS),
+        deadline,
+        reserveMs:
+          CAPTURE_RESERVE_MS +
+          prepareMs +
+          request.waitForMs +
+          (request.selector === null ? 0 : SELECTOR_TIMEOUT_MS),
+        waitForSelector: request.waitForSelector,
         contextOptions: {
           ...preset,
           // Only the size is overridden: a mobile preset keeps its UA, DPR and touch.
@@ -227,26 +179,37 @@ export class ScreenshotService {
         const status = response?.status() ?? 200;
         if (status >= 400) throw AppError.targetStatus(status);
 
-        await page.addStyleTag({ content: FREEZE_MOTION_CSS }).catch(() => undefined);
-        // Wait for web fonts so text is not captured in a fallback face.
-        await page
-          .evaluate('document.fonts.ready.then(() => undefined)')
-          .catch(() => undefined);
-
-        if (hide.length > 0) {
-          await page.evaluate(hideElementsInPage, [...hide]).catch(() => undefined);
-        }
+        await freezeMotion(page);
+        await waitForFonts(page, 2000);
+        if (request.hideBanners) await hideElements(page, CONSENT_BANNER_SELECTORS);
+        await hideElements(page, hide);
         if (request.waitForMs > 0) await page.waitForTimeout(request.waitForMs);
 
-        if (request.selector !== null) return this.captureElement(page, request.selector, request);
+        if (request.selector !== null) {
+          await waitForImages(page, MAX_FULL_PAGE_HEIGHT, deadline.budget(IMAGE_SETTLE_BUDGET_MS, CAPTURE_RESERVE_MS));
+          return this.captureElement(page, request.selector, request);
+        }
 
         const viewport = page.viewportSize() ?? { width: 1280, height: 800 };
+        if (request.fullPage) {
+          // Lazy content only exists once it has been scrolled into view.
+          await scrollThrough(
+            page,
+            MAX_FULL_PAGE_HEIGHT,
+            deadline.budget(SCROLL_PASS_BUDGET_MS, CAPTURE_RESERVE_MS + IMAGE_SETTLE_BUDGET_MS),
+          );
+        }
         const pageHeight = request.fullPage
           ? ((await page
               .evaluate('document.documentElement.scrollHeight')
               .catch(() => viewport.height)) as number)
           : viewport.height;
         const tooTall = request.fullPage && pageHeight > MAX_FULL_PAGE_HEIGHT;
+        await waitForImages(
+          page,
+          Math.min(pageHeight, MAX_FULL_PAGE_HEIGHT),
+          deadline.budget(IMAGE_SETTLE_BUDGET_MS, CAPTURE_RESERVE_MS),
+        );
 
         return page.screenshot({
           type: request.format,
@@ -274,18 +237,8 @@ export class ScreenshotService {
     selector: string,
     request: ScreenshotRequest,
   ): Promise<Buffer> {
+    await waitForCss(page, selector, 'visible', SELECTOR_TIMEOUT_MS, 'selector');
     const element = page.locator(`css=${selector}`).first();
-    try {
-      await element.waitFor({ state: 'visible', timeout: SELECTOR_TIMEOUT_MS });
-    } catch (error) {
-      if (error instanceof Error && error.name === 'TimeoutError') {
-        throw AppError.selectorNotFound('No visible element matches `selector`');
-      }
-      if (error instanceof Error && /while parsing (css )?selector/i.test(error.message)) {
-        throw AppError.invalidParams('selector: not a valid CSS selector');
-      }
-      throw error;
-    }
 
     const options = {
       type: request.format,

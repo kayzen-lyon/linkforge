@@ -20,6 +20,8 @@ export const ErrorCode = {
   Unreachable: 'EUNREACHABLE',
   /** The target answered with an HTTP error status. */
   TargetStatus: 'ETARGETSTATUS',
+  /** The target answered with an anti-bot challenge or an access-denied page instead of its content. */
+  Blocked: 'EBLOCKED',
   /** Too many rendering jobs are queued; the client should retry later. */
   Busy: 'EBUSY',
   /** Rate limit exceeded. */
@@ -100,6 +102,14 @@ export class AppError extends Error {
 
   static targetStatus(status: number): AppError {
     return new AppError(ErrorCode.TargetStatus, 502, `The target responded with HTTP ${status}`);
+  }
+
+  static blocked(reason: string): AppError {
+    return new AppError(
+      ErrorCode.Blocked,
+      502,
+      `The target answered with a block page instead of its content (${reason})`,
+    );
   }
 
   static busy(message: string): AppError {

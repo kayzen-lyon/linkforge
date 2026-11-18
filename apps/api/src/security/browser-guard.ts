@@ -1,15 +1,17 @@
 /**
- * SSRF guard for headless-browser sessions.
+ * Request interception for headless-browser sessions: the first of two layers.
  *
- * A rendered page issues requests of its own (sub-resources, XHR, redirects,
- * iframes). Each one is intercepted and validated with the same policy as the
- * raw HTTP fetcher, otherwise a public page could simply redirect or embed
- * `http://169.254.169.254/`.
+ * A rendered page issues requests of its own (sub-resources, XHR, iframes,
+ * client-side navigations). Each one is intercepted here and validated with
+ * the same policy as the raw HTTP fetcher, which refuses forbidden URLs early,
+ * tells the renderer when the top-level navigation was refused, and lets a job
+ * drop whole resource types (images, fonts) for speed.
  *
- * ⚠️ Known limitation: Chromium resolves DNS by itself after our check, so a
- * determined attacker controlling a DNS server could still attempt a rebinding
- * race here. Production deployments MUST add network-level egress filtering
- * (see ROADMAP, phase 2: validating forward proxy / firewall rules).
+ * What this layer does NOT see: Chromium follows HTTP redirects without
+ * calling the handler again, and resolves DNS by itself after our check. Both
+ * are enforced by the second layer, the validating proxy every connection of
+ * the browser goes through (`egress-proxy.ts`). This file alone is not a
+ * sufficient SSRF defence.
  */
 import type { BrowserContext, Route } from 'playwright-core';
 

@@ -2,6 +2,7 @@
  * Custom extraction orchestration: cache → page markup → client rules.
  */
 import type { AppConfig } from '../config.js';
+import { Deadline } from '../lib/deadline.js';
 import { parseTargetUrl } from '../security/ssrf.js';
 import { cacheKey, getJson, setJson, SingleFlight, type Cache } from './cache/index.js';
 import {
@@ -11,14 +12,16 @@ import {
   type FieldRules,
   type FieldValue,
 } from './field-extractor.js';
-import type { RenderMode } from './meta-service.js';
-import type { PageLoader } from './page-loader.js';
+import { parseWaitForSelector } from './content-service.js';
+import type { PageLoader, RenderMode } from './page-loader.js';
 
 export interface ExtractRequest {
   readonly url: string;
   readonly render: RenderMode;
   /** JSON-encoded rules, exactly as received from the client. */
   readonly fields: string;
+  /** CSS selector to wait for (implies a browser render); `null` for none. */
+  readonly waitForSelector: string | null;
   /** Bypass the cache read (the fresh result is still written back). */
   readonly force: boolean;
   /** Cache lifetime for this request; `null` uses the configured default. */
@@ -55,11 +58,18 @@ export class ExtractService {
    *   non-HTML target, plus the usual URL and network errors.
    */
   async extract(request: ExtractRequest): Promise<ExtractResult> {
+    const deadline = new Deadline(this.config.requestDeadlineMs);
     const target = parseTargetUrl(request.url, this.config.ssrf);
     const rules = parseFieldRules(request.fields);
+    const waitForSelector = parseWaitForSelector(request.waitForSelector, request.render);
     const ttlSeconds = request.ttlSeconds ?? this.config.cache.extractTtlSeconds;
     // Keyed on the parsed rules, so formatting differences in the JSON still hit.
-    const key = cacheKey('extract', { url: target.href, render: request.render, rules });
+    const key = cacheKey('extract', {
+      url: target.href,
+      render: request.render,
+      rules,
+      waitForSelector,
+    });
 
     if (!request.force) {
       const hit = await getJson<CachedExtract>(this.cache, key);
@@ -67,20 +77,31 @@ export class ExtractService {
     }
 
     const fresh = await this.flights.run(key, async () => {
-      const result = await this.compute(target, request.render, rules);
+      const result = await this.compute(target, request.render, rules, waitForSelector, deadline);
       await setJson(this.cache, key, result, ttlSeconds);
       return result;
     });
     return { ...fresh, cached: false, ttlSeconds };
   }
 
-  private async compute(target: URL, render: RenderMode, rules: FieldRules): Promise<CachedExtract> {
+  private async compute(
+    target: URL,
+    render: RenderMode,
+    rules: FieldRules,
+    waitForSelector: string | null,
+    deadline: Deadline,
+  ): Promise<CachedExtract> {
     let staticFields: Record<string, FieldValue> | null = null;
     // In `auto` mode a field left empty by the static markup is a hint that the
     // value is injected client-side: that is what triggers the browser.
-    const page = await this.loader.load(target, render, (candidate) => {
-      staticFields = extractFields(candidate.html, candidate.url, rules);
-      return !hasEmptyField(staticFields);
+    const page = await this.loader.load(target, {
+      render,
+      deadline,
+      waitForSelector,
+      isSufficient: (candidate) => {
+        staticFields = extractFields(candidate.html, candidate.url, rules);
+        return !hasEmptyField(staticFields);
+      },
     });
 
     const fields =

@@ -40,6 +40,12 @@ export interface AppConfig {
   readonly trustProxy: boolean;
   readonly corsOrigin: string[] | '*';
   readonly redisUrl: string | null;
+  /**
+   * Budget of one request, in milliseconds. Slot acquisition, browser launch,
+   * navigation, settle and capture all fit inside it; past it the API answers
+   * `ETIMEOUT` itself. Keep it below the platform's hard limit (60 s on Vercel).
+   */
+  readonly requestDeadlineMs: number;
   readonly cache: {
     readonly metaTtlSeconds: number;
     readonly screenshotTtlSeconds: number;
@@ -204,6 +210,7 @@ export function loadConfig(env: Env = process.env): AppConfig {
     trustProxy: readBool(env, 'TRUST_PROXY', serverless),
     corsOrigin: cors === '*' ? '*' : cors.split(',').map((origin) => origin.trim()),
     redisUrl: redisUrl === '' ? null : redisUrl,
+    requestDeadlineMs: readInt(env, 'REQUEST_DEADLINE_MS', 55_000, 5000),
     cache: {
       metaTtlSeconds: readInt(env, 'CACHE_META_TTL_SECONDS', 3600),
       screenshotTtlSeconds: readInt(env, 'CACHE_SCREENSHOT_TTL_SECONDS', 3600),
