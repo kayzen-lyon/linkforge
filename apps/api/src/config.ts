@@ -6,12 +6,30 @@
  * access anywhere else in the codebase).
  */
 
+/** One resolved address, as `dns.lookup` reports it. */
+export interface ResolvedAddress {
+  readonly address: string;
+  readonly family: number;
+}
+
+/** Resolves a host name to all of its addresses. */
+export type HostResolver = (hostname: string) => Promise<readonly ResolvedAddress[]>;
+
 /** Policy applied by the anti-SSRF layer to every outbound destination. */
 export interface SsrfPolicy {
   /** When true, loopback/private/link-local targets are allowed. Tests and local dev only. */
   readonly allowPrivateNetworks: boolean;
   /** Destination ports that may be contacted, or `'any'`. */
   readonly allowedPorts: readonly number[] | 'any';
+  /**
+   * Destinations refused whatever the rest of the policy says: `host` or
+   * `host:port` (`[v6]:port` for IPv6), where host is a name or an IP address.
+   * An entry matches the requested host name and every address it resolves to.
+   * A deny list can only narrow what is reachable.
+   */
+  readonly blockedHosts?: readonly string[];
+  /** Name resolution used by every check. Defaults to the system resolver; injectable for tests. */
+  readonly resolve?: HostResolver;
 }
 
 export interface AppConfig {
@@ -22,6 +40,12 @@ export interface AppConfig {
   readonly trustProxy: boolean;
   readonly corsOrigin: string[] | '*';
   readonly redisUrl: string | null;
+  /**
+   * Budget of one request, in milliseconds. Slot acquisition, browser launch,
+   * navigation, settle and capture all fit inside it; past it the API answers
+   * `ETIMEOUT` itself. Keep it below the platform's hard limit (60 s on Vercel).
+   */
+  readonly requestDeadlineMs: number;
   readonly cache: {
     readonly metaTtlSeconds: number;
     readonly screenshotTtlSeconds: number;
@@ -119,6 +143,13 @@ function readPorts(env: Env, key: string, fallback: readonly number[]): readonly
   });
 }
 
+function readList(env: Env, key: string): readonly string[] {
+  return (env[key] ?? '')
+    .split(',')
+    .map((part) => part.trim())
+    .filter((part) => part !== '');
+}
+
 /** Shortest API key accepted at boot: anything shorter is guessable online. */
 const MIN_API_KEY_LENGTH = 16;
 
@@ -179,6 +210,7 @@ export function loadConfig(env: Env = process.env): AppConfig {
     trustProxy: readBool(env, 'TRUST_PROXY', serverless),
     corsOrigin: cors === '*' ? '*' : cors.split(',').map((origin) => origin.trim()),
     redisUrl: redisUrl === '' ? null : redisUrl,
+    requestDeadlineMs: readInt(env, 'REQUEST_DEADLINE_MS', 55_000, 5000),
     cache: {
       metaTtlSeconds: readInt(env, 'CACHE_META_TTL_SECONDS', 3600),
       screenshotTtlSeconds: readInt(env, 'CACHE_SCREENSHOT_TTL_SECONDS', 3600),
@@ -220,6 +252,7 @@ export function loadConfig(env: Env = process.env): AppConfig {
     ssrf: {
       allowPrivateNetworks,
       allowedPorts: readPorts(env, 'SSRF_ALLOWED_PORTS', [80, 443]),
+      blockedHosts: readList(env, 'SSRF_BLOCKED_HOSTS').map((entry) => entry.toLowerCase()),
     },
     apiKeys: readApiKeys(env, 'API_KEYS'),
     rateLimit: {

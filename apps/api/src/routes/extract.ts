@@ -6,13 +6,15 @@ import { TARGET_ERRORS, type EndpointDoc } from '../openapi.js';
 import type { ExtractService } from '../services/extract-service.js';
 import { EXTRACT_LIMITS } from '../services/field-extractor.js';
 import {
-  CACHE_HEADERS,
-  cacheControl,
   envelope,
   ForceParam,
+  JSON_HEADERS,
+  NOT_MODIFIED,
   RenderParam,
+  sendEnvelope,
   TtlParam,
   UrlParam,
+  WaitForSelectorParam,
 } from './shared.js';
 
 const ExtractQuery = Type.Object(
@@ -31,6 +33,7 @@ const ExtractQuery = Type.Object(
         '"links":{"selector":"a","attr":"href","type":"url","all":true}}`.',
     }),
     render: RenderParam,
+    waitForSelector: WaitForSelectorParam,
     force: ForceParam,
     ttl: TtlParam,
   },
@@ -65,11 +68,12 @@ export const extractDoc: EndpointDoc = {
   responses: {
     '200': {
       description: 'Extracted fields.',
-      headers: CACHE_HEADERS,
+      headers: JSON_HEADERS,
       content: { 'application/json': envelope(ExtractData) },
     },
+    '304': NOT_MODIFIED,
   },
-  errors: [...TARGET_ERRORS, ErrorCode.NotHtml],
+  errors: [...TARGET_ERRORS, ErrorCode.NotHtml, ErrorCode.SelectorNotFound],
 };
 
 export interface ExtractRouteOptions {
@@ -89,21 +93,10 @@ export const extractRoutes: FastifyPluginAsyncTypebox<ExtractRouteOptions> = asy
       url,
       fields,
       render,
+      waitForSelector: request.query.waitForSelector ?? null,
       force,
       ttlSeconds: ttl ?? null,
     });
-
-    return reply
-      .header('x-cache', result.cached ? 'HIT' : 'MISS')
-      .header('cache-control', cacheControl(result.ttlSeconds))
-      .send({
-        status: 'success',
-        data: result.data,
-        meta: {
-          cached: result.cached,
-          source: result.source,
-          durationMs: Math.round(performance.now() - startedAt),
-        },
-      });
+    return sendEnvelope(request, reply, result, startedAt);
   });
 };

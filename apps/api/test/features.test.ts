@@ -484,7 +484,10 @@ describe('GET /api/v1/content', () => {
     const { data, meta } = res.json();
     expect(meta).toMatchObject({ cached: false, source: 'http' });
     expect(Object.keys(data).sort()).toEqual(
-      ['excerpt', 'lang', 'markdown', 'readingTimeMinutes', 'text', 'title', 'url', 'wordCount'],
+      [
+        'excerpt', 'images', 'lang', 'links', 'markdown', 'readingTimeMinutes', 'text', 'title',
+        'truncated', 'url', 'wordCount',
+      ],
     );
     expect(data).toMatchObject({
       url: `${origin}/article`,
@@ -647,13 +650,5 @@ describe('API keys', () => {
     const res = await get(PATH, { 'x-api-key': 'whatever' });
     expect(res.statusCode).toBe(200);
     expect(res.headers['x-ratelimit-limit']).toBe('1000');
-  });
-});
-
-describe('unknown query parameters', () => {
-  it('are ignored instead of failing the request', async () => {
-    const res = await app.inject('/api/v1/meta?url=ftp%3A%2F%2Fexample.com&utm_source=newsletter');
-    // The request is validated (and refused) on its url, not on the extra parameter.
-    expect(res.json().code).toBe('EINVALIDURL');
   });
 });

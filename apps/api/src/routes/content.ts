@@ -5,17 +5,60 @@ import { ErrorCode } from '../lib/errors.js';
 import { TARGET_ERRORS, type EndpointDoc } from '../openapi.js';
 import type { ContentService } from '../services/content-service.js';
 import {
-  CACHE_HEADERS,
-  cacheControl,
   envelope,
   ForceParam,
+  JSON_HEADERS,
+  NOT_MODIFIED,
   RenderParam,
+  revalidate,
+  sendEnvelope,
   TtlParam,
   UrlParam,
+  WaitForSelectorParam,
 } from './shared.js';
 
+const SelectorList = (description: string) =>
+  Type.Optional(Type.String({ minLength: 1, maxLength: 2000, description }));
+
 const ContentQuery = Type.Object(
-  { url: UrlParam, render: RenderParam, force: ForceParam, ttl: TtlParam },
+  {
+    url: UrlParam,
+    render: RenderParam,
+    format: Type.Optional(
+      Type.Enum(['json', 'markdown', 'text'], {
+        type: 'string',
+        default: 'json',
+        description:
+          '`json`: the envelope. `markdown` / `text`: the body alone, as `text/markdown` or ' +
+          '`text/plain`, ready to be piped into a prompt.',
+      }),
+    ),
+    mainContent: Type.Optional(
+      Type.Boolean({
+        default: true,
+        description:
+          'Keep only the main content. `false` keeps the whole `<body>` (scripts and styles aside).',
+      }),
+    ),
+    include: SelectorList(
+      'Comma-separated CSS selectors: keep only the matching elements (document order). ' +
+        'Replaces main-content detection. At most 20 selectors of 200 characters.',
+    ),
+    exclude: SelectorList(
+      'Comma-separated CSS selectors of elements to remove before extraction. ' +
+        'At most 20 selectors of 200 characters.',
+    ),
+    citations: Type.Optional(
+      Type.Boolean({
+        default: false,
+        description:
+          'Reference-style links in `markdown`: `[label][1]` in the text, the numbered URLs at the end.',
+      }),
+    ),
+    waitForSelector: WaitForSelectorParam,
+    force: ForceParam,
+    ttl: TtlParam,
+  },
   { additionalProperties: false },
 );
 
@@ -30,6 +73,22 @@ const ContentData = Type.Object({
   markdown: Type.String({ description: 'Main content as Markdown (at most 500 000 characters).' }),
   wordCount: Type.Integer(),
   readingTimeMinutes: Type.Integer({ description: 'At 200 words per minute, rounded up.' }),
+  truncated: Type.Boolean({ description: 'True when `text` or `markdown` was cut at the size cap.' }),
+  links: Type.Array(
+    Type.Object({
+      url: Type.String({ description: 'Absolute http(s) URL.' }),
+      text: Type.String({ description: 'Visible text of the link (at most 200 characters).' }),
+      internal: Type.Boolean({ description: 'Same host as the page (`www.` ignored).' }),
+    }),
+    { description: 'Links of the extracted content, de-duplicated, at most 500.' },
+  ),
+  images: Type.Array(
+    Type.Object({
+      url: Type.String({ description: 'Absolute URL of the largest rendition offered.' }),
+      alt: Type.String(),
+    }),
+    { description: 'Images of the extracted content, de-duplicated, at most 200.' },
+  ),
 });
 
 export const contentDoc: EndpointDoc = {
@@ -42,12 +101,18 @@ export const contentDoc: EndpointDoc = {
   query: ContentQuery,
   responses: {
     '200': {
-      description: 'Readable content.',
-      headers: CACHE_HEADERS,
-      content: { 'application/json': envelope(ContentData) },
+      description:
+        'Readable content. With `format=markdown` or `format=text`: the body alone.',
+      headers: JSON_HEADERS,
+      content: {
+        'application/json': envelope(ContentData),
+        'text/markdown': Type.String(),
+        'text/plain': Type.String(),
+      },
     },
+    '304': NOT_MODIFIED,
   },
-  errors: [...TARGET_ERRORS, ErrorCode.NotHtml],
+  errors: [...TARGET_ERRORS, ErrorCode.NotHtml, ErrorCode.SelectorNotFound],
 };
 
 export interface ContentRouteOptions {
@@ -61,26 +126,27 @@ export const contentRoutes: FastifyPluginAsyncTypebox<ContentRouteOptions> = asy
 ) => {
   app.get('/content', { schema: { querystring: ContentQuery } }, async (request, reply) => {
     const startedAt = performance.now();
-    const { url, render = 'auto', force = false, ttl } = request.query;
+    const { url, render = 'auto', format = 'json', force = false, ttl } = request.query;
 
     const result = await options.contentService.getContent({
       url,
       render,
+      mainContent: request.query.mainContent ?? true,
+      include: request.query.include ?? null,
+      exclude: request.query.exclude ?? null,
+      citations: request.query.citations ?? false,
+      waitForSelector: request.query.waitForSelector ?? null,
       force,
       ttlSeconds: ttl ?? null,
     });
 
+    if (format === 'json') return sendEnvelope(request, reply, result, startedAt);
+
+    const body = format === 'markdown' ? result.data.markdown : result.data.text;
+    if (revalidate(request, reply, result, body)) return reply;
     return reply
-      .header('x-cache', result.cached ? 'HIT' : 'MISS')
-      .header('cache-control', cacheControl(result.ttlSeconds))
-      .send({
-        status: 'success',
-        data: result.data,
-        meta: {
-          cached: result.cached,
-          source: result.source,
-          durationMs: Math.round(performance.now() - startedAt),
-        },
-      });
+      .header('x-content-type-options', 'nosniff')
+      .type(`${format === 'markdown' ? 'text/markdown' : 'text/plain'}; charset=utf-8`)
+      .send(body);
   });
 };

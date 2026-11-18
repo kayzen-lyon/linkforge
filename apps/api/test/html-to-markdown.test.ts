@@ -68,7 +68,7 @@ describe('htmlToMarkdown', () => {
 
   it('escapes characters that would be read as Markdown syntax', () => {
     expect(md('<p>2 * 3 = 6, snake_case, [not a link], &lt;b&gt;</p>')).toBe(
-      '2 \\* 3 = 6, snake\\_case, \\[not a link\\], \\<b>',
+      '2 * 3 = 6, snake_case, \\[not a link\\], \\<b>',
     );
     expect(md('<p># not a heading</p><p>1. not a list</p><p>- nor this</p><p>&gt; nor that</p>'))
       .toBe('\\# not a heading\n\n1\\. not a list\n\n\\- nor this\n\n\\> nor that');

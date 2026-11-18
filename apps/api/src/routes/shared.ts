@@ -1,7 +1,12 @@
 /**
  * Query parameters and response fragments shared by several routes.
  */
+import { createHash } from 'node:crypto';
+
+import type { FastifyReply, FastifyRequest } from 'fastify';
 import { Type, type TSchema } from 'typebox';
+
+import { MAX_SELECTOR_LENGTH } from '../lib/selectors.js';
 
 /** Bounds of the `ttl` parameter, in seconds. */
 export const TTL_MIN_SECONDS = 60;
@@ -37,6 +42,82 @@ export const TtlParam = Type.Optional(
   }),
 );
 
+export const WaitForSelectorParam = Type.Optional(
+  Type.String({
+    minLength: 1,
+    maxLength: MAX_SELECTOR_LENGTH,
+    description:
+      'CSS selector that must be present in the DOM before the page is read or captured ' +
+      '(at most 10 s, bounded by the request deadline). CSS only. Not found in time: ' +
+      '`404 ESELECTORNOTFOUND`.',
+  }),
+);
+
+/** Strong validator of a body: quoted base64url SHA-1. */
+export function etagOf(body: string | Buffer): string {
+  return `"${createHash('sha1').update(body).digest('base64url')}"`;
+}
+
+/** Tells whether `If-None-Match` lists `etag` (weak comparison, `*` included). */
+function matchesEtag(header: string | undefined, etag: string): boolean {
+  if (header === undefined) return false;
+  return header
+    .split(',')
+    .map((candidate) => candidate.trim().replace(/^W\//, ''))
+    .some((candidate) => candidate === '*' || candidate === etag);
+}
+
+export interface CacheableAnswer {
+  readonly cached: boolean;
+  readonly ttlSeconds: number;
+  /** Pipeline that produced the answer. */
+  readonly source: 'http' | 'browser';
+}
+
+/**
+ * Sets the headers shared by cacheable answers and handles revalidation.
+ *
+ * @param validator - What the `ETag` is computed from: the part of the answer
+ *   that does not change between two identical results (never timings).
+ * @returns `true` when the client's copy is current: a `304` has been sent and
+ *   the caller must not send a body.
+ */
+export function revalidate(
+  request: FastifyRequest,
+  reply: FastifyReply,
+  answer: CacheableAnswer,
+  validator: string | Buffer,
+): boolean {
+  const etag = etagOf(validator);
+  void reply
+    .header('etag', etag)
+    .header('x-cache', answer.cached ? 'HIT' : 'MISS')
+    .header('x-render-source', answer.source)
+    .header('cache-control', cacheControl(answer.ttlSeconds));
+  if (!matchesEtag(request.headers['if-none-match'], etag)) return false;
+  void reply.status(304).send();
+  return true;
+}
+
+/** Sends the `{ status, data, meta }` envelope, or `304` when the client's copy is current. */
+export function sendEnvelope(
+  request: FastifyRequest,
+  reply: FastifyReply,
+  answer: CacheableAnswer & { readonly data: unknown },
+  startedAt: number,
+): FastifyReply {
+  if (revalidate(request, reply, answer, JSON.stringify(answer.data))) return reply;
+  return reply.send({
+    status: 'success',
+    data: answer.data,
+    meta: {
+      cached: answer.cached,
+      source: answer.source,
+      durationMs: Math.round(performance.now() - startedAt),
+    },
+  });
+}
+
 /** `Cache-Control` for a cacheable answer: browsers and the CDN may both keep it. */
 export function cacheControl(ttlSeconds: number): string {
   return `public, max-age=${ttlSeconds}, s-maxage=${ttlSeconds}`;
@@ -46,6 +127,19 @@ export function cacheControl(ttlSeconds: number): string {
 export const CACHE_HEADERS = {
   'x-cache': '`HIT` when served from the server cache, `MISS` otherwise.',
   'cache-control': '`public, max-age=<ttl>, s-maxage=<ttl>`.',
+  'x-render-source': '`http` or `browser`: the pipeline that produced the answer.',
+} as const;
+
+/** Headers of JSON answers, which can be revalidated. */
+export const JSON_HEADERS = {
+  ...CACHE_HEADERS,
+  etag: 'Validator of `data`. Send it back in `If-None-Match` to get `304 Not Modified`.',
+} as const;
+
+/** The `304` answer of endpoints that honour `If-None-Match`. */
+export const NOT_MODIFIED = {
+  description: 'The `ETag` sent in `If-None-Match` is still current; no body.',
+  headers: JSON_HEADERS,
 } as const;
 
 /** The `{ status, data, meta }` envelope of JSON answers (documentation only). */

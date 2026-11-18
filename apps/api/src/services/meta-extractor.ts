@@ -39,6 +39,19 @@ export interface MetaFeed {
   readonly type: string;
 }
 
+export interface MetaAlternate {
+  /** BCP 47 tag of the translation, or `x-default`. */
+  readonly lang: string;
+  readonly url: string;
+}
+
+export interface MetaTwitter {
+  /** `twitter:card`: `summary`, `summary_large_image`, `player`... */
+  readonly card: string | null;
+  /** `twitter:site`, the @handle of the publishing account. */
+  readonly site: string | null;
+}
+
 export interface LinkMetadata {
   /** Final URL of the document (after redirects). */
   readonly url: string;
@@ -53,6 +66,26 @@ export interface LinkMetadata {
   readonly lang: string | null;
   /** Publication date as an ISO 8601 string, when it can be parsed. */
   readonly date: string | null;
+  /** Last modification date as an ISO 8601 string, when declared. */
+  readonly dateModified: string | null;
+  /** Kind of page: `og:type` (`article`, `website`...), else the main JSON-LD `@type`. */
+  readonly type: string | null;
+  /** `<meta name="theme-color">`. */
+  readonly themeColor: string | null;
+  /** `<meta name="robots">` directives, as declared (`noindex, nofollow`). */
+  readonly robots: string | null;
+  /** oEmbed endpoint advertised by the page (JSON preferred over XML). */
+  readonly oembed: string | null;
+  /** Translations advertised with `<link rel="alternate" hreflang>`. */
+  readonly alternates: readonly MetaAlternate[];
+  readonly twitter: MetaTwitter;
+  /**
+   * `true` when JSON-LD declares `isAccessibleForFree: false`, `false` when it
+   * declares the content free, `null` when the page says nothing.
+   */
+  readonly paywalled: boolean | null;
+  /** Host name of `url`, without a leading `www.`. */
+  readonly domain: string | null;
   /** Primary preview image (first entry of `images`). */
   readonly image: MetaImage | null;
   /** Every Open Graph / Twitter / JSON-LD image, de-duplicated, in priority order. */
@@ -111,15 +144,49 @@ function toInt(value: string | null | undefined): number | null {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 }
 
-function toIsoDate(value: string | null): string | null {
+/** Plausible range for a publication date expressed as an epoch (1990 → 2100). */
+const EPOCH_MIN_MS = Date.UTC(1990, 0, 1);
+const EPOCH_MAX_MS = Date.UTC(2100, 0, 1);
+
+/**
+ * Parses a declared date into ISO 8601.
+ *
+ * `new Date()` is far too lenient for untrusted input: `"12"` and `"May 5"`
+ * both yield a date in 2001. A value is therefore accepted only when it is an
+ * epoch (10 digits: seconds, 13: milliseconds) or carries an explicit
+ * four-digit year.
+ */
+export function toIsoDate(value: string | null): string | null {
   if (value === null) return null;
-  const date = new Date(value);
+  const text = value.trim();
+
+  if (/^\d+$/.test(text)) {
+    if (text.length !== 10 && text.length !== 13) return null;
+    const ms = Number(text) * (text.length === 10 ? 1000 : 1);
+    return ms >= EPOCH_MIN_MS && ms < EPOCH_MAX_MS ? new Date(ms).toISOString() : null;
+  }
+  if (!/(?:^|\D)(?:1[6-9]|2\d)\d{2}(?:\D|$)/.test(text)) return null;
+  const date = new Date(text);
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
-/** Reads `<meta property|name|itemprop="key" content="...">`. */
+/** Normalises a language tag to BCP 47 (`en_US` → `en-US`); `null` when it is not one. */
+export function toLanguageTag(value: string | null | undefined): string | null {
+  const text = clean(value);
+  if (text === null) return null;
+  try {
+    return Intl.getCanonicalLocales(text.replace(/_/g, '-'))[0] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Reads `<meta property|name|itemprop="key" content="...">`. Sites mix the
+ * three attributes freely and do not agree on case (`og:Title`, `OG:IMAGE`).
+ */
 function meta($: CheerioAPI, key: string): string | null {
-  const selector = `meta[property="${key}"], meta[name="${key}"], meta[itemprop="${key}"]`;
+  const selector = `meta[property="${key}" i], meta[name="${key}" i], meta[itemprop="${key}" i]`;
   return clean($(selector).first().attr('content'));
 }
 
@@ -127,7 +194,13 @@ function meta($: CheerioAPI, key: string): string | null {
 function extractJsonLd($: CheerioAPI): unknown[] {
   const nodes: unknown[] = [];
   $('script[type="application/ld+json"]').each((_, element) => {
-    const raw = $(element).text().trim();
+    // Some CMSs wrap the JSON in an HTML comment or a CDATA section (XHTML habits).
+    const raw = $(element)
+      .text()
+      .trim()
+      .replace(/^(?:\/\/\s*|\/\*\s*)?<!(?:--|\[CDATA\[)(?:\s*\*\/)?/, '')
+      .replace(/(?:\/\/\s*|\/\*\s*)?(?:-->|\]\]>)(?:\s*\*\/)?$/, '')
+      .trim();
     if (raw === '') return;
     try {
       const parsed: unknown = JSON.parse(raw);
@@ -142,11 +215,55 @@ function extractJsonLd($: CheerioAPI): unknown[] {
   return nodes;
 }
 
+const typesOf = (node: JsonObject): string[] => {
+  const declared = node['@type'];
+  if (typeof declared === 'string') return [declared];
+  return Array.isArray(declared) ? declared.filter((t): t is string => typeof t === 'string') : [];
+};
+
+/** Types describing the site or its furniture rather than the page being read. */
+const SITE_LEVEL_TYPE =
+  /^(?:Organization|Corporation|NewsMediaOrganization|LocalBusiness|Person|WebSite|BreadcrumbList|ItemList|SiteNavigationElement|ImageObject|SearchAction|WPHeader|WPFooter|WPSideBar|Brand|ContactPoint|PostalAddress)$/;
+const PAGE_LEVEL_TYPE = /^(?:WebPage|\w+Page|CollectionPage)$/;
+
+/**
+ * Orders JSON-LD nodes so the one describing the page comes first.
+ *
+ * A document routinely declares an `Organization` and a `WebSite` next to its
+ * `Article`; all three have a `description`. Rank: the type announced by
+ * `og:type`, then content types (anything that is not site furniture), then
+ * `WebPage`, then untyped nodes, then site-level types. Order is otherwise kept.
+ */
+function rankJsonLd(nodes: readonly unknown[], ogType: string | null): unknown[] {
+  const wanted = (ogType ?? '').split('.')[0]?.toLowerCase() ?? '';
+  const rank = (node: unknown): number => {
+    if (!isObject(node)) return 5;
+    const types = typesOf(node);
+    if (types.length === 0) return 3;
+    if (wanted !== '' && types.some((type) => type.toLowerCase().includes(wanted))) return 0;
+    if (types.every((type) => SITE_LEVEL_TYPE.test(type))) return 4;
+    if (types.every((type) => PAGE_LEVEL_TYPE.test(type) || SITE_LEVEL_TYPE.test(type))) return 2;
+    return 1;
+  };
+  return nodes
+    .map((node, index) => ({ node, index, rank: rank(node) }))
+    .sort((a, b) => a.rank - b.rank || a.index - b.index)
+    .map((entry) => entry.node);
+}
+
 /** Reads a name out of a JSON-LD value that may be a string, an object or a list. */
 function jsonLdName(value: unknown): string | null {
   if (typeof value === 'string') return clean(value);
   if (Array.isArray(value)) return jsonLdName(value[0]);
   if (isObject(value) && typeof value['name'] === 'string') return clean(value['name']);
+  return null;
+}
+
+function firstDate(...candidates: Array<string | null | undefined>): string | null {
+  for (const candidate of candidates) {
+    const date = toIsoDate(clean(candidate));
+    if (date !== null) return date;
+  }
   return null;
 }
 
@@ -202,8 +319,8 @@ function extractImages($: CheerioAPI, base: string, jsonLd: readonly unknown[]):
     images.push(current);
   };
 
-  $('meta[property^="og:image"]').each((_, element) => {
-    const property = $(element).attr('property');
+  $('meta[property^="og:image" i], meta[name^="og:image" i]').each((_, element) => {
+    const property = ($(element).attr('property') ?? $(element).attr('name'))?.toLowerCase();
     const content = $(element).attr('content');
     switch (property) {
       case 'og:image':
@@ -282,10 +399,7 @@ function extractJsonLdLogo(nodes: readonly unknown[], base: string): string | nu
   return null;
 }
 
-const hasJsonLdType = (node: JsonObject, type: string): boolean => {
-  const declared = node['@type'];
-  return declared === type || (Array.isArray(declared) && declared.includes(type));
-};
+const hasJsonLdType = (node: JsonObject, type: string): boolean => typesOf(node).includes(type);
 
 function extractVideo($: CheerioAPI, base: string, jsonLd: readonly unknown[]): MetaVideo | null {
   const ogUrl = resolveUrl(
@@ -346,6 +460,7 @@ function extractAudio($: CheerioAPI, base: string): MetaAudio | null {
 const MAX_KEYWORDS = 50;
 const MAX_KEYWORD_LENGTH = 100;
 const MAX_FEEDS = 20;
+const MAX_ALTERNATES = 50;
 
 function extractKeywords($: CheerioAPI, jsonLd: readonly unknown[]): string[] {
   const keywords: string[] = [];
@@ -397,6 +512,63 @@ function extractFeeds($: CheerioAPI, base: string): MetaFeed[] {
   return feeds;
 }
 
+function extractAlternates($: CheerioAPI, base: string): MetaAlternate[] {
+  const alternates: MetaAlternate[] = [];
+  const seen = new Set<string>();
+  $('link[rel][hreflang][href]').each((_, element) => {
+    const rel = ($(element).attr('rel') ?? '').toLowerCase().split(/\s+/);
+    if (!rel.includes('alternate')) return;
+    const declared = clean($(element).attr('hreflang'));
+    const lang = declared?.toLowerCase() === 'x-default' ? 'x-default' : toLanguageTag(declared);
+    const url = resolveUrl($(element).attr('href'), base);
+    if (lang === null || url === null || alternates.length >= MAX_ALTERNATES) return;
+    const identity = `${lang} ${url}`;
+    if (seen.has(identity)) return;
+    seen.add(identity);
+    alternates.push({ lang, url });
+  });
+  return alternates;
+}
+
+/** oEmbed discovery link; the JSON flavour wins over XML. */
+function extractOembed($: CheerioAPI, base: string): string | null {
+  for (const type of ['application/json+oembed', 'text/json+oembed', 'text/xml+oembed', 'application/xml+oembed']) {
+    const url = resolveUrl($(`link[type="${type}" i][href]`).first().attr('href'), base);
+    if (url !== null) return url;
+  }
+  return null;
+}
+
+/** `isAccessibleForFree` of the page's own node, or of one of its parts. */
+function extractPaywalled(nodes: readonly unknown[]): boolean | null {
+  const read = (value: unknown): boolean | null => {
+    if (typeof value === 'boolean') return !value;
+    if (typeof value === 'string' && /^(?:true|false)$/i.test(value.trim())) {
+      return value.trim().toLowerCase() === 'false';
+    }
+    return null;
+  };
+  for (const node of nodes) {
+    if (!isObject(node)) continue;
+    const own = read(node['isAccessibleForFree']);
+    if (own !== null) return own;
+    const parts = node['hasPart'];
+    for (const part of Array.isArray(parts) ? parts : [parts]) {
+      if (isObject(part) && read(part['isAccessibleForFree']) === true) return true;
+    }
+  }
+  return null;
+}
+
+/** Host name without a leading `www.`; `null` for an unparsable URL. */
+export function domainOf(url: string): string | null {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '') || null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Extracts link-preview metadata from an HTML document.
  *
@@ -407,7 +579,11 @@ export function extractMetadata(html: string, documentUrl: string): LinkMetadata
   const $ = load(html);
   const base = resolveUrl($('base[href]').first().attr('href'), documentUrl) ?? documentUrl;
   const jsonLd = extractJsonLd($);
-  const images = extractImages($, base, jsonLd);
+  const ogType = meta($, 'og:type');
+  // Scalar fields read the node that describes the page first; `jsonLd` keeps document order.
+  const ranked = rankJsonLd(jsonLd, ogType);
+  const primaryType = ranked.filter(isObject).flatMap(typesOf)[0] ?? null;
+  const images = extractImages($, base, ranked);
   const declaredIcon = extractDeclaredIcon($, base);
   const logoUrl = extractJsonLdLogo(jsonLd, base) ?? declaredIcon;
 
@@ -422,7 +598,7 @@ export function extractMetadata(html: string, documentUrl: string): LinkMetadata
     title: firstOf(
       meta($, 'og:title'),
       meta($, 'twitter:title'),
-      jsonLdString(jsonLd, 'headline'),
+      jsonLdString(ranked, 'headline'),
       $('head > title').first().text(),
       $('title').first().text(),
       $('h1').first().text(),
@@ -431,30 +607,48 @@ export function extractMetadata(html: string, documentUrl: string): LinkMetadata
       meta($, 'og:description'),
       meta($, 'twitter:description'),
       meta($, 'description'),
-      jsonLdString(jsonLd, 'description'),
+      jsonLdString(ranked, 'description'),
     ),
     author: firstOf(
       meta($, 'author'),
       // `article:author` is frequently a profile URL rather than a name.
       articleAuthor !== null && !/^https?:\/\//i.test(articleAuthor) ? articleAuthor : null,
-      jsonLdNamed(jsonLd, 'author'),
+      jsonLdNamed(ranked, 'author'),
       $('[rel="author"]').first().text(),
       twitterCreator,
     ),
     publisher: firstOf(
       meta($, 'og:site_name'),
-      jsonLdNamed(jsonLd, 'publisher'),
+      jsonLdNamed(ranked, 'publisher'),
       meta($, 'application-name'),
     ),
-    lang: firstOf($('html').attr('lang'), meta($, 'og:locale')),
-    date: toIsoDate(
-      firstOf(
-        meta($, 'article:published_time'),
-        jsonLdString(jsonLd, 'datePublished'),
-        meta($, 'date'),
-        $('time[datetime]').first().attr('datetime'),
-      ),
+    lang:
+      toLanguageTag($('html').attr('lang')) ??
+      toLanguageTag(meta($, 'content-language')) ??
+      toLanguageTag(meta($, 'og:locale')),
+    // The first candidate that is a real date wins: a junk value must not hide a good one.
+    date: firstDate(
+      meta($, 'article:published_time'),
+      jsonLdString(ranked, 'datePublished'),
+      meta($, 'datePublished'),
+      meta($, 'date'),
+      $('time[datetime]').first().attr('datetime'),
     ),
+    dateModified: firstDate(
+      meta($, 'article:modified_time'),
+      meta($, 'og:updated_time'),
+      jsonLdString(ranked, 'dateModified'),
+      meta($, 'dateModified'),
+      meta($, 'last-modified'),
+    ),
+    type: ogType ?? primaryType,
+    themeColor: meta($, 'theme-color'),
+    robots: meta($, 'robots'),
+    oembed: extractOembed($, base),
+    alternates: extractAlternates($, base),
+    twitter: { card: meta($, 'twitter:card'), site: meta($, 'twitter:site') },
+    paywalled: extractPaywalled(ranked),
+    domain: domainOf(documentUrl),
     image: images[0] ?? null,
     images,
     // Browsers probe `/favicon.ico` when nothing is declared; so do we.
@@ -505,6 +699,18 @@ export function mergeMetadata(primary: LinkMetadata, fallback: LinkMetadata): Li
     publisher: primary.publisher ?? fallback.publisher,
     lang: primary.lang ?? fallback.lang,
     date: primary.date ?? fallback.date,
+    dateModified: primary.dateModified ?? fallback.dateModified,
+    type: primary.type ?? fallback.type,
+    themeColor: primary.themeColor ?? fallback.themeColor,
+    robots: primary.robots ?? fallback.robots,
+    oembed: primary.oembed ?? fallback.oembed,
+    alternates: primary.alternates.length > 0 ? primary.alternates : fallback.alternates,
+    twitter: {
+      card: primary.twitter.card ?? fallback.twitter.card,
+      site: primary.twitter.site ?? fallback.twitter.site,
+    },
+    paywalled: primary.paywalled ?? fallback.paywalled,
+    domain: primary.domain ?? fallback.domain,
     image: primary.image ?? fallback.image,
     images: primary.images.length > 0 ? primary.images : fallback.images,
     favicon: primary.favicon ?? fallback.favicon,

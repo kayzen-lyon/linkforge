@@ -84,7 +84,7 @@ describe('per-request cache lifetime (ttl)', () => {
 describe('ExtractService', () => {
   it('caches per rule set, whatever the JSON formatting', async () => {
     const s = setup();
-    const base = { url: URL_, render: 'auto', force: false, ttlSeconds: null } as const;
+    const base = { url: URL_, render: 'auto', force: false, ttlSeconds: null, waitForSelector: null } as const;
 
     const first = await s.extract.extract({ ...base, fields: '{"p":{"selector":".price","type":"number"}}' });
     expect(first).toMatchObject({ cached: false, source: 'http', data: { fields: { p: 12 } } });
@@ -102,7 +102,7 @@ describe('ExtractService', () => {
   it('validates the rules before any network access', async () => {
     const s = setup();
     await expect(
-      s.extract.extract({ url: URL_, render: 'auto', force: false, ttlSeconds: null, fields: 'nope' }),
+      s.extract.extract({ url: URL_, render: 'auto', force: false, ttlSeconds: null, waitForSelector: null, fields: 'nope' }),
     ).rejects.toMatchObject({ code: 'EINVALIDPARAMS' });
     expect(s.fetches()).toBe(0);
   });
@@ -114,16 +114,25 @@ describe('ExtractService', () => {
       render: 'auto',
       force: false,
       ttlSeconds: null,
+      waitForSelector: null,
       fields: '{"missing":{"selector":".nope"}}',
     });
     expect(result).toMatchObject({ source: 'http', data: { fields: { missing: null } } });
   });
 });
 
+const CONTENT_DEFAULTS = {
+  mainContent: true,
+  include: null,
+  exclude: null,
+  citations: false,
+  waitForSelector: null,
+} as const;
+
 describe('ContentService', () => {
   it('extracts and caches readable content', async () => {
     const s = setup();
-    const request = { url: URL_, render: 'auto', force: false, ttlSeconds: 120 } as const;
+    const request = { ...CONTENT_DEFAULTS, url: URL_, render: 'auto', force: false, ttlSeconds: 120 } as const;
     const first = await s.content.getContent(request);
     expect(first).toMatchObject({ cached: false, ttlSeconds: 120, data: { title: 'Stub', wordCount: 81 } });
     expect((await s.content.getContent(request)).cached).toBe(true);
@@ -133,7 +142,7 @@ describe('ContentService', () => {
   it('refuses non-HTML targets', async () => {
     const s = setup(null);
     await expect(
-      s.content.getContent({ url: `${URL_}.png`, render: 'auto', force: false, ttlSeconds: null }),
+      s.content.getContent({ ...CONTENT_DEFAULTS, url: `${URL_}.png`, render: 'auto', force: false, ttlSeconds: null }),
     ).rejects.toMatchObject({ code: 'ENOTHTML', statusCode: 422 });
   });
 });

@@ -28,6 +28,32 @@ export interface DomNode {
 export interface MarkdownOptions {
   /** Used to make relative links and image sources absolute. */
   readonly baseUrl?: string;
+  /**
+   * Reference-style links: `[label][1]` in the text and a numbered list of
+   * URLs at the end, which keeps long URLs out of the prose an LLM reads.
+   */
+  readonly citations?: boolean;
+}
+
+export interface MarkdownLink {
+  /** Absolute URL. */
+  readonly url: string;
+  /** Visible text of the first link pointing there. */
+  readonly text: string;
+}
+
+export interface MarkdownImage {
+  /** Absolute URL of the best available rendition. */
+  readonly url: string;
+  readonly alt: string;
+}
+
+export interface MarkdownDocument {
+  readonly markdown: string;
+  /** Every http(s) link met, de-duplicated, in document order. */
+  readonly links: readonly MarkdownLink[];
+  /** Every image met, de-duplicated, in document order. */
+  readonly images: readonly MarkdownImage[];
 }
 
 /** Elements whose content is never part of the readable text. */
@@ -72,15 +98,84 @@ function rawText(node: DomNode, depth = 0): string {
   return (node.children ?? []).map((child) => rawText(child, depth + 1)).join('');
 }
 
-/** Backslash-escapes the characters that would otherwise start Markdown syntax. */
-function escapeText(text: string): string {
-  return text.replace(/[\\`*_[\]<]/g, '\\$&');
+const isWordChar = (char: string | undefined): boolean =>
+  char !== undefined && /[\p{L}\p{N}]/u.test(char);
+
+/**
+ * Backslash-escapes characters only where Markdown would interpret them.
+ *
+ * Escaping blindly corrupts what readers and LLMs copy out of the text:
+ * `snake_case` identifiers and bare URLs must come out untouched. So:
+ * - a bare URL is emitted verbatim;
+ * - `_` is escaped unless it sits inside a word (CommonMark never treats an
+ *   intraword underscore as emphasis);
+ * - `*` is escaped unless it stands alone between spaces;
+ * - `<` is escaped only when it could open a tag or an autolink.
+ */
+export function escapeText(text: string): string {
+  return text
+    .split(/(https?:\/\/[^\s<>"']+)/)
+    .map((part, index) => {
+      if (index % 2 === 1) return part;
+      return part.replace(/[\\`*_[\]<]/g, (char, offset: number) => {
+        const before = part[offset - 1];
+        const after = part[offset + 1];
+        if (char === '_' && isWordChar(before) && isWordChar(after)) return char;
+        if (char === '*' && /\s/.test(before ?? '') && /\s/.test(after ?? '')) return char;
+        if (char === '<' && !/[A-Za-z/!?]/.test(after ?? '')) return char;
+        return `\\${char}`;
+      });
+    })
+    .join('');
+}
+
+/** Lazy-loading attributes that hold the real source while `src` is a placeholder. */
+const LAZY_SOURCE_ATTRIBUTES = ['data-src', 'data-lazy-src', 'data-original', 'data-url'];
+const SRCSET_ATTRIBUTES = ['srcset', 'data-srcset', 'data-lazy-srcset'];
+
+/**
+ * Picks the largest candidate of a `srcset` (`url 800w, url 2x`).
+ * Width descriptors outrank density descriptors; a bare URL counts as `1x`.
+ */
+export function largestSrcsetCandidate(srcset: string): string | null {
+  return srcsetCandidates(srcset).sort((x, y) => y.score - x.score)[0]?.url ?? null;
+}
+
+function srcsetCandidates(srcset: string): Array<{ url: string; score: number }> {
+  const candidates: Array<{ url: string; score: number }> = [];
+  // URLs may contain commas, so candidates are read token by token, not split on ','.
+  for (const match of srcset.matchAll(/\s*(\S+)(?:\s+(\d*\.?\d+)([wx]))?\s*(?:,|$)/g)) {
+    const url = (match[1] ?? '').replace(/,+$/, '');
+    if (url === '' || url.startsWith('data:')) continue;
+    const value = Number(match[2] ?? '1');
+    candidates.push({ url, score: match[3] === 'w' ? 10_000 + value : value });
+  }
+  return candidates;
+}
+
+/**
+ * Best source of an `<img>`: the largest `srcset` candidate (its own or its
+ * `<picture>` siblings'), else `src`, else a lazy-loading attribute. `data:`
+ * placeholders are never returned.
+ */
+export function bestImageSource(img: DomNode, picture?: DomNode): string | null {
+  const holders = [...(picture?.children ?? []).filter((child) => child.name === 'source'), img];
+  const candidates = holders.flatMap((holder) =>
+    SRCSET_ATTRIBUTES.flatMap((attribute) => srcsetCandidates(holder.attribs?.[attribute] ?? '')),
+  );
+  const best = candidates.sort((x, y) => y.score - x.score)[0];
+  if (best !== undefined) return best.url;
+  for (const attribute of ['src', ...LAZY_SOURCE_ATTRIBUTES]) {
+    const value = img.attribs?.[attribute]?.trim();
+    if (value !== undefined && value !== '' && !value.startsWith('data:')) return value;
+  }
+  return null;
 }
 
 /** Escapes a line that would be read as a heading, list item, quote or rule. */
 function escapeLineStart(line: string): string {
   return line
-    .replace(/^(\s*)(#{1,6}(?:\s|$)|>|[-+](?:\s|$)|(?:-{3,}|={3,})\s*$)/, '$1\\$2')
+    .replace(/^(\s*)(#{1,6}(?:\s|$)|>|[-+*](?:\s|$)|(?:-{3,}|={3,})\s*$)/, '$1\\$2')
     .replace(/^(\s*\d+)([.)]\s)/, '$1\\$2');
 }
 
@@ -110,7 +205,40 @@ function inlineCode(code: string): string {
 }
 
 class Converter {
-  constructor(private readonly baseUrl: string | undefined) {}
+  readonly links = new Map<string, MarkdownLink>();
+  readonly images = new Map<string, MarkdownImage>();
+  /** Reference numbers of cited URLs (with `citations`). */
+  private readonly references = new Map<string, number>();
+  private readonly baseUrl: string | undefined;
+  private readonly citations: boolean;
+
+  constructor(options: MarkdownOptions) {
+    this.baseUrl = options.baseUrl;
+    this.citations = options.citations ?? false;
+  }
+
+  /** The reference list closing a document converted with `citations`. */
+  referenceList(): string {
+    return [...this.references.entries()].map(([url, index]) => `[${index}]: ${url}`).join('\n');
+  }
+
+  private link(label: string, href: string): string {
+    if (!this.citations) return `[${label}](${href})`;
+    let index = this.references.get(href);
+    if (index === undefined) {
+      index = this.references.size + 1;
+      this.references.set(href, index);
+    }
+    return `[${label}][${index}]`;
+  }
+
+  private image(img: DomNode, picture?: DomNode): string {
+    const src = this.resolve(bestImageSource(img, picture) ?? undefined, ['http:', 'https:']);
+    if (src === null) return '';
+    const plainAlt = (img.attribs?.['alt'] ?? '').replace(/\s+/g, ' ').trim();
+    if (!this.images.has(src)) this.images.set(src, { url: src, alt: plainAlt });
+    return `![${escapeText(plainAlt)}](${src})`;
+  }
 
   /** Absolute form of a link target; `null` for anything that is not safe to emit. */
   private resolve(reference: string | undefined, schemes: readonly string[]): string | null {
@@ -164,16 +292,22 @@ class Converter {
         case 'a': {
           const text = this.inline(children, depth + 1);
           const href = this.resolve(node.attribs?.['href'], ['http:', 'https:', 'mailto:']);
+          if (href !== null && !href.startsWith('mailto:') && !this.links.has(href)) {
+            const plain = rawText(node).replace(/\s+/g, ' ').trim().slice(0, 200);
+            this.links.set(href, { url: href, text: plain });
+          }
           out +=
             href === null
               ? text
-              : decorate(text, (label) => `[${label.replace(/\n/g, ' ')}](${href})`);
+              : decorate(text, (label) => this.link(label.replace(/\n/g, ' '), href));
           break;
         }
-        case 'img': {
-          const src = this.resolve(node.attribs?.['src'], ['http:', 'https:']);
-          const alt = escapeText((node.attribs?.['alt'] ?? '').replace(/\s+/g, ' ').trim());
-          if (src !== null) out += `![${alt}](${src})`;
+        case 'img':
+          out += this.image(node);
+          break;
+        case 'picture': {
+          const img = children.find((child) => child.name === 'img');
+          if (img !== undefined) out += this.image(img, node);
           break;
         }
         default: {
@@ -334,7 +468,25 @@ class Converter {
  * @param nodes - Nodes to convert, in document order.
  */
 export function nodesToMarkdown(nodes: readonly DomNode[], options: MarkdownOptions = {}): string {
-  return new Converter(options.baseUrl).blocks(nodes, 0).join('\n\n').trim();
+  return convertNodes(nodes, options).markdown;
+}
+
+/**
+ * Converts parsed DOM nodes to Markdown and reports the links and images met
+ * on the way, with the same URL resolution as the Markdown itself.
+ */
+export function convertNodes(
+  nodes: readonly DomNode[],
+  options: MarkdownOptions = {},
+): MarkdownDocument {
+  const converter = new Converter(options);
+  const body = converter.blocks(nodes, 0).join('\n\n').trim();
+  const references = converter.referenceList();
+  return {
+    markdown: references === '' ? body : `${body}\n\n${references}`,
+    links: [...converter.links.values()],
+    images: [...converter.images.values()],
+  };
 }
 
 /**

@@ -18,12 +18,13 @@ import { buildOpenApiDocument } from './openapi.js';
 import { contentDoc, contentRoutes } from './routes/content.js';
 import { extractDoc, extractRoutes } from './routes/extract.js';
 import { healthDoc, healthRoutes } from './routes/health.js';
-import { metaDoc, metaRoutes } from './routes/meta.js';
+import { metaBatchDoc, metaDoc, metaRoutes } from './routes/meta.js';
 import { openApiDoc, openApiRoutes } from './routes/openapi.js';
 import { pdfDoc, pdfRoutes } from './routes/pdf.js';
 import { playgroundRoutes } from './routes/playground.js';
 import { screenshotDoc, screenshotRoutes } from './routes/screenshot.js';
 import { ApiKeyRegistry } from './security/api-keys.js';
+import { EgressProxy } from './security/egress-proxy.js';
 import {
   installRequestIdentity,
   rateLimitBucket,
@@ -51,16 +52,19 @@ export async function buildApp(config: AppConfig): Promise<FastifyInstance> {
     trustProxy: config.trustProxy,
     genReqId: requestIdOf,
     // Query-string booleans/integers arrive as strings: let Ajv coerce them.
-    // Unknown query parameters are dropped rather than rejected: links to a public
-    // API routinely pick up tracking or share parameters along the way.
+    // Unknown parameters are dropped, not refused: a public URL routinely picks
+    // up tracking or share parameters (`utm_source`, `fbclid`), and answering
+    // 400 for those would break every link pasted from elsewhere.
     ajv: { customOptions: { coerceTypes: true, useDefaults: true, removeAdditional: true } },
   }).withTypeProvider<TypeBoxTypeProvider>();
 
   // --- Services (manual dependency injection) --------------------------------
   const cache = createCache(config, app.log);
-  const pool = new BrowserPool(config.browser, app.log);
+  // The browser's only route to the network (started with the first launch).
+  const egress = new EgressProxy(config.ssrf);
+  const pool = new BrowserPool(config.browser, app.log, egress);
   const fetcher = new SafeFetcher(config);
-  const renderer = new Renderer(pool, config);
+  const renderer = new Renderer(pool, config, egress);
   const metaService = new MetaService(config, cache, fetcher, renderer);
   const screenshotService = new ScreenshotService(config, cache, renderer);
   const pdfService = new PdfService(config, cache, renderer);
@@ -71,6 +75,8 @@ export async function buildApp(config: AppConfig): Promise<FastifyInstance> {
 
   app.addHook('onClose', async () => {
     await Promise.allSettled([pool.close(), fetcher.close(), cache.close()]);
+    // After the browser: its connections end with it.
+    await egress.close();
   });
 
   // --- Cross-cutting plugins --------------------------------------------------
@@ -79,7 +85,17 @@ export async function buildApp(config: AppConfig): Promise<FastifyInstance> {
   await app.register(cors, {
     origin: config.corsOrigin === '*' ? true : config.corsOrigin,
     // Without this, browser code cannot read our custom response headers.
-    exposedHeaders: ['x-request-id', 'x-cache', 'retry-after'],
+    exposedHeaders: [
+      'x-request-id',
+      'x-cache',
+      'x-render-source',
+      'etag',
+      'retry-after',
+      'x-ratelimit-limit',
+      'x-ratelimit-remaining',
+      'x-ratelimit-reset',
+    ],
+    methods: ['GET', 'HEAD', 'POST'],
   });
   await app.register(rateLimit, {
     max: (request) => (request.apiKeyId === null ? config.rateLimit.max : config.rateLimit.keyMax),
@@ -150,7 +166,14 @@ export async function buildApp(config: AppConfig): Promise<FastifyInstance> {
   await app.register(playgroundRoutes);
   await app.register(
     async (v1) => {
-      await v1.register(metaRoutes, { metaService });
+      await v1.register(metaRoutes, {
+        metaService,
+        // A batch is up to ten lookups: it gets a tenth of the caller's quota.
+        batchRateLimit: {
+          max: Math.max(1, Math.floor(config.rateLimit.max / 10)),
+          keyMax: Math.max(1, Math.floor(config.rateLimit.keyMax / 10)),
+        },
+      });
       await v1.register(screenshotRoutes, { screenshotService });
       await v1.register(pdfRoutes, { pdfService });
       await v1.register(extractRoutes, { extractService });
@@ -158,6 +181,7 @@ export async function buildApp(config: AppConfig): Promise<FastifyInstance> {
       await v1.register(openApiRoutes, {
         document: buildOpenApiDocument([
           metaDoc,
+          metaBatchDoc,
           screenshotDoc,
           pdfDoc,
           extractDoc,

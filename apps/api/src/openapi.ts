@@ -10,7 +10,7 @@
 import { ErrorCode } from './lib/errors.js';
 
 /** Version of the API contract, reported in `info.version`. */
-export const API_VERSION = '0.2.0';
+export const API_VERSION = '0.3.0';
 
 /** A JSON Schema object (TypeBox schemas are plain JSON Schema at runtime). */
 type JsonSchema = object;
@@ -29,10 +29,14 @@ export interface ResponseDoc {
   readonly headers?: Readonly<Record<string, string>>;
 }
 
-/** Everything needed to describe one `GET` endpoint. */
+/** Everything needed to describe one endpoint. */
 export interface EndpointDoc {
   /** Full path, e.g. `/api/v1/meta`. */
   readonly path: string;
+  /** HTTP method; `get` when omitted. */
+  readonly method?: 'get' | 'post';
+  /** JSON request body (`post` only). */
+  readonly body?: JsonSchema;
   readonly operationId: string;
   readonly summary: string;
   readonly description: string;
@@ -62,7 +66,8 @@ export const ERROR_CATALOG: Readonly<Record<ErrorCode, { status: number; descrip
   },
   [ErrorCode.SelectorNotFound]: {
     status: 404,
-    description: 'No visible element matches `selector`.',
+    description:
+      'No visible element matches `selector`, or `waitForSelector` did not appear in time.',
   },
   [ErrorCode.NotHtml]: { status: 422, description: 'The target is not an HTML document.' },
   [ErrorCode.TooLarge]: { status: 422, description: 'The generated output exceeds the size limit.' },
@@ -71,6 +76,12 @@ export const ERROR_CATALOG: Readonly<Record<ErrorCode, { status: number; descrip
   [ErrorCode.Internal]: { status: 500, description: 'Unexpected server-side failure.' },
   [ErrorCode.Unreachable]: { status: 502, description: 'Target unreachable (DNS, TCP, TLS…).' },
   [ErrorCode.TargetStatus]: { status: 502, description: 'The target answered with an HTTP error.' },
+  [ErrorCode.Blocked]: {
+    status: 502,
+    description:
+      'The target served an anti-bot challenge or an access-denied page instead of its ' +
+      'content. Nothing is cached.',
+  },
   [ErrorCode.Busy]: { status: 503, description: 'Rendering pool saturated, retry shortly.' },
   [ErrorCode.Timeout]: { status: 504, description: 'The target did not answer in time.' },
 };
@@ -90,6 +101,7 @@ export const TARGET_ERRORS: readonly ErrorCode[] = [
   ErrorCode.ForbiddenUrl,
   ErrorCode.Unreachable,
   ErrorCode.TargetStatus,
+  ErrorCode.Blocked,
   ErrorCode.Timeout,
   ErrorCode.Busy,
   ErrorCode.Browser,
@@ -178,6 +190,9 @@ function operationOf(endpoint: EndpointDoc): object {
     description: endpoint.description,
     tags: [endpoint.tag],
     parameters: endpoint.query === undefined ? [] : parametersOf(endpoint.query),
+    ...(endpoint.body !== undefined && {
+      requestBody: { required: true, content: { 'application/json': { schema: endpoint.body } } },
+    }),
     responses: { ...success, ...errorResponses(endpoint.errors) },
   };
 }
@@ -195,7 +210,8 @@ export function buildOpenApiDocument(endpoints: readonly EndpointDoc[]): Record<
       version: API_VERSION,
       description:
         'Link intelligence over HTTP: metadata, screenshots, PDF, custom extraction and ' +
-        'readable content. Every endpoint is a `GET`; errors share one JSON shape.',
+        'readable content. Every endpoint is a `GET`, except the metadata batch; errors ' +
+        'share one JSON shape. Query parameters the API does not know are ignored.',
       license: { name: 'MIT', identifier: 'MIT' },
     },
     servers: [{ url: '/', description: 'This deployment' }],
@@ -203,7 +219,10 @@ export function buildOpenApiDocument(endpoints: readonly EndpointDoc[]): Record<
     // The key is optional: anonymous calls work, with a lower rate limit.
     security: [{}, { ApiKey: [] }],
     paths: Object.fromEntries(
-      endpoints.map((endpoint) => [endpoint.path, { get: operationOf(endpoint) }]),
+      endpoints.map((endpoint) => [
+        endpoint.path,
+        { [endpoint.method ?? 'get']: operationOf(endpoint) },
+      ]),
     ),
     components: {
       securitySchemes: {
