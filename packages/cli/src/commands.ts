@@ -17,7 +17,7 @@ export interface CommandSpec {
 }
 
 /** Public demo instance, used when neither `--base-url` nor `OMNILLINK_URL` is set. */
-export const DEFAULT_BASE_URL = 'https://linkforge-sable.vercel.app';
+export const DEFAULT_BASE_URL = 'https://omnillink.kayzen-lyon.com';
 export const DEFAULT_CONCURRENCY = 4;
 export const MAX_CONCURRENCY = 16;
 /** Screenshots and PDFs of slow pages take longer than the SDK's 30 s default. */

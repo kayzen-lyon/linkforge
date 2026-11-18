@@ -1,4 +1,4 @@
-# Feuille de route LinkForge
+# Feuille de route Omnillink
 
 Objectif : un service open-source et performant d'extraction de métadonnées, de captures d'écran et d'aperçus de liens, auto-hébergeable, avec une offre hébergée optionnelle.
 

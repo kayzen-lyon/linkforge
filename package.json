@@ -2,11 +2,16 @@
   "name": "linkforge",
   "version": "0.1.0",
   "private": true,
-  "description": "Open-source link intelligence API: rich metadata, screenshots and link previews.",
+  "description": "Omnillink — open-source link intelligence API: metadata, screenshots, PDFs, extraction and readable content.",
   "license": "MIT",
   "type": "module",
-  "engines": { "node": ">=22" },
-  "workspaces": ["apps/*"],
+  "engines": {
+    "node": ">=22"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
     "dev": "npm run dev --workspace @linkforge/api",
     "dev:web": "npm run dev --workspace @linkforge/web",

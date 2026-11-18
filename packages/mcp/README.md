@@ -89,7 +89,7 @@ Leave the `env` block out to use the public demo instance. From a checkout of th
 
 | Variable | Default | |
 | --- | --- | --- |
-| `OMNILLINK_URL` | `https://linkforge-sable.vercel.app` (public demo) | Origin of the Omnillink instance. |
+| `OMNILLINK_URL` | `https://omnillink.kayzen-lyon.com` (public demo) | Origin of the Omnillink instance. |
 | `OMNILLINK_API_KEY` | — | Sent as the `x-api-key` header. Requires `OMNILLINK_URL`: the server refuses to start rather than send a key to the default instance. |
 | `OMNILLINK_TIMEOUT_MS` | `60000` | Time allowed per request. |
 | `OMNILLINK_MCP_MAX_CHARS` | `20000` | Largest text a tool returns before it truncates. |

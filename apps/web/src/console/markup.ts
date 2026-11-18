@@ -15,7 +15,7 @@ const t = (key: Key): string => `data-i18n="${key}"`;
 const label = (key: Key): string => `data-i18n-attr="aria-label:${key}"`;
 
 /** Default address of the demo. Nothing is requested until the visitor presses Run. */
-export const DEFAULT_URL = 'https://github.com/kayzen-lyon/linkforge';
+export const DEFAULT_URL = 'https://www.kayzen-lyon.com';
 
 /** Ready-made addresses, one per kind of page. Public pages chosen for being stable. */
 export const EXAMPLES: ReadonlyArray<readonly [Key, string]> = [

@@ -7,7 +7,7 @@
 import { createClient, OmnillinkError } from '@omnillink/sdk';
 
 const omnillink = createClient({
-  baseUrl: process.env.OMNILLINK_URL ?? 'https://linkforge-sable.vercel.app',
+  baseUrl: process.env.OMNILLINK_URL ?? 'https://omnillink.kayzen-lyon.com',
   // Only sent when it is set; never exposed to the browser (no NEXT_PUBLIC_ prefix).
   ...(process.env.OMNILLINK_API_KEY ? { apiKey: process.env.OMNILLINK_API_KEY } : {}),
 });

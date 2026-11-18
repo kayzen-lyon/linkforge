@@ -1,6 +1,6 @@
 # Politique de sécurité
 
-LinkForge va chercher des URL arbitraires pour le compte de ses utilisateurs. Les failles de type SSRF, contournement de la validation d'URL, évasion du navigateur ou déni de service sont donc traitées en priorité.
+Omnillink va chercher des URL arbitraires pour le compte de ses utilisateurs. Les failles de type SSRF, contournement de la validation d'URL, évasion du navigateur ou déni de service sont donc traitées en priorité.
 
 ## Signaler une vulnérabilité
 
@@ -15,7 +15,7 @@ Indiquez si possible :
 ## Périmètre
 
 - Dans le périmètre : le code de ce dépôt (`apps/api`, `apps/web`, `packages/*`).
-- Hors périmètre : les sites tiers dont LinkForge lit le contenu, et les attaques qui supposent un accès préalable à l'infrastructure d'hébergement.
+- Hors périmètre : les sites tiers dont Omnillink lit le contenu, et les attaques qui supposent un accès préalable à l'infrastructure d'hébergement.
 
 ## Modèle de protection du navigateur
 

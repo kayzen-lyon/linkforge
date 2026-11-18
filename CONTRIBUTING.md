@@ -1,4 +1,4 @@
-# Contribuer à LinkForge
+# Contribuer à Omnillink
 
 Merci de votre intérêt. Ce guide dit l'essentiel pour proposer un changement qui sera accepté.
 

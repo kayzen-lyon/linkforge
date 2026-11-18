@@ -2,7 +2,7 @@ import { createClient, OmnillinkError } from '@omnillink/sdk';
 
 import { LinkCard, LinkTitle } from './components/link-card';
 
-const baseUrl = process.env.OMNILLINK_URL ?? 'https://linkforge-sable.vercel.app';
+const baseUrl = process.env.OMNILLINK_URL ?? 'https://omnillink.kayzen-lyon.com';
 const url = 'https://github.com';
 
 /** A Server Component: the metadata is fetched on the server and ships as HTML. */
