@@ -15,6 +15,7 @@ import {
   BOT_WALL_STATUSES,
   domRenderOptions,
   HTML_TYPES,
+  hasExecutableScript,
   looksLikeEmptyShell,
   snapshotHtml,
   type RenderMode,
@@ -182,7 +183,7 @@ export class TechService {
     const knowsRuntime = technologies.some(
       (tech) => (tech.category === 'framework' || tech.category === 'library') && tech.confidence !== 'low',
     );
-    if (knowsRuntime || !/<script\b/i.test(html) || !looksLikeEmptyShell(html)) return staticResult;
+    if (knowsRuntime || !hasExecutableScript(html) || !looksLikeEmptyShell(html)) return staticResult;
     try {
       return await this.viaBrowser(target, headers, deadline, pass);
     } catch (error) {

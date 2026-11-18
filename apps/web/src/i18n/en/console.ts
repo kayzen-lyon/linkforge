@@ -178,6 +178,8 @@ export const consoleText: Record<keyof typeof source, string> = {
   'fix.EBLOCKED': 'Omnillink does not work around these protections. Check the page in a browser, or ask the site for access.',
   'why.ECIRCUITOPEN': 'The target site failed several times in a row; it is set aside for a few seconds.',
   'fix.ECIRCUITOPEN': 'Retry after the delay given in the message and in the `retry-after` header.',
+  'why.EROUTENOTFOUND': 'The requested path does not exist in the API.',
+  'fix.EROUTENOTFOUND': 'Check the path and version in the reference.',
   'col.name': 'Name',
   'col.category': 'Category',
   'col.confidence': 'Confidence',

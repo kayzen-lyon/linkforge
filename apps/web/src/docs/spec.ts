@@ -360,6 +360,7 @@ export const ERRORS: readonly ErrorRow[] = [
   { code: 'EBLOCKED', http: '502', meaning: 'err.EBLOCKED' },
   { code: 'EBUSY', http: '503', meaning: 'err.EBUSY' },
   { code: 'ECIRCUITOPEN', http: '503', meaning: 'err.ECIRCUITOPEN' },
+  { code: 'EROUTENOTFOUND', http: '404', meaning: 'err.EROUTENOTFOUND' },
   { code: 'ETIMEOUT', http: '504', meaning: 'err.ETIMEOUT' },
 ];
 

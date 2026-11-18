@@ -176,6 +176,8 @@ export const consoleText = {
   'fix.EBLOCKED': 'Omnillink ne contourne pas ces protections. Vérifiez la page dans un navigateur, ou demandez un accès au site.',
   'why.ECIRCUITOPEN': 'Le site cible a échoué plusieurs fois de suite ; il est mis à l’écart quelques secondes.',
   'fix.ECIRCUITOPEN': 'Réessayez après le délai indiqué dans le message et dans l’en-tête `retry-after`.',
+  'why.EROUTENOTFOUND': 'Le chemin demandé n’existe pas dans l’API.',
+  'fix.EROUTENOTFOUND': 'Vérifiez le chemin et la version dans la référence.',
   'col.name': 'Nom',
   'col.category': 'Catégorie',
   'col.confidence': 'Confiance',

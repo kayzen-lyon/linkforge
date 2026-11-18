@@ -73,6 +73,35 @@ export async function snapshotHtml(page: Page, maxBytes: number): Promise<string
   return (await page.content()).slice(0, maxBytes);
 }
 
+/**
+ * `type` values of a `<script>` that browsers run. Any other value makes the
+ * element a data block (`application/ld+json`, `application/json`,
+ * `text/template`, `importmap`, `speculationrules`…), which changes nothing in
+ * the DOM.
+ */
+const EXECUTABLE_SCRIPT_TYPE =
+  /^(?:module|(?:text|application)\/(?:x-)?(?:java|ecma)script|text\/(?:javascript1\.[0-5]|jscript|livescript))$/;
+
+/**
+ * Tells whether the markup holds a script a browser would run, i.e. whether
+ * rendering could produce a DOM different from the static one.
+ *
+ * Data blocks do not count: a static page whose only `<script>` is its JSON-LD
+ * is complete as fetched, and sending it to the browser costs seconds and a
+ * rendering slot for the very same markup.
+ */
+export function hasExecutableScript(html: string): boolean {
+  // Cheap way out for script-less documents: no parse.
+  if (!/<script\b/i.test(html)) return false;
+  return load(html)('script')
+    .toArray()
+    .some((element) => {
+      // MIME parameters are dropped: when in doubt, the script counts as executable.
+      const type = (element.attribs['type'] ?? '').split(';')[0]?.trim().toLowerCase() ?? '';
+      return type === '' || EXECUTABLE_SCRIPT_TYPE.test(type);
+    });
+}
+
 /** A document with scripts but almost no text: content is rendered client-side. */
 export function looksLikeEmptyShell(html: string): boolean {
   const $ = load(html);
@@ -92,7 +121,7 @@ export class PageLoader {
    *
    * `never`: raw HTTP only. `always`: browser only. `auto`: raw HTTP, then the
    * browser when the answer is a block page, or when the page runs scripts
-   * and either looks like an empty shell or is judged insufficient by the caller.
+   * (data blocks such as JSON-LD are not scripts) and either looks like an empty shell or is judged insufficient by the caller.
    *
    * @throws {AppError} `ENOTHTML` when the target is not an HTML document,
    *   `EBLOCKED` when it only serves a block page, plus the usual network
@@ -122,8 +151,8 @@ export class PageLoader {
       return this.viaBrowser(target, deadline, null, headers);
     }
     if (render === 'never') return page;
-    // Without a script, a browser would produce exactly the same DOM.
-    if (!/<script\b/i.test(page.html)) return page;
+    // Without a script to run, a browser would produce exactly the same DOM.
+    if (!hasExecutableScript(page.html)) return page;
     if (!looksLikeEmptyShell(page.html) && (options.isSufficient?.(page) ?? true)) return page;
 
     try {

@@ -30,6 +30,11 @@ export const ErrorCode = {
   RateLimited: 'ERATELIMIT',
   /** An `x-api-key` header was sent but matches no configured key. */
   Unauthorized: 'EUNAUTHORIZED',
+  /**
+   * No route answers at this method and path. Not spelled `ENOTFOUND`: that is
+   * Node's DNS failure, which {@link findErrorCode} reads on the network path.
+   */
+  RouteNotFound: 'EROUTENOTFOUND',
   /** The item asked for (embed path, preview image, oEmbed endpoint, icon, table) is absent for this URL. */
   EmbedNotFound: 'EEMBEDNOTFOUND',
   /** `/screenshot?selector=`: no visible element matches the selector. */
@@ -46,16 +51,36 @@ export const ErrorCode = {
 
 export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];
 
+/** Options of an {@link AppError}, on top of the standard `cause`. */
+export interface AppErrorOptions extends ErrorOptions {
+  /**
+   * Seconds after which the same request is worth sending again. Carried as
+   * data, not only in the message, so the error handler can answer with a
+   * `Retry-After` header that clients and proxies honour without parsing text.
+   */
+  readonly retryAfterSeconds?: number;
+}
+
+/**
+ * Wait advised when the rendering pool is saturated. A rendering job lasts a
+ * few seconds and the pool cannot know when the next slot frees up: this is a
+ * hint that spreads retries out, not a promise.
+ */
+export const BUSY_RETRY_AFTER_SECONDS = 2;
+
 export class AppError extends Error {
   override readonly name = 'AppError';
+  /** Value of the `Retry-After` header, when waiting is the remedy. */
+  readonly retryAfterSeconds: number | undefined;
 
   constructor(
     readonly code: ErrorCode,
     readonly statusCode: number,
     message: string,
-    options?: ErrorOptions,
+    options?: AppErrorOptions,
   ) {
     super(message, options);
+    this.retryAfterSeconds = options?.retryAfterSeconds;
   }
 
   static invalidUrl(message: string): AppError {
@@ -114,8 +139,8 @@ export class AppError extends Error {
     );
   }
 
-  static busy(message: string): AppError {
-    return new AppError(ErrorCode.Busy, 503, message);
+  static busy(message: string, retryAfterSeconds: number = BUSY_RETRY_AFTER_SECONDS): AppError {
+    return new AppError(ErrorCode.Busy, 503, message, { retryAfterSeconds });
   }
 
   static circuitOpen(host: string, retryAfterSeconds: number): AppError {
@@ -123,6 +148,7 @@ export class AppError extends Error {
       ErrorCode.CircuitOpen,
       503,
       `${host} failed repeatedly and is not contacted for now, retry in ${retryAfterSeconds} s`,
+      { retryAfterSeconds },
     );
   }
 

@@ -5,7 +5,7 @@ import { ErrorCode } from '../lib/errors.js';
 import { TARGET_ERRORS, type EndpointDoc } from '../openapi.js';
 import type { PdfService } from '../services/pdf-service.js';
 import {
-  CACHE_HEADERS,
+  RENDERED_HEADERS,
   cacheControl,
   ForceParam,
   TargetHeaderParams,
@@ -95,7 +95,7 @@ export const pdfDoc: EndpointDoc = {
   responses: {
     '200': {
       description: 'The PDF document.',
-      headers: CACHE_HEADERS,
+      headers: { ...RENDERED_HEADERS, 'content-disposition': '`inline; filename="page.pdf"`.' },
       content: { 'application/pdf': Type.String({ format: 'binary' }) },
     },
   },

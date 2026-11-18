@@ -48,19 +48,36 @@ export interface EndpointDoc {
   readonly responses: Readonly<Record<string, ResponseDoc>>;
   /** Error codes this endpoint can answer with. */
   readonly errors: readonly ErrorCode[];
+  /**
+   * `false` for a route the rate limiter skips, whose answers therefore carry
+   * no `x-ratelimit-*` header. Rate limited when omitted.
+   */
+  readonly rateLimited?: boolean;
+}
+
+/** What the catalogue says of one error code. */
+export interface ErrorDoc {
+  readonly status: number;
+  readonly description: string;
+  /** The answer carries a `Retry-After` header: waiting is the remedy. */
+  readonly retryAfter?: true;
 }
 
 /**
  * HTTP status and meaning of every error code. Typed as a complete record: a
  * new {@link ErrorCode} does not compile until it is documented here.
  */
-export const ERROR_CATALOG: Readonly<Record<ErrorCode, { status: number; description: string }>> = {
+export const ERROR_CATALOG: Readonly<Record<ErrorCode, ErrorDoc>> = {
   [ErrorCode.InvalidParams]: { status: 400, description: 'Invalid query parameters.' },
   [ErrorCode.InvalidUrl]: { status: 400, description: 'Malformed URL or unsupported scheme.' },
   [ErrorCode.Unauthorized]: { status: 401, description: 'Unknown `x-api-key`.' },
   [ErrorCode.ForbiddenUrl]: {
     status: 403,
     description: 'Destination refused by the anti-SSRF policy.',
+  },
+  [ErrorCode.RouteNotFound]: {
+    status: 404,
+    description: 'No route answers at this method and path.',
   },
   [ErrorCode.EmbedNotFound]: {
     status: 404,
@@ -75,7 +92,11 @@ export const ERROR_CATALOG: Readonly<Record<ErrorCode, { status: number; descrip
   },
   [ErrorCode.NotHtml]: { status: 422, description: 'The target is not an HTML document.' },
   [ErrorCode.TooLarge]: { status: 422, description: 'The generated output exceeds the size limit.' },
-  [ErrorCode.RateLimited]: { status: 429, description: 'Too many requests.' },
+  [ErrorCode.RateLimited]: {
+    status: 429,
+    description: 'Too many requests. `Retry-After` tells when the window resets.',
+    retryAfter: true,
+  },
   [ErrorCode.Browser]: { status: 500, description: 'The headless browser failed.' },
   [ErrorCode.Internal]: { status: 500, description: 'Unexpected server-side failure.' },
   [ErrorCode.Unreachable]: { status: 502, description: 'Target unreachable (DNS, TCP, TLS…).' },
@@ -86,12 +107,17 @@ export const ERROR_CATALOG: Readonly<Record<ErrorCode, { status: number; descrip
       'The target served an anti-bot challenge or an access-denied page instead of its ' +
       'content. Nothing is cached.',
   },
-  [ErrorCode.Busy]: { status: 503, description: 'Rendering pool saturated, retry shortly.' },
+  [ErrorCode.Busy]: {
+    status: 503,
+    description: 'Rendering pool saturated, retry shortly (`Retry-After` gives a short wait).',
+    retryAfter: true,
+  },
   [ErrorCode.CircuitOpen]: {
     status: 503,
     description:
       'The target host failed repeatedly (timeouts, refused connections) and is not ' +
-      'contacted for a short while. Retry later.',
+      'contacted for a short while. `Retry-After` tells when it will be tried again.',
+    retryAfter: true,
   },
   [ErrorCode.Timeout]: { status: 504, description: 'The target did not answer in time.' },
 };
@@ -136,6 +162,21 @@ const ERROR_SCHEMA = {
   },
 } as const;
 
+const headerRef = (name: string): { $ref: string } => ({ $ref: `#/components/headers/${name}` });
+
+/** Sent by the rate limiter on every answer of a route it covers, errors included. */
+const RATE_LIMIT_HEADERS = ['x-ratelimit-limit', 'x-ratelimit-remaining', 'x-ratelimit-reset'] as const;
+
+/** Headers every answer of an endpoint carries, whatever its status. */
+function standardHeaders(endpoint: EndpointDoc): Record<string, object> {
+  return Object.fromEntries(
+    ['x-request-id', ...(endpoint.rateLimited === false ? [] : RATE_LIMIT_HEADERS)].map((name) => [
+      name,
+      headerRef(name),
+    ]),
+  );
+}
+
 function parametersOf(query: QuerySchema): object[] {
   const required = new Set(query.required ?? []);
   return Object.entries(query.properties).map(([name, property]) => {
@@ -150,9 +191,9 @@ function parametersOf(query: QuerySchema): object[] {
   });
 }
 
-function errorResponses(codes: readonly ErrorCode[]): Record<string, object> {
+function errorResponses(endpoint: EndpointDoc): Record<string, object> {
   const byStatus = new Map<number, ErrorCode[]>();
-  for (const code of codes) {
+  for (const code of endpoint.errors) {
     const { status } = ERROR_CATALOG[code];
     byStatus.set(status, [...(byStatus.get(status) ?? []), code]);
   }
@@ -165,6 +206,13 @@ function errorResponses(codes: readonly ErrorCode[]): Record<string, object> {
           description: statusCodes
             .map((code) => `\`${code}\` — ${ERROR_CATALOG[code].description}`)
             .join('\n\n'),
+          headers: {
+            ...standardHeaders(endpoint),
+            // Only when every code of this status carries it: a header listed here is a promise.
+            ...(statusCodes.every((code) => ERROR_CATALOG[code].retryAfter === true) && {
+              'retry-after': headerRef('retry-after'),
+            }),
+          },
           content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } },
         },
       ]),
@@ -178,7 +226,7 @@ function operationOf(endpoint: EndpointDoc): object {
       {
         description: response.description,
         headers: {
-          'x-request-id': { $ref: '#/components/headers/x-request-id' },
+          ...standardHeaders(endpoint),
           ...Object.fromEntries(
             Object.entries(response.headers ?? {}).map(([name, description]) => [
               name,
@@ -209,7 +257,7 @@ function operationOf(endpoint: EndpointDoc): object {
     ...(endpoint.body !== undefined && {
       requestBody: { required: true, content: { 'application/json': { schema: endpoint.body } } },
     }),
-    responses: { ...success, ...errorResponses(endpoint.errors) },
+    responses: { ...success, ...errorResponses(endpoint) },
   };
 }
 
@@ -229,7 +277,10 @@ export function buildOpenApiDocument(endpoints: readonly EndpointDoc[]): Record<
         'screenshots, PDF, page insights, technology detection and small generators (QR code, ' +
         'social card). Every REST endpoint is a `GET`, except the metadata batch; `POST /mcp` ' +
         'exposes the read-only ones to AI agents over the Model Context Protocol. Errors share ' +
-        'one JSON shape. Query parameters the API does not know are ignored.',
+        'one JSON shape; a path or method no route serves answers `404 EROUTENOTFOUND`. Query ' +
+        'parameters the API does not know are ignored. Rate-limited routes report the ' +
+        "caller's quota on every answer (`x-ratelimit-*`), and `429` and `503` answers say " +
+        'how long to wait in `Retry-After`.',
       license: { name: 'MIT', identifier: 'MIT' },
     },
     servers: [{ url: '/', description: 'This deployment' }],
@@ -257,6 +308,27 @@ export function buildOpenApiDocument(endpoints: readonly EndpointDoc[]): Record<
             'Identifier of the request: the `x-request-id` sent by the client when it is ' +
             'well-formed, a generated one otherwise.',
           schema: { type: 'string' },
+        },
+        'x-ratelimit-limit': {
+          description:
+            "Requests allowed per window for the caller's bucket (the API key when one is " +
+            'sent, the client address otherwise).',
+          schema: { type: 'integer', minimum: 1 },
+        },
+        'x-ratelimit-remaining': {
+          description: 'Requests left in the current window.',
+          schema: { type: 'integer', minimum: 0 },
+        },
+        'x-ratelimit-reset': {
+          description: 'Seconds until the current window ends and the quota is whole again.',
+          schema: { type: 'integer', minimum: 0 },
+        },
+        'retry-after': {
+          description:
+            'Seconds to wait before sending the request again: the rest of the rate-limit ' +
+            'window on `429`, the time until the target host is tried again or a short ' +
+            'back-off for a saturated rendering pool on `503`.',
+          schema: { type: 'integer', minimum: 1 },
         },
       },
       schemas: { Error: ERROR_SCHEMA },
