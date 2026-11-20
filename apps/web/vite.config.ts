@@ -232,7 +232,7 @@ function checkBudget(outDir: string): void {
       for (const match of readFileSync(asset, 'utf8').matchAll(/from\s*"\.\/([^"]+\.js)"|import\s*"\.\/([^"]+\.js)"/g)) seen.add(join(outDir, 'assets', match[1] ?? match[2] ?? ''));
     }
     const total = (brotli(file) + [...seen].reduce((sum, asset) => sum + (existsSync(asset) ? brotli(asset) : 0), 0)) / 1024;
-    const { page } = parsePath(`/${relative(outDir, file)}`);
+    const { page } = parsePath(`/${relative(outDir, file).replaceAll('\\', '/')}`);
     const limit = BUDGET_KB[page] ?? BUDGET_KB['default'] ?? 45;
     if (total > limit) failed = true;
     rows.push(`${total > limit ? 'OVER' : 'ok  '} ${total.toFixed(1).padStart(6)} kB br (budget ${limit})  /${relative(outDir, file)}`);
