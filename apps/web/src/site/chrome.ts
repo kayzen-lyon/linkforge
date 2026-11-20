@@ -260,6 +260,7 @@ export function footer(): string {
           <p><span ${text('built')}></span> <!--@built--></p>
         </div>
       </div>
+      <div class="im-filigrane" aria-hidden="true" data-mark="${BRAND}"></div>
     </footer>
     ${a11yPanel()}
     ${overlays()}`;

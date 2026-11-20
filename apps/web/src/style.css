@@ -95,7 +95,7 @@
   --shadow-e2: 0 2px 6px hsl(214 30% 20% / 0.06), 0 1px 2px hsl(214 30% 20% / 0.04);
   --shadow-e3: 0 8px 20px -6px hsl(214 30% 20% / 0.1), 0 2px 6px hsl(214 30% 20% / 0.05);
   --shadow-e4: 0 24px 48px -16px hsl(214 30% 20% / 0.18), 0 4px 12px hsl(214 30% 20% / 0.06);
-  --shadow-cta: 0 18px 40px -14px hsl(16 71% 42% / 0.55), 0 4px 12px -4px hsl(16 71% 42% / 0.35);
+  --shadow-cta: 0 8px 20px -6px hsl(214 30% 20% / 0.18), 0 2px 6px hsl(214 30% 20% / 0.08);
 
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --section-y: 4rem;
@@ -150,7 +150,7 @@
   --shadow-e2: 0 4px 16px hsl(0 0% 0% / 0.28);
   --shadow-e3: 0 12px 32px hsl(0 0% 0% / 0.36);
   --shadow-e4: 0 32px 64px -16px hsl(0 0% 0% / 0.6);
-  --shadow-cta: 0 18px 40px -14px hsl(15 72% 58% / 0.45), 0 4px 12px -4px hsl(15 72% 58% / 0.3);
+  --shadow-cta: 0 12px 32px hsl(0 0% 0% / 0.36);
   color-scheme: dark;
 }
 
@@ -333,13 +333,6 @@
   }
   .surface-sunken {
     background-color: var(--sunken);
-    background-image: linear-gradient(
-      to bottom,
-      var(--background),
-      var(--sunken) 40px,
-      var(--sunken) calc(100% - 40px),
-      var(--background)
-    );
   }
   .measure {
     max-width: 68ch;
@@ -435,9 +428,7 @@
     top: var(--topbanner-h);
     z-index: 50;
     width: 100%;
-    background: color-mix(in srgb, var(--background) 72%, transparent);
-    -webkit-backdrop-filter: blur(20px) saturate(180%);
-    backdrop-filter: blur(20px) saturate(180%);
+    background: var(--background);
     border-bottom: 1px solid transparent;
     transition:
       border-color 0.3s ease,
@@ -448,11 +439,6 @@
   }
   .site-chrome[data-hidden='true'] {
     transform: translateY(calc(-100% - var(--topbanner-h)));
-  }
-  @supports not (backdrop-filter: blur(1px)) {
-    .site-chrome {
-      background: color-mix(in srgb, var(--background) 96%, transparent);
-    }
   }
   @media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
     .site-chrome,
@@ -544,9 +530,7 @@
     inset: calc(var(--topbanner-h) + var(--header-h)) 0 0 0;
     z-index: 45;
     overflow-y: auto;
-    background: color-mix(in srgb, var(--background) 96%, transparent);
-    -webkit-backdrop-filter: blur(24px);
-    backdrop-filter: blur(24px);
+    background: var(--background);
     transform-origin: 50% 0;
   }
   .mobile-menu:not([hidden]) {
@@ -2603,7 +2587,7 @@
     height: 1px;
     max-width: 72rem;
     margin-inline: auto;
-    background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--border-strong) 70%, transparent) 28%, color-mix(in srgb, var(--border-strong) 70%, transparent) 72%, transparent);
+    background: var(--border);
   }
 
   /* Sections below the fold rise in once; the resting state is the visible one. */
@@ -2688,25 +2672,6 @@
     position: relative;
     isolation: isolate;
     overflow: clip;
-  }
-  .hero-bg {
-    position: absolute;
-    inset: 0;
-    z-index: -1;
-    background:
-      radial-gradient(42rem 26rem at 88% 8%, color-mix(in srgb, var(--primary) 13%, transparent), transparent 70%),
-      radial-gradient(36rem 24rem at 4% 0%, color-mix(in srgb, var(--navy) 10%, transparent), transparent 68%),
-      linear-gradient(to bottom, transparent 62%, var(--background));
-  }
-  .hero-bg::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background-image:
-      linear-gradient(to right, color-mix(in srgb, var(--border-strong) 22%, transparent) 1px, transparent 1px),
-      linear-gradient(to bottom, color-mix(in srgb, var(--border-strong) 22%, transparent) 1px, transparent 1px);
-    background-size: 56px 56px;
-    mask-image: radial-gradient(60rem 30rem at 70% 20%, #000, transparent 75%);
   }
   .hero-demo {
     position: relative;
@@ -3938,8 +3903,7 @@
     outline: 2px solid Highlight;
     outline-offset: -2px;
   }
-  .tab-indicator,
-  .hero-bg {
+  .tab-indicator {
     display: none;
   }
   .scroll-progress,
@@ -4146,7 +4110,7 @@
     content: '';
     flex: 1;
     height: 1px;
-    background: linear-gradient(90deg, var(--border-strong), transparent);
+    background: var(--border);
   }
   .cap-group .cap-mini {
     height: 10.5rem;
@@ -4254,11 +4218,9 @@
 }
 
 @layer components {
-  /* Miniatures are crops of real output: start at the top and fade out, rather than cut mid-row. */
+  /* Miniatures are crops of real output: start at the top. */
   .cap-group .cap-mini {
     align-items: flex-start;
-    -webkit-mask-image: linear-gradient(#000 80%, transparent);
-    mask-image: linear-gradient(#000 80%, transparent);
   }
   .cap-group .cap-mini:has(> .mini-image, > .mini-pdf, > .mini-shots, > .mini-palette) {
     align-items: center;
@@ -4297,4 +4259,412 @@ picture {
   color: var(--muted-foreground);
   font-size: 0.875rem;
   max-width: 70ch;
+}
+
+/*
+ * ---- Landing page staging ("im-") -------------------------------------------------------
+ * Flat colours and sharp edges only: no gradient, no glow, no glass. Site tokens only, so
+ * both themes work. Outside @layer on purpose: these rules restyle elements that also carry
+ * layout utilities.
+ */
+.im-dots {
+  display: inline-flex;
+  gap: 0.375rem;
+}
+.im-dots::before,
+.im-dots::after {
+  content: '';
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--code-muted);
+}
+
+/* Hero: text on the left, a wall of response miniatures in perspective on the right, cut on the bias. */
+.im-wall {
+  display: none;
+}
+@media (min-width: 1024px) {
+  .hero {
+    --im-first: max(36rem, calc(100svh - var(--topbanner-h) - var(--header-h)));
+  }
+  .hero > .shell {
+    display: block;
+    padding-top: 0;
+  }
+  .hero > .shell > div:first-child {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    max-width: min(40rem, 47%);
+    min-height: var(--im-first);
+    padding-block: 2.5rem;
+  }
+  .im-wall {
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: 50%;
+    z-index: -1;
+    display: block;
+    height: var(--im-first);
+    overflow: hidden;
+    background: var(--navy-deep);
+    clip-path: polygon(18% 0, 100% 0, 100% 100%, 0 100%);
+  }
+  /* The demo keeps all of its content, right under the first screen. */
+  .hero-demo {
+    margin-top: 4rem;
+  }
+  .hero-results {
+    grid-template-columns: minmax(0, 1.3fr) minmax(0, 0.6fr) minmax(0, 1.3fr);
+  }
+  .hero-tile-json {
+    grid-column: auto;
+  }
+}
+.im-wall-inner {
+  position: absolute;
+  inset: -12% 0;
+  opacity: 0;
+  transition: opacity 0.8s ease;
+}
+.im-wall.is-ready .im-wall-inner {
+  opacity: 1;
+}
+.im-wall-stage {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 2300px;
+  height: 2300px;
+  translate: -50% -50%;
+}
+.im-wall-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 26px;
+  width: 100%;
+  height: 100%;
+  transform: rotateX(55deg) rotateZ(-45deg);
+  transform-origin: center;
+}
+.im-wall-col {
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+}
+.cap-mini.im-tile {
+  flex: none;
+  align-items: flex-start;
+  height: 172px;
+  padding: 0.875rem;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card);
+  zoom: 1.2;
+}
+.cap-mini.im-tile:has(> .mini-image, > .mini-pdf, > .mini-shots, > .mini-palette) {
+  align-items: center;
+}
+@media (prefers-reduced-motion: no-preference) {
+  :root:not(.reduce-motion) .im-wall-col {
+    animation: im-drift 14s ease-in-out infinite alternate;
+  }
+  :root:not(.reduce-motion) .im-wall-col:nth-child(even) {
+    animation-duration: 19s;
+    animation-direction: alternate-reverse;
+  }
+  .im-wall.is-paused .im-wall-col {
+    animation-play-state: paused;
+  }
+}
+@keyframes im-drift {
+  from {
+    transform: translate3d(0, -140px, 0);
+  }
+  to {
+    transform: translate3d(0, 140px, 0);
+  }
+}
+
+/* Capabilities: the list scrolls, a fixed stage shows the response of the card being read (desktop, with script). */
+.im-stage {
+  display: none;
+}
+@media (min-width: 1024px) {
+  .im-caps.im-on {
+    display: grid;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+    gap: 3.5rem;
+    align-items: start;
+  }
+  .im-on .im-stage {
+    position: sticky;
+    top: calc(var(--topbanner-h) + var(--header-h) + 1.5rem);
+    display: block;
+  }
+  .im-on .cap-group ul {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+  .im-on .cap-card {
+    height: auto;
+    border: 0;
+    border-left: 3px solid var(--border);
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    transition: none;
+  }
+  .im-on .cap-card:hover {
+    transform: none;
+    box-shadow: none;
+  }
+  .im-on li.is-active .cap-card {
+    border-left-color: var(--primary);
+    background: var(--card);
+  }
+  .im-on .cap-body {
+    padding: 1.125rem 1.5rem;
+  }
+  /* The miniature stays in the card for assistive technology; visually, the stage shows it. */
+  .im-on .cap-card > .cap-mini {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+    border: 0;
+    clip-path: inset(50%);
+  }
+  .im-stage-frame {
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: 1rem;
+    background: var(--card);
+  }
+  .im-stage-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.875rem;
+    padding: 0.75rem 1rem;
+    background: var(--code-bg);
+    color: var(--code-fg);
+    font-size: 0.8125rem;
+  }
+  .im-stage-tag {
+    color: var(--tok-str);
+    font-weight: 700;
+  }
+  .im-stage-count {
+    margin-left: auto;
+    color: var(--code-muted);
+  }
+  .im-stage-view {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    aspect-ratio: 16 / 10;
+    max-height: calc(100svh - var(--topbanner-h) - var(--header-h) - 10rem);
+    width: 100%;
+    overflow: hidden;
+    background: var(--sunken);
+  }
+  .cap-mini.im-stage-mini {
+    width: 100%;
+    height: auto;
+    max-height: 100%;
+    padding: 1rem 1.25rem;
+    border: 0;
+    zoom: 1.8;
+  }
+  .im-stage-title {
+    padding: 1rem 1.25rem;
+    border-top: 1px solid var(--border);
+    color: var(--navy);
+    font-family: var(--font-display);
+    font-size: 1.25rem;
+    font-weight: 700;
+  }
+}
+
+/* Lighthouse cards: the whole capture in a browser frame, the measured scores as rings. */
+.im-proofs {
+  margin-top: 3.5rem;
+}
+.im-proof-list {
+  display: grid;
+  gap: 1.5rem;
+  margin-block: 1.25rem 1.5rem;
+}
+.im-proof {
+  display: grid;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 1.25rem;
+  background: var(--card);
+}
+.im-browser {
+  min-width: 0;
+  background: var(--code-bg);
+}
+.im-browser-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  padding: 0.625rem 1rem;
+  overflow: hidden;
+  color: var(--code-muted);
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+.im-browser img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+}
+.im-proof-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  justify-content: center;
+  min-width: 0;
+  padding: 1.5rem;
+}
+.im-proof-body h4 {
+  font-size: 1.75rem;
+}
+.im-scores {
+  display: grid;
+  gap: 1.25rem;
+}
+.im-score-row dt {
+  margin-bottom: 0.625rem;
+  color: var(--muted-foreground);
+  font-family: var(--font-display);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.im-score-row ul {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem 0.5rem;
+}
+@media (min-width: 480px) {
+  .im-score-row ul {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+.im-ring {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.375rem;
+  min-width: 0;
+  text-align: center;
+}
+.im-ring svg {
+  width: 100%;
+  max-width: 5rem;
+  height: auto;
+  transform: rotate(-90deg);
+}
+.im-ring circle {
+  fill: none;
+  stroke-width: 3.5;
+}
+.im-ring-track {
+  stroke: var(--border);
+}
+.im-ring-value {
+  stroke: var(--ok);
+}
+.im-ring-n {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: min(100%, 5rem);
+  aspect-ratio: 1;
+  translate: -50% 0;
+  color: var(--foreground);
+  font-size: clamp(1rem, 4.6vw, 1.375rem);
+  font-weight: 700;
+}
+.im-ring-l {
+  max-width: 100%;
+  color: var(--muted-foreground);
+  font-size: 0.6875rem;
+  line-height: 1.25;
+}
+@media (min-width: 1024px) {
+  .im-proof {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  }
+  .im-proof-body {
+    padding: 2rem;
+  }
+  .im-ring-n {
+    font-size: 1.375rem;
+  }
+}
+/* The cards stack while scrolling, when the screen is tall enough to show a whole one. */
+@media (min-width: 1024px) and (min-height: 760px) {
+  .im-proof {
+    position: sticky;
+    top: calc(var(--topbanner-h) + var(--header-h) + 1rem);
+  }
+  .im-proof:nth-child(2) {
+    top: calc(var(--topbanner-h) + var(--header-h) + 1.75rem);
+  }
+  .im-proof:nth-child(3) {
+    top: calc(var(--topbanner-h) + var(--header-h) + 2.5rem);
+  }
+}
+
+/* Closing call in very large type, in one piece with the footer, which ends on the brand name as a watermark. */
+.im-cta {
+  background: var(--navy-deep);
+}
+.im-cta .cta-band {
+  max-width: 80rem;
+  margin-inline: auto;
+  padding-block: clamp(4rem, 10vw, 8rem) clamp(2.5rem, 5vw, 4rem);
+  border-radius: 0;
+  background: transparent;
+}
+.im-cta .cta-band h2 {
+  max-width: none;
+  font-size: clamp(2.5rem, 7.2vw, 6.5rem);
+  line-height: 0.98;
+  letter-spacing: -0.04em;
+}
+.site-footer {
+  overflow: hidden;
+  border-top: 1px solid hsl(0 0% 100% / 0.15);
+}
+/* Drawn by a pseudo-element: it is decoration, not text to be read or audited for contrast. */
+.im-filigrane::before {
+  content: attr(data-mark);
+}
+.im-filigrane {
+  margin-bottom: -0.08em;
+  overflow: hidden;
+  color: hsl(0 0% 100% / 0.08);
+  font-family: var(--font-display);
+  font-size: clamp(4rem, 21.5vw, 19.5rem);
+  font-weight: 800;
+  line-height: 0.76;
+  letter-spacing: -0.05em;
+  text-align: center;
+  white-space: nowrap;
+  user-select: none;
 }

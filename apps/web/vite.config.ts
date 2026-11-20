@@ -215,7 +215,9 @@ function llmsFullTxt(): string {
 /** Brotli-compressed weight allowed for one page: its HTML plus the scripts and styles it loads. */
 // The reference went from 55 to 58 when its spec-driven sections (17 endpoints, about 80 parameter
 // descriptions) gained French text: French runs longer than the English it replaced on French pages.
-const BUDGET_KB: Readonly<Record<string, number>> = { home: 75, playground: 70, docs: 58, default: 45 };
+// The landing page went from 75 to 77 with its staging (hero wall, capability stage, Lighthouse cards):
+// about 1.3 kB of styles shared by every page, and the script and markup of the cards on this page.
+const BUDGET_KB: Readonly<Record<string, number>> = { home: 77, playground: 70, docs: 58, default: 45 };
 
 function checkBudget(outDir: string): void {
   const brotli = (file: string): number => brotliCompressSync(readFileSync(file)).length;
