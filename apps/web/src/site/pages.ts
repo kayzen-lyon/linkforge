@@ -286,7 +286,7 @@ function home(): string {
 
   return `<main id="main" class="page-main" tabindex="-1">
       <section class="hero" aria-labelledby="hero-title">
-        <div class="hero-bg" aria-hidden="true"></div>
+        <div class="im-wall" aria-hidden="true" inert></div>
         <div class="shell grid items-center gap-12 pt-10 pb-16 md:pt-16 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:gap-14 lg:pb-24">
           <div class="min-w-0">
             <p class="eyebrow mb-5" ${t('hero.eyebrow')}></p>
@@ -315,7 +315,18 @@ function home(): string {
       <section id="features" class="section-y" aria-labelledby="cap-title">
         <div class="shell">
         ${head('cap.eyebrow', 'cap.title', 'cap.lead', 'cap-title')}
+          <div class="im-caps">
+          <div class="im-caps-list">
           ${capabilityGroups()}
+          </div>
+          <aside class="im-stage" aria-hidden="true">
+            <div class="im-stage-frame">
+              <p class="im-stage-bar"><span class="im-dots"></span><span class="im-stage-tag mono"></span><span class="im-stage-count mono"></span></p>
+              <div class="im-stage-view"></div>
+              <p class="im-stage-title"></p>
+            </div>
+          </aside>
+          </div>
           <p class="mt-6 text-sm text-muted-foreground"><span ${t('cap.captured')}></span> <time datetime="${SAMPLES.capturedOn}" data-date></time>.</p>
           <div id="cap-more" class="mt-12" hidden>
             <h3 class="mb-2" ${t('cap.more.title')}></h3>
@@ -336,7 +347,7 @@ function home(): string {
             ${proof('open', 'code', REPO_URL)}
             ${proof('scope', 'info', PAGES.limits)}
           </ul>
-          ${labScores() === '' ? '' : `<div class="lab-block reveal"><h3 class="lab-title" ${t('lab.title')}></h3>${labScores()}</div>`}
+          ${labCards()}
         </div>
       </section>
 
@@ -466,7 +477,7 @@ function home(): string {
         </div>
       </section>
 
-      <section class="shell section-y" aria-labelledby="cta-title">
+      <section class="im-cta" aria-labelledby="cta-title">
         <div class="cta-band flex flex-col gap-6 px-6 py-12 md:px-12 md:py-16" data-reveal>
           <h2 id="cta-title" class="max-w-3xl" ${t('cta.title')}></h2>
           <p class="max-w-2xl text-lg" ${t('cta.lead')}></p>
@@ -656,6 +667,44 @@ function labScores(): string {
               <tbody>${LAB.runs.map((run) => `<tr><th scope="row" ${t(`lab.page.${run.page}`)}></th><td ${t(`lab.form.${run.form}`)}></td>${cell('performance', run.performance)}${cell('accessibility', run.accessibility)}${cell('practices', run.bestPractices)}${cell('seo', run.seo)}</tr>`).join('')}</tbody>
             </table></div>
             <p class="lab-meta mono">Lighthouse ${escapeHtml(LAB.lighthouse)} · Chromium ${escapeHtml(LAB.chrome)} · <time datetime="${escapeHtml(LAB.measuredOn)}">${escapeHtml(LAB.measuredOn)}</time></p>
+            <p class="rich lab-note" ${t('lab.note')}></p>
+          </div>`;
+}
+
+/**
+ * The same scores on the landing page: one card per measured page, with a whole
+ * capture of that page (scripts/capture-site.mjs) and its eight scores as rings.
+ */
+function labCards(): string {
+  if (LAB === null || LAB.runs.length === 0) return '';
+  const lab = LAB;
+  const ring = (key: string, value: number): string =>
+    `<li class="im-ring"><svg viewBox="0 0 44 44" aria-hidden="true" focusable="false"><circle class="im-ring-track" cx="22" cy="22" r="19" /><circle class="im-ring-value" cx="22" cy="22" r="19" pathLength="100" stroke-dasharray="${value} 100" /></svg><span class="im-ring-n mono">${value}</span><span class="im-ring-l" ${t(`lab.th.${key}`)}></span></li>`;
+  const row = (run: LabRun): string =>
+    `<div class="im-score-row"><dt ${t(`lab.form.${run.form}`)}></dt><dd><ul>${ring('performance', run.performance)}${ring('accessibility', run.accessibility)}${ring('practices', run.bestPractices)}${ring('seo', run.seo)}</ul></dd></div>`;
+  const stamp = `<time datetime="${escapeHtml(lab.measuredOn)}">${escapeHtml(lab.measuredOn)}</time>`;
+  const card = (page: 'home' | 'playground' | 'docs', link: string): string =>
+    `<li class="im-proof">
+              <figure class="im-browser">
+                <p class="im-browser-bar" aria-hidden="true"><span class="im-dots"></span><span class="mono">${escapeHtml(`${SITE_ORIGIN.replace('https://', '')}${PAGES[page]}`)}</span></p>
+                <img src="/samples/site-${page}.webp" alt="" width="960" height="540" loading="lazy" decoding="async" />
+              </figure>
+              <div class="im-proof-body">
+                <h4 ${t(`lab.page.${page}`)}></h4>
+                <dl class="im-scores">${lab.runs.filter((run) => run.page === page).map(row).join('')}</dl>
+                <p class="lab-meta mono">Lighthouse ${escapeHtml(lab.lighthouse)} · ${stamp}</p>
+                ${link === '' ? '' : `<p><a class="text-link" href="${PAGES[page]}"><span class="link-grow" ${t(link)}></span>${icon('arrowRight', 'size-4')}</a></p>`}
+              </div>
+            </li>`;
+  return `<div class="im-proofs">
+            <h3 class="lab-title" ${t('lab.title')}></h3>
+            <p class="sr-only" ${t('lab.caption')}></p>
+            <ol class="im-proof-list">
+            ${card('home', '')}
+            ${card('playground', 'nav.playground')}
+            ${card('docs', 'nav.docs')}
+            </ol>
+            <p class="lab-meta mono">Lighthouse ${escapeHtml(lab.lighthouse)} · Chromium ${escapeHtml(lab.chrome)} · ${stamp}</p>
             <p class="rich lab-note" ${t('lab.note')}></p>
           </div>`;
 }

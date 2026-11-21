@@ -11,6 +11,7 @@ import { initTablist, markSelected } from '../lib/tablist';
 import { PAGES, localizeHref } from '../site/config';
 import { iconNode } from '../site/icons';
 import { initShared } from '../site/shared';
+import { initImmersive } from './immersive';
 
 type Key = keyof typeof common | keyof typeof home | keyof typeof consoleText;
 
@@ -89,4 +90,5 @@ export function startHome(i18n: I18n<Key>): void {
   initUseCases();
   initCapabilities(i18n);
   initDates(i18n);
+  initImmersive();
 }
